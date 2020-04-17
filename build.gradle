@@ -1,0 +1,176 @@
+buildscript {
+    ext {
+        kotlin_version  = '1.3.50'
+        sharedDir       = file("${project.rootDir}/shared")
+    }
+
+    repositories {
+        maven {
+            name 'MavenLocal' // for local builds only
+            url sharedDir
+        }
+        if (project.hasProperty('repository')) {
+            maven {
+                name 'UserRepository'
+                url project.repository
+                if (project.hasProperty('repositoryAccount') && project.hasProperty('repositoryPassword')) {
+                    credentials {
+                        username project.repositoryAccount
+                        password project.repositoryPassword
+                    }
+                }
+            }
+        } else {
+            maven {
+                name 'Artifactory-snapshot'
+                url 'http://artifactory5.exp.exactpro.com/artifactory/libs-snapshot'
+            }
+            maven {
+                name 'Artifactory-release'
+                url 'http://artifactory5.exp.exactpro.com/artifactory/libs-release'
+            }
+        }
+        jcenter()
+
+        configurations.all {
+            resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+            resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+        }
+    }
+
+    dependencies {
+        classpath group: 'org.jetbrains.kotlin', name: 'kotlin-gradle-plugin', version: "${kotlin_version}"
+    }
+}
+
+
+plugins {
+    id 'com.google.protobuf' version '0.8.8' apply true
+    id 'com.palantir.docker' version '0.25.0' apply false
+    id "de.undercouch.download" version "4.0.4" apply false
+    id "com.jfrog.artifactory" version '4.15.1'
+}
+
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'kotlin'
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.jfrog.artifactory'
+
+    ext {
+        version_slf4j       = '1.7.30'
+        grpc_version        = '1.27.1'
+        protobuf_version    = '3.11.0'
+        grpcVersion         = '1.27.1'
+        sailfishVersion     = '3.2-SNAPSHOT'
+        cassandra_version   = '3.6.0'
+        kotlin_version      = '1.3.50'
+
+        genDir              = file('src/gen')
+        scriptsDir          = file("${projectDir}/scripts")
+        configurationsDir   = file("${projectDir}/configurations")
+        sharedDir           = file("${project.rootDir}/shared")
+    }
+
+    version = "${version_major}.${version_minor}-SNAPSHOT"
+
+    group = 'com.exactpro.th2'
+
+    repositories {
+        maven {
+            name 'MavenLocal'
+            url sharedDir
+        }
+        mavenCentral()
+        maven {
+            name 'Artifactory snapshot'
+            url 'http://artifactory5.exp.exactpro.com/artifactory/libs-snapshot'
+        }
+        mavenLocal()
+
+        configurations.all {
+            resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+            resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+        }
+    }
+
+    dependencies {
+        compile "com.exactpro.th2:th2-common:0.1-SNAPSHOT"
+        compile "com.exactpro.th2:grpc-api:0.1-SNAPSHOT"
+        compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: "${kotlin_version}"
+        compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: "${kotlin_version}"
+        compile "org.slf4j:slf4j-log4j12:${version_slf4j}"
+        compile "org.slf4j:slf4j-api:${version_slf4j}"
+        compile "com.datastax.cassandra:cassandra-driver-core:${cassandra_version}"
+
+        testImplementation 'junit:junit:4.12'
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'localRepo'
+                url = sharedDir
+            }
+        }
+    }
+
+    artifactoryPublish.skip = true
+
+    artifactory {
+        publish {
+            defaults {
+                // Reference to Gradle publications defined in the build script.
+                // This is how we tell the Artifactory Plugin which artifacts should be
+                // published to Artifactory.
+                publications('mavenJava')
+                publishArtifacts = true
+                publishBuildInfo = true
+                // Properties to be attached to the published artifacts.
+                publishPom = true
+            }
+        }
+    }
+    
+    sourceSets {
+        main {
+            java {
+                srcDirs 'src/main/java', 'src/gen/main/java', 'src/gen/main/grpc'
+            }
+        }
+    }
+
+    protobuf {
+        protoc {
+            artifact = "com.google.protobuf:protoc:3.11.0"
+
+        }
+        plugins {
+            grpc {
+                artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+            }
+        }
+        generateProtoTasks.generatedFilesBaseDir = "${projectDir}/src/gen" //FIXME: Hot fix because files are generated in project from executed build
+        generateProtoTasks {
+            all()*.plugins {
+                grpc {}
+            }
+            ofSourceSet('main')
+        }
+    }
+
+    clean {
+        delete genDir
+    }
+}
+
+
+version '0.1-SNAPSHOT'
+
+sourceCompatibility = 1.8
