@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.exactpro.evolution.api.phase_1.Message;
@@ -27,17 +28,17 @@ import com.exactpro.evolution.api.phase_1.Value;
 import com.exactpro.evolution.api.phase_1.Value.KindCase;
 
 public abstract class MessageCompareRule extends AbstractRule {
-    public static final String MESSAGE_NAME = "MessageName";
+    public static final String MESSAGE_NAME = "#MessageName";
 
     public MessageCompareRule(int id, @Nullable Map<String, String> arguments) {
         super(id, arguments);
     }
 
     @Override
-    public boolean checkTriggered(Message message) {
+    public boolean checkTriggered(@NotNull Message message) {
         if (getArguments().get(MESSAGE_NAME).equals(message.getMetadata().getMessageType())) {
             return getArguments().entrySet().stream().allMatch(entry -> {
-                if (entry.getKey().equals(MESSAGE_NAME)) {
+                if (entry.getKey().startsWith("#")) {
                     return true;
                 } else {
                     Value fieldValue = message.getFieldsOrDefault(entry.getKey(), Value
@@ -55,7 +56,7 @@ public abstract class MessageCompareRule extends AbstractRule {
     }
 
     @Override
-    public List<Message> handle(Message message) {
+    public @NotNull List<Message> handle(@NotNull Message message) {
         if (checkTriggered(message)) {
             return handleTriggered(message);
         } else {
@@ -63,5 +64,5 @@ public abstract class MessageCompareRule extends AbstractRule {
         }
     }
 
-    public abstract List<Message> handleTriggered(Message message);
+    public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
 }

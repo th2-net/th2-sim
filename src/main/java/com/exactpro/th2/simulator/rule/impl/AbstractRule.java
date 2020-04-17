@@ -15,7 +15,7 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl;
 
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.jetbrains.annotations.NotNull;
@@ -30,8 +30,8 @@ public abstract class AbstractRule implements IRule {
 
     public AbstractRule(int id, @Nullable Map<String, String> arguments) {
         this.id = id;
-        this.arguments = arguments == null ? Collections.emptyMap() : arguments;
-        postInit(arguments);
+        this.arguments = arguments == null ? new HashMap<>() : arguments;
+        postInit(this.arguments);
     }
 
     protected void postInit(@NotNull Map<String, String> arguments) {}

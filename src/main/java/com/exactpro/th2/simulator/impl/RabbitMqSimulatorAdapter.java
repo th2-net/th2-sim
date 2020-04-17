@@ -23,13 +23,20 @@ import org.slf4j.LoggerFactory;
 
 import com.exactpro.evolution.RabbitMqMessageSender;
 import com.exactpro.evolution.RabbitMqSubscriber;
+import com.exactpro.evolution.api.phase_1.ConnectivityGrpc;
+import com.exactpro.evolution.api.phase_1.ConnectivityGrpc.ConnectivityBlockingStub;
 import com.exactpro.evolution.api.phase_1.Message;
 import com.exactpro.evolution.api.phase_1.QueueInfo;
+import com.exactpro.evolution.api.phase_1.QueueRequest;
 import com.exactpro.evolution.configuration.RabbitMQConfiguration;
-import com.exactpro.sf.common.util.EPSCommonException;
+import com.exactpro.evolution.configuration.Th2Configuration.Address;
 import com.exactpro.th2.simulator.IServiceSimulator;
+import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.rabbitmq.client.Delivery;
+
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 
 public class RabbitMqSimulatorAdapter implements AutoCloseable {
 
@@ -38,17 +45,35 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
     private final IServiceSimulator simulator;
     private final RabbitMqSubscriber subscriber;
     private final RabbitMqMessageSender sender;
+    private final RabbitMQConfiguration rabbitConf;
 
-    public RabbitMqSimulatorAdapter(IServiceSimulator simulator, RabbitMQConfiguration rabbitConf, QueueInfo queueInfo, String connectivityId) {
+    public RabbitMqSimulatorAdapter(IServiceSimulator simulator, SimulatorConfiguration configuration) {
         this.simulator = simulator;
 
-        subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
-                this::processIncomingMessage,
-                null,
-                queueInfo.getInMsgQueue());
+        Address connectivityAddress = configuration.getTh2().getConnectivityAddresses().get(configuration.getConnectivityID());
 
-        sender = new RabbitMqMessageSender(rabbitConf, connectivityId, queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
+        if (connectivityAddress == null) {
+            throw new IllegalStateException("Please add connectivity address with name: " + configuration.getConnectivityID());
+        }
 
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(connectivityAddress.getHost(), connectivityAddress.getPort()).usePlaintext().build();
+        try {
+            ConnectivityBlockingStub blockingStub = ConnectivityGrpc.newBlockingStub(channel);
+            QueueInfo queueInfo = blockingStub.getQueueInfo(QueueRequest.newBuilder().build());
+
+            subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
+                    this::processIncomingMessage,
+                    null,
+                    queueInfo.getInMsgQueue());
+
+            rabbitConf = configuration.getRabbitMQ();
+            sender = new RabbitMqMessageSender(rabbitConf, configuration.getConnectivityID(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
+        } finally {
+            channel.shutdown();
+        }
+    }
+
+    public void start() {
         try {
             subscriber.startListening(rabbitConf.getHost(),
                     rabbitConf.getVirtualHost(),
@@ -56,17 +81,21 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
                     rabbitConf.getUsername(),
                     rabbitConf.getPassword());
         } catch (IOException | TimeoutException e) {
-            throw new EPSCommonException("Can not start listening rabbit mq", e);
+            throw new IllegalStateException("Can not start listening rabbit mq", e);
         }
     }
 
     private void processIncomingMessage(String consumingTag, Delivery delivery) {
         try {
             Message message = Message.parseFrom(delivery.getBody());
+            if (message == null) {
+                return;
+            }
+
             for (Message messageToSend : simulator.handle(message)) {
                 try {
                     sender.send(messageToSend);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     logger.error("Can not send message", e);
                 }
             }

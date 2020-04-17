@@ -21,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
     private final Map<Integer, IRule> rules;
     private final Set<Integer> enableRules;
 
-    private AtomicInteger nextId = new AtomicInteger(0);
+    private AtomicInteger nextId = new AtomicInteger(1);
 
 
     public ServiceSimulator() {
@@ -76,7 +77,7 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
             try {
                 IRule rule = ruleClass
                         .getConstructor(Integer.TYPE, Map.class)
-                        .newInstance(nextId.getAndIncrement(), request.getArgumentsMap());
+                        .newInstance(nextId.getAndIncrement(), request.getArgumentsCount() > 0 ? new HashMap<>(request.getArgumentsMap()) : new HashMap<>());
 
                 rules.put(rule.getId(), rule);
 
@@ -85,6 +86,7 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
                 }
 
                 responseObserver.onNext(createRuleInfo(rule));
+                responseObserver.onCompleted();
             } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 String errorMessage = "Can not create rule with type: " + request.getType();
                 logger.error(errorMessage);
@@ -92,7 +94,6 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
                 ruleTypes.remove(request.getType());
             }
         }
-        responseObserver.onCompleted();
     }
 
     @Override

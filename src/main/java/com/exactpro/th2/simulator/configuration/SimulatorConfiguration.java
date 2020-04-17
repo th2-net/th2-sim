@@ -13,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.rule;
+package com.exactpro.th2.simulator.configuration;
 
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
 
-import org.jetbrains.annotations.NotNull;
+import org.apache.commons.lang3.ObjectUtils;
 
-import com.exactpro.evolution.api.phase_1.Message;
+import com.exactpro.evolution.configuration.MicroserviceConfiguration;
 
-public interface IRule {
+public class SimulatorConfiguration extends MicroserviceConfiguration {
 
-    int getId();
-    @NotNull String getType();
-    @NotNull Map<String, String> getArguments();
-    boolean checkTriggered(@NotNull Message message);
-    @NotNull List<Message> handle(@NotNull Message message);
+    public String getConnectivityID() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("ID"), "ID");
+    }
 
+    public static SimulatorConfiguration load(InputStream inputStream) throws IOException {
+        return (SimulatorConfiguration)YAML_READER.readValue(inputStream, SimulatorConfiguration.class);
+    }
 }

@@ -15,20 +15,23 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl
 
-import com.exactpro.evolution.IMessageToProtoConverter
+import com.datastax.oss.driver.api.core.uuid.Uuids
 import com.exactpro.evolution.api.phase_1.Message
-import com.exactpro.sf.common.messages.IMessageFactory
+import com.exactpro.evolution.api.phase_1.Metadata
 import com.exactpro.th2.simulator.rule.SimulatorRule
+import java.sql.Timestamp
+import java.time.LocalDateTime
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 
 @SimulatorRule("fix-rule")
-class FIXRule(id: Int, arguments: MutableMap<String, String>?, private var factory: IMessageFactory) : MessageCompareRule(id, arguments) {
+class FIXRule(id: Int, arguments: MutableMap<String, String>?) : MessageCompareRule(id, arguments) {
 
     companion object {
-        const val SEND_MESSAGE_NAME = "SendMessageName";
+        const val SEND_MESSAGE_NAME = "#SendMessageName"
+        val orderId = AtomicInteger(0)
+        val execId = AtomicInteger(0)
     }
-
-    private val converter: IMessageToProtoConverter = IMessageToProtoConverter()
 
     override fun postInit(arguments: MutableMap<String, String>) {
         arguments.putIfAbsent(MESSAGE_NAME, "NewOrderSingle")
@@ -39,11 +42,29 @@ class FIXRule(id: Int, arguments: MutableMap<String, String>?, private var facto
         return "fix-rule"
     }
 
-    override fun handleTriggered(message: Message?): MutableList<Message> {
-         return Collections.singletonList(converter
-             .toProtoMessage(factory
-                 .createMessage(arguments.get(SEND_MESSAGE_NAME))
-             ).build()
-         )
+    override fun handleTriggered(message: Message): MutableList<Message> {
+        return Collections.singletonList(
+            Message.newBuilder()
+                .setMetadata(Metadata.newBuilder()
+                    .setMessageId(Uuids.timeBased().toString())
+                    .setMessageType("ExecutionReport")
+                    .setConnectivityId(message.metadata.connectivityId)
+                    .setNamespace(message.metadata.namespace)
+                    .build())
+                .addField("OrderID", orderId.incrementAndGet().toString())
+                .addField("ExecID", execId.incrementAndGet().toString())
+                .addField("ExecType", "2")
+                .addField("OrdStatus", "0")
+                .copyField("Size", message)
+                .copyField("LeavesQty", message)
+                .addField("CumQty", "0")
+                .copyField("ClOrdID", message)
+                .copyField("SecurityID", message)
+                .copyField("SecurityIDSource", message)
+                .copyField("OrdType", message)
+                .copyField("OrderQty", message)
+                .addField("TransactTime", Timestamp.valueOf(LocalDateTime.now()).toString())
+                .build()
+        )
     }
 }
