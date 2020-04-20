@@ -49,48 +49,65 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
 
     public RabbitMqSimulatorAdapter(IServiceSimulator simulator, SimulatorConfiguration configuration) {
         this.simulator = simulator;
+        rabbitConf = configuration.getRabbitMQ();
 
-        Address connectivityAddress = configuration.getTh2().getConnectivityAddresses().get(configuration.getConnectivityID());
+        QueueInfo queueInfo = getQueueInfo(configuration);
 
-        if (connectivityAddress == null) {
-            throw new IllegalStateException("Please add connectivity address with name: " + configuration.getConnectivityID());
-        }
+        subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
+                this::processIncomingMessage,
+                null,
+                queueInfo.getInMsgQueue());
 
-        ManagedChannel channel = ManagedChannelBuilder.forAddress(connectivityAddress.getHost(), connectivityAddress.getPort()).usePlaintext().build();
-        try {
-            ConnectivityBlockingStub blockingStub = ConnectivityGrpc.newBlockingStub(channel);
-            QueueInfo queueInfo = blockingStub.getQueueInfo(QueueRequest.newBuilder().build());
-
-            subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
-                    this::processIncomingMessage,
-                    null,
-                    queueInfo.getInMsgQueue());
-
-            rabbitConf = configuration.getRabbitMQ();
-            sender = new RabbitMqMessageSender(rabbitConf, configuration.getConnectivityID(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
-        } finally {
-            channel.shutdown();
-        }
+        sender = new RabbitMqMessageSender(rabbitConf, configuration.getConnectivityID(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
     }
 
     public void start() {
-        try {
-            subscriber.startListening(rabbitConf.getHost(),
-                    rabbitConf.getVirtualHost(),
-                    rabbitConf.getPort(),
-                    rabbitConf.getUsername(),
-                    rabbitConf.getPassword());
-        } catch (IOException | TimeoutException e) {
-            throw new IllegalStateException("Can not start listening rabbit mq", e);
+        if (subscriber != null && rabbitConf != null) {
+            try {
+                subscriber.startListening(rabbitConf.getHost(),
+                        rabbitConf.getVirtualHost(),
+                        rabbitConf.getPort(),
+                        rabbitConf.getUsername(),
+                        rabbitConf.getPassword());
+            } catch (IOException | TimeoutException e) {
+                throw new IllegalStateException("Can not start listening rabbit mq", e);
+            }
         }
     }
 
-    private void processIncomingMessage(String consumingTag, Delivery delivery) {
+    @Override
+    public void close() throws Exception {
+        if (subscriber != null) {
+            try {
+                subscriber.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        if (sender != null) {
+            try {
+                sender.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void processIncomingMessage(String consumingTag, Delivery delivery) {
         try {
+
+            if (sender == null) {
+                logger.error("Can not process message, because sender did not init");
+                return;
+            }
+
             Message message = Message.parseFrom(delivery.getBody());
             if (message == null) {
                 return;
             }
+
+            logger.info("Handle message name = " + message.getMetadata().getMessageType());
+            logger.trace("Handle message body = " + message.toString());
 
             for (Message messageToSend : simulator.handle(message)) {
                 try {
@@ -104,10 +121,30 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
         }
     }
 
-    @Override
-    public void close() throws Exception {
-        subscriber.close();
-        sender.close();
+    private QueueInfo getQueueInfo(SimulatorConfiguration configuration) {
+        Address connectivityAddress = configuration.getTh2().getConnectivityAddresses().get(configuration.getConnectivityID());
+        QueueInfo queueInfo = null;
+        if (connectivityAddress != null) {
+            queueInfo =  downloadQueueInfo(connectivityAddress);
+        }
+
+        return queueInfo != null ? queueInfo :
+                QueueInfo
+                        .newBuilder()
+                        .setExchangeName(configuration.getExchangeName())
+                        .setInMsgQueue(configuration.getInMsgQueue())
+                        .setSendMsgQueue(configuration.getSendMsgQueue())
+                        .build();
+    }
+
+    private QueueInfo downloadQueueInfo(Address connectivityAddress) {
+        ManagedChannel channel = ManagedChannelBuilder.forAddress(connectivityAddress.getHost(), connectivityAddress.getPort()).usePlaintext().build();
+        try  {
+            ConnectivityBlockingStub blockingStub = ConnectivityGrpc.newBlockingStub(channel);
+            return blockingStub.getQueueInfo(QueueRequest.newBuilder().build());
+        } finally {
+            channel.shutdown();
+        }
     }
 
 }

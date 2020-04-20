@@ -18,8 +18,9 @@ package com.exactpro.th2.simulator.rule.impl
 import com.datastax.oss.driver.api.core.uuid.Uuids
 import com.exactpro.evolution.api.phase_1.Message
 import com.exactpro.evolution.api.phase_1.Metadata
+import com.exactpro.evolution.api.phase_1.NullValue.NULL_VALUE
+import com.exactpro.evolution.api.phase_1.Value
 import com.exactpro.th2.simulator.rule.SimulatorRule
-import java.sql.Timestamp
 import java.time.LocalDateTime
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,8 +30,8 @@ class FIXRule(id: Int, arguments: MutableMap<String, String>?) : MessageCompareR
 
     companion object {
         const val SEND_MESSAGE_NAME = "#SendMessageName"
-        val orderId = AtomicInteger(0)
-        val execId = AtomicInteger(0)
+        val orderId = AtomicInteger(1)
+        val execId = AtomicInteger(1)
     }
 
     override fun postInit(arguments: MutableMap<String, String>) {
@@ -48,14 +49,13 @@ class FIXRule(id: Int, arguments: MutableMap<String, String>?) : MessageCompareR
                 .setMetadata(Metadata.newBuilder()
                     .setMessageId(Uuids.timeBased().toString())
                     .setMessageType("ExecutionReport")
-                    .setConnectivityId(message.metadata.connectivityId)
                     .setNamespace(message.metadata.namespace)
                     .build())
                 .addField("OrderID", orderId.incrementAndGet().toString())
                 .addField("ExecID", execId.incrementAndGet().toString())
                 .addField("ExecType", "2")
                 .addField("OrdStatus", "0")
-                .copyField("Size", message)
+                .copyField("Side", message)
                 .copyField("LeavesQty", message)
                 .addField("CumQty", "0")
                 .copyField("ClOrdID", message)
@@ -63,7 +63,8 @@ class FIXRule(id: Int, arguments: MutableMap<String, String>?) : MessageCompareR
                 .copyField("SecurityIDSource", message)
                 .copyField("OrdType", message)
                 .copyField("OrderQty", message)
-                .addField("TransactTime", Timestamp.valueOf(LocalDateTime.now()).toString())
+                .putFields("TradingParty", Value.newBuilder().setNullValue(NULL_VALUE).build())
+                .addField("TransactTime", LocalDateTime.now().toString())
                 .build()
         )
     }

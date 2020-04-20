@@ -28,6 +28,18 @@ public class SimulatorConfiguration extends MicroserviceConfiguration {
         return (String)ObjectUtils.defaultIfNull(System.getenv("ID"), "ID");
     }
 
+    public String getExchangeName() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("EXCHANGE_NAME"), "EXCHANGE_NAME");
+    }
+
+    public String getInMsgQueue() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("IN_MSG_QUEUE"), "IN_MSG_QUEUE");
+    }
+
+    public String getSendMsgQueue() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("SEND_MSG_QUEUE"), "SEND_MSG_QUEUE");
+    }
+
     public static SimulatorConfiguration load(InputStream inputStream) throws IOException {
         return (SimulatorConfiguration)YAML_READER.readValue(inputStream, SimulatorConfiguration.class);
     }

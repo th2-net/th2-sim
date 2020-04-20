@@ -50,16 +50,4 @@ public class ServiceSimulatorMain {
             return new SimulatorConfiguration();
         }
     }
-
-//    private static Message createNewOrderSingle() {
-//        return Message.newBuilder()
-//                .setMetadata(Metadata.newBuilder()
-//                        .setConnectivityId(ConnectivityId.newBuilder().setConnectivityId("fix-server").setSessionId(SessionId.newBuilder().setSessionAlias("alias").build()).build())
-//                        .setMessageType("NewOrderSingle")
-//                        .setNamespace("namespace")
-//                        .setMessageId(Uuids.timeBased().toString())
-//                        .build())
-//                .putFields("Size", Value.newBuilder().setSimpleValue("123").build())
-//                .build();
-//    }
 }

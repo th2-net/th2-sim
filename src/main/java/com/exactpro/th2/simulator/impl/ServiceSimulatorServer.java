@@ -25,19 +25,19 @@ import io.grpc.netty.NettyServerBuilder;
 public class ServiceSimulatorServer {
 
     private final Server server;
-    //private final RabbitMqSimulatorAdapter adapter;
+    private final RabbitMqSimulatorAdapter adapter;
 
 
     public ServiceSimulatorServer(SimulatorConfiguration configuration) {
         ServiceSimulator simulator = new ServiceSimulator();
         server = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator).build();
-        //adapter = new RabbitMqSimulatorAdapter(simulator, configuration);
+        adapter = new RabbitMqSimulatorAdapter(simulator, configuration);
     }
 
     public void start(){
         try {
             server.start();
-            //adapter.start();
+            adapter.start();
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -61,13 +61,13 @@ public class ServiceSimulatorServer {
             e.printStackTrace(System.err);
         }
 
-//        if (adapter != null) {
-//            try {
-//                adapter.close();
-//            } catch (Exception e) {
-//                e.printStackTrace(System.err);
-//            }
-//        }
+        if (adapter != null) {
+            try {
+                adapter.close();
+            } catch (Exception e) {
+                e.printStackTrace(System.err);
+            }
+        }
     }
 
     public void blockUntilShutdown() throws InterruptedException {
