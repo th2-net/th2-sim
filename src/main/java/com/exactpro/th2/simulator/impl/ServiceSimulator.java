@@ -145,6 +145,7 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
                         .map(this::createRuleInfo)
                         .collect(Collectors.toList()))
                 .build());
+        responseObserver.onCompleted();
     }
 
     @Override
