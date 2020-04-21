@@ -24,20 +24,41 @@ import com.exactpro.evolution.configuration.MicroserviceConfiguration;
 
 public class SimulatorConfiguration extends MicroserviceConfiguration {
 
-    public String getConnectivityID() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("ID"), "ID");
+    private String connectivityID = getEnvConnectivityID();
+    private String exchangeName = getEnvExchangeName();
+    private String inMsgQueue = getEnvInMsgQueue();
+    private String sendMsgQueue = getEnvSendMsgQueue();
+
+    private String getEnvSendMsgQueue() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("SEND_MSG_QUEUE"), "SEND_MSG_QUEUE");
     }
 
-    public String getExchangeName() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("EXCHANGE_NAME"), "EXCHANGE_NAME");
-    }
-
-    public String getInMsgQueue() {
+    private String getEnvInMsgQueue() {
         return (String)ObjectUtils.defaultIfNull(System.getenv("IN_MSG_QUEUE"), "IN_MSG_QUEUE");
     }
 
+    private String getEnvExchangeName() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("EXCHANGE_NAME"), "EXCHANGE_NAME");
+    }
+
+    private String getEnvConnectivityID() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("ID"), "ID");
+    }
+
+    public String getConnectivityID() {
+        return this.connectivityID;
+    }
+
+    public String getExchangeName() {
+        return exchangeName;
+    }
+
+    public String getInMsgQueue() {
+        return inMsgQueue;
+    }
+
     public String getSendMsgQueue() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("SEND_MSG_QUEUE"), "SEND_MSG_QUEUE");
+        return sendMsgQueue;
     }
 
     public static SimulatorConfiguration load(InputStream inputStream) throws IOException {

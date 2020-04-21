@@ -16,6 +16,7 @@
 package com.exactpro.th2.simulator.impl;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
@@ -43,13 +44,14 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
     private final IServiceSimulator simulator;
+    private final SimulatorConfiguration configuration;
     private final RabbitMqSubscriber subscriber;
     private final RabbitMqMessageSender sender;
-    private final RabbitMQConfiguration rabbitConf;
+    //private final Map<String, RabbitMqMessageSender> senders = new HashMap<>();
 
     public RabbitMqSimulatorAdapter(IServiceSimulator simulator, SimulatorConfiguration configuration) {
-        this.simulator = simulator;
-        rabbitConf = configuration.getRabbitMQ();
+        this.simulator = Objects.requireNonNull(simulator, "Simulator can not be null");
+        this.configuration = Objects.requireNonNull(configuration, "Configuration can not be null");
 
         QueueInfo queueInfo = getQueueInfo(configuration);
 
@@ -58,11 +60,12 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
                 null,
                 queueInfo.getInMsgQueue());
 
-        sender = new RabbitMqMessageSender(rabbitConf, configuration.getConnectivityID(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
+        sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), configuration.getConnectivityID(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
     }
 
     public void start() {
-        if (subscriber != null && rabbitConf != null) {
+        if (subscriber != null && configuration != null && configuration.getRabbitMQ() != null) {
+            RabbitMQConfiguration rabbitConf = configuration.getRabbitMQ();
             try {
                 subscriber.startListening(rabbitConf.getHost(),
                         rabbitConf.getVirtualHost(),

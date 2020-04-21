@@ -18,6 +18,7 @@ package com.exactpro.th2.simulator.rule.impl;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,34 +26,28 @@ import org.jetbrains.annotations.Nullable;
 import com.exactpro.evolution.api.phase_1.Message;
 import com.exactpro.evolution.api.phase_1.NullValue;
 import com.exactpro.evolution.api.phase_1.Value;
-import com.exactpro.evolution.api.phase_1.Value.KindCase;
 
 public abstract class MessageCompareRule extends AbstractRule {
     public static final String MESSAGE_NAME = "#MessageName";
 
-    public MessageCompareRule(int id, @Nullable Map<String, String> arguments) {
-        super(id, arguments);
+    private final String messageName;
+    private final Map<String, Value> fieldsValue;
+
+    public MessageCompareRule(int id, @NotNull String messageName, @Nullable Map<String, Value> fieldsValue) {
+        super(id);
+        this.messageName = Objects.requireNonNull(messageName, "Message name can not be null");
+        this.fieldsValue = fieldsValue == null || fieldsValue.size() < 1 ? Collections.emptyMap() : fieldsValue;
     }
 
     @Override
     public boolean checkTriggered(@NotNull Message message) {
-        if (getArguments().get(MESSAGE_NAME).equals(message.getMetadata().getMessageType())) {
-            return getArguments().entrySet().stream().allMatch(entry -> {
-                if (entry.getKey().startsWith("#")) {
-                    return true;
-                } else {
-                    Value fieldValue = message.getFieldsOrDefault(entry.getKey(), Value
-                            .newBuilder()
-                            .setNullValue(NullValue.NULL_VALUE)
-                            .build());
-                    if (fieldValue.getKindCase() == KindCase.SIMPLE_VALUE) {
-                        return fieldValue.getSimpleValue().equals(entry.getValue());
-                    }
-                }
-                return false;
-            });
+        if (!message.getMetadata().getMessageType().equals(messageName)) {
+            return false;
         }
-        return false;
+        return fieldsValue.entrySet().stream().allMatch(entry -> {
+            Value fieldValue = message.getFieldsOrDefault(entry.getKey(), nullValue());
+            return entry.getValue().equals(fieldValue);
+        });
     }
 
     @Override
@@ -65,4 +60,8 @@ public abstract class MessageCompareRule extends AbstractRule {
     }
 
     public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
+
+    private Value nullValue() {
+        return Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build();
+    }
 }

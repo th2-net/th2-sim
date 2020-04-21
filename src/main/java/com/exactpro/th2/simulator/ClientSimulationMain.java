@@ -34,6 +34,7 @@ import com.exactpro.evolution.api.phase_1.Value;
 import com.exactpro.evolution.configuration.RabbitMQConfiguration;
 import com.exactpro.th2.simulator.ServiceSimulatorGrpc.ServiceSimulatorBlockingStub;
 import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
+import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.rabbitmq.client.Delivery;
 
@@ -54,39 +55,37 @@ public class ClientSimulationMain {
         RabbitMqMessageSender sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), "fix-client", "demo_exchange", "fix_client_to_send");
 
         //Send message without rule
-        logger.info("Send message without rule");
+        logger.warn("Send message without rule");
         sendMessage(sender, createNewOrderSingle());
         waitResult(500);
 
         //Create rule
-        logger.info("Create rule");
-        RuleInfo info = serviceSimulatorGrps.createRule(CreateRuleEvent.newBuilder().setType("fix-rule").putArguments("ClOrdID", "order_id_2").build());
-        logger.info("Rule status = " + info.getStatus());
-
-        //Send message with disable rule
-        logger.info("Send message with disable rule");
-        sendMessage(sender, createNewOrderSingle("order_id_2"));
-        waitResult(500);
-
-        //Enable rule
-        logger.info("Enable rule");
-        info = serviceSimulatorGrps.enableRule(info.getId());
-        logger.info("Rule status = " + info.getStatus());
+        logger.warn("Create rule");
+        RuleInfo info = serviceSimulatorGrps.createRuleFIX(CreateFixRule.newBuilder().putMessageFields("ClOrdID", Value.newBuilder().setSimpleValue("order_id_2").build()).build());
+        logger.warn("Rule status = " + info.getStatus());
 
         //Send message with wrong field's value with enable rule
-        logger.info("Send message with wrong field's value with enable rule");
-        sendMessage(sender, createNewOrderSingle());
+        logger.warn("Send message with wrong field's value with enable rule");
+        sendMessage(sender, createNewOrderSingle("order_id_1"));
         waitResult(500);
 
         //Send message with enable rule
-        logger.info("Send message with enable rule");
+        logger.warn("Send message with enable rule");
         sendMessage(sender, createNewOrderSingle("order_id_2"));
-        waitResult(1000);
+        waitResult(500);
+
+        //Get rules info
+        logger.warn("Get rules info:");
+        RulesInfo rulesInfo = serviceSimulatorGrps.getRulesInfo(Empty.newBuilder().build());
+        for (RuleInfo tmp : rulesInfo.getInfoList()) {
+            logger.warn("{}: {}", tmp.getId().getId(), tmp.getStatus());
+        }
+        logger.warn("");
 
         //Remove rule
-        logger.info("Remove rule");
+        logger.warn("Remove rule");
         info = serviceSimulatorGrps.removeRule(info.getId());
-        logger.info("Rule status = " + info.getStatus());
+        logger.warn("Rule status = " + info.getStatus());
 
         try {
             sender.close();
@@ -128,20 +127,20 @@ public class ClientSimulationMain {
                 return;
             }
 
-            logger.info("Handle message name = " + message.getMetadata().getMessageType());
+            logger.warn("Handle message name = " + message.getMetadata().getMessageType());
         } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
         }
     }
 
     private static void waitResult(int ms) {
-        logger.info("Wait {} ms", ms);
+        logger.warn("Wait {} ms", ms);
         try {
             Thread.sleep(ms);
         } catch (InterruptedException e) {
-            logger.info("Waited not {} ms", ms);
+            logger.warn("Waited not {} ms", ms);
         }
-        logger.info("Stop waiting");
+        logger.warn("Stop waiting");
     }
 
     private static SimulatorConfiguration readConfiguration(String[] args) {

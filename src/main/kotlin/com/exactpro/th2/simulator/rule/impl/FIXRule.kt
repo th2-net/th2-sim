@@ -26,46 +26,36 @@ import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
 @SimulatorRule("fix-rule")
-class FIXRule(id: Int, arguments: MutableMap<String, String>?) : MessageCompareRule(id, arguments) {
+class FIXRule(id: Int, newOrderArguments: MutableMap<String, Value>?) : MessageCompareRule(id, "NewOrderSingle", newOrderArguments) {
 
     companion object {
-        const val SEND_MESSAGE_NAME = "#SendMessageName"
         val orderId = AtomicInteger(1)
         val execId = AtomicInteger(1)
     }
 
-    override fun postInit(arguments: MutableMap<String, String>) {
-        arguments.putIfAbsent(MESSAGE_NAME, "NewOrderSingle")
-        arguments.putIfAbsent(SEND_MESSAGE_NAME, "ExecutionReport")
-    }
-
-    override fun getType(): String {
-        return "fix-rule"
-    }
-
     override fun handleTriggered(message: Message): MutableList<Message> {
         return Collections.singletonList(
-            Message.newBuilder()
-                .setMetadata(Metadata.newBuilder()
-                    .setMessageId(Uuids.timeBased().toString())
-                    .setMessageType("ExecutionReport")
-                    .setNamespace(message.metadata.namespace)
-                    .build())
-                .addField("OrderID", orderId.incrementAndGet().toString())
-                .addField("ExecID", execId.incrementAndGet().toString())
-                .addField("ExecType", "2")
-                .addField("OrdStatus", "0")
-                .copyField("Side", message)
-                .copyField("LeavesQty", message)
-                .addField("CumQty", "0")
-                .copyField("ClOrdID", message)
-                .copyField("SecurityID", message)
-                .copyField("SecurityIDSource", message)
-                .copyField("OrdType", message)
-                .copyField("OrderQty", message)
-                .putFields("TradingParty", Value.newBuilder().setNullValue(NULL_VALUE).build())
-                .addField("TransactTime", LocalDateTime.now().toString())
-                .build()
+                Message.newBuilder()
+                    .setMetadata(Metadata.newBuilder()
+                        .setMessageId(Uuids.timeBased().toString())
+                        .setMessageType("ExecutionReport")
+                        .setNamespace(message.metadata.namespace)
+                        .build())
+                    .addField("OrderID", orderId.incrementAndGet().toString())
+                    .addField("ExecID", execId.incrementAndGet().toString())
+                    .addField("ExecType", "2")
+                    .addField("OrdStatus", "0")
+                    .copyField("Side", message)
+                    .copyField("LeavesQty", message)
+                    .addField("CumQty", "0")
+                    .copyField("ClOrdID", message)
+                    .copyField("SecurityID", message)
+                    .copyField("SecurityIDSource", message)
+                    .copyField("OrdType", message)
+                    .copyField("OrderQty", message)
+                    .putFields("TradingParty", Value.newBuilder().setNullValue(NULL_VALUE).build())
+                    .addField("TransactTime", LocalDateTime.now().toString())
+                    .build()
         )
     }
 }

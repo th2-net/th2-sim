@@ -21,27 +21,24 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.apache.mina.util.ConcurrentHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.th2.simulator.CreateRuleEvent;
+import com.exactpro.th2.simulator.CreateFixRule;
 import com.exactpro.th2.simulator.IServiceSimulator;
 import com.exactpro.th2.simulator.RuleID;
 import com.exactpro.th2.simulator.RuleInfo;
 import com.exactpro.th2.simulator.RuleInfo.RuleStatus;
-import com.exactpro.th2.simulator.RuleTypes;
 import com.exactpro.th2.simulator.RulesInfo;
 import com.exactpro.th2.simulator.ServiceSimulatorGrpc.ServiceSimulatorImplBase;
 import com.exactpro.th2.simulator.rule.IRule;
@@ -56,7 +53,7 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
 
     private final Map<String, Class<? extends IRule>> ruleTypes;
     private final Map<Integer, IRule> rules;
-    private final Set<Integer> enableRules;
+    //private final Set<Integer> enableRules;
 
     private AtomicInteger nextId = new AtomicInteger(1);
 
@@ -64,78 +61,100 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
     public ServiceSimulator() {
         ruleTypes = new ConcurrentHashMap<>();
         rules = new ConcurrentHashMap<>();
-        enableRules = new ConcurrentHashSet<>();
+        //enableRules = new ConcurrentHashSet<>();
         loadTypes();
     }
 
     @Override
-    public void createRule(CreateRuleEvent request, StreamObserver<RuleInfo> responseObserver) {
-        Class<? extends IRule> ruleClass = ruleTypes.get(request.getType());
-        if (ruleClass == null) {
-            responseObserver.onError(new IllegalArgumentException("Wrong type's name"));
-        } else {
-            try {
-                IRule rule = ruleClass
-                        .getConstructor(Integer.TYPE, Map.class)
-                        .newInstance(nextId.getAndIncrement(), request.getArgumentsCount() > 0 ? new HashMap<>(request.getArgumentsMap()) : new HashMap<>());
-
-                rules.put(rule.getId(), rule);
-
-                if (request.getAutoEnable()) {
-                    enableRules.add(rule.getId());
-                }
-
-                responseObserver.onNext(createRuleInfo(rule));
-                responseObserver.onCompleted();
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                String errorMessage = "Can not create rule with type: " + request.getType();
-                logger.error(errorMessage);
-                responseObserver.onError(new IllegalStateException(errorMessage, e));
-                ruleTypes.remove(request.getType());
-            }
+    public void createRuleFIX(CreateFixRule request, StreamObserver<RuleInfo> responseObserver) {
+        Class<? extends IRule> ruleClass = getRuleClass("fix-rule");
+        try {
+            IRule rule = ruleClass.getConstructor(Integer.TYPE, Map.class).newInstance(nextId.getAndIncrement(), request.getMessageFieldsMap());
+            rules.put(rule.getId(), rule);
+            responseObserver.onNext(createRuleInfo(rule));
+            responseObserver.onCompleted();
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            responseObserver.onError(e);
         }
     }
+
+    private Class<? extends IRule> getRuleClass(String type) {
+        Class<? extends IRule> ruleClass = ruleTypes.get(type);
+        if (ruleClass == null) {
+            throw new IllegalArgumentException("Wrong type's name");
+        }
+
+        return ruleClass;
+    }
+
+    //    @Override
+//    public void createRule(CreateRuleEvent request, StreamObserver<RuleInfo> responseObserver) {
+//        Class<? extends IRule> ruleClass = ruleTypes.get(request.getType());
+//        if (ruleClass == null) {
+//            responseObserver.onError(new IllegalArgumentException("Wrong type's name"));
+//        } else {
+//            try {
+//                IRule rule = ruleClass
+//                        .getConstructor(Integer.TYPE, Map.class)
+//                        .newInstance(nextId.getAndIncrement(), request.getArgumentsCount() > 0 ? new HashMap<>(request.getArgumentsMap()) : new HashMap<>());
+//
+//                rules.put(rule.getId(), rule);
+//
+//                //if (request.getAutoEnable()) {
+//                    enableRules.add(rule.getId());
+//                //}
+//
+//                responseObserver.onNext(createRuleInfo(rule));
+//                responseObserver.onCompleted();
+//            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+//                String errorMessage = "Can not create rule with type: " + request.getType();
+//                logger.error(errorMessage);
+//                responseObserver.onError(new IllegalStateException(errorMessage, e));
+//                ruleTypes.remove(request.getType());
+//            }
+//        }
+//    }
 
     @Override
     public void removeRule(RuleID request, StreamObserver<RuleInfo> responseObserver) {
         rules.remove(request.getId());
-        enableRules.remove(request.getId());
+        //enableRules.remove(request.getId());
         responseObserver.onNext(createEmptyRuleInfo());
         responseObserver.onCompleted();
     }
 
-    @Override
-    public void enableRule(RuleID request, StreamObserver<RuleInfo> responseObserver) {
-        int ruleId = request.getId();
-        if (!rules.containsKey(ruleId)) {
-            responseObserver.onError(new IllegalArgumentException("Can not find rule with id: " + ruleId));
-        } else {
-            IRule rule = rules.get(ruleId);
-            if (!enableRules.contains(ruleId)) {
-                enableRules.add(ruleId);
-            }
-            responseObserver.onNext(createRuleInfo(rule));
-        }
-        responseObserver.onCompleted();
-    }
+//    @Override
+//    public void enableRule(RuleID request, StreamObserver<RuleInfo> responseObserver) {
+//        int ruleId = request.getId();
+//        if (!rules.containsKey(ruleId)) {
+//            responseObserver.onError(new IllegalArgumentException("Can not find rule with id: " + ruleId));
+//        } else {
+//            IRule rule = rules.get(ruleId);
+//            if (!enableRules.contains(ruleId)) {
+//                enableRules.add(ruleId);
+//            }
+//            responseObserver.onNext(createRuleInfo(rule));
+//        }
+//        responseObserver.onCompleted();
+//    }
+//
+//    @Override
+//    public void disableRule(RuleID request, StreamObserver<RuleInfo> responseObserver) {
+//        int ruleId = request.getId();
+//        if (!rules.containsKey(ruleId)) {
+//            responseObserver.onError(new IllegalArgumentException("Can not find rule with id: " + ruleId));
+//        } else {
+//            enableRules.remove(ruleId);
+//            responseObserver.onNext(createRuleInfo(rules.get(ruleId)));
+//        }
+//        responseObserver.onCompleted();
+//    }
 
-    @Override
-    public void disableRule(RuleID request, StreamObserver<RuleInfo> responseObserver) {
-        int ruleId = request.getId();
-        if (!rules.containsKey(ruleId)) {
-            responseObserver.onError(new IllegalArgumentException("Can not find rule with id: " + ruleId));
-        } else {
-            enableRules.remove(ruleId);
-            responseObserver.onNext(createRuleInfo(rules.get(ruleId)));
-        }
-        responseObserver.onCompleted();
-    }
-
-    @Override
-    public void getRuleTypes(Empty request, StreamObserver<RuleTypes> responseObserver) {
-        responseObserver.onNext(RuleTypes.newBuilder().addAllTypes(ruleTypes.keySet()).build());
-        responseObserver.onCompleted();
-    }
+//    @Override
+//    public void getRuleTypes(Empty request, StreamObserver<RuleTypes> responseObserver) {
+//        responseObserver.onNext(RuleTypes.newBuilder().addAllTypes(ruleTypes.keySet()).build());
+//        responseObserver.onCompleted();
+//    }
 
     @Override
     public void getRulesInfo(Empty request, StreamObserver<RulesInfo> responseObserver) {
@@ -151,12 +170,14 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
     @Override
     public List<Message> handle(Message message) {
         List<Message> result = new ArrayList<>();
+
         boolean triggered = false;
-        Iterator<Integer> idIterator = enableRules.iterator();
-        while (idIterator.hasNext()) {
-            IRule rule = rules.get(idIterator.next());
+
+        Iterator<Entry<Integer, IRule>> iterator = rules.entrySet().iterator();
+        while (iterator.hasNext()) {
+            IRule rule = iterator.next().getValue();
             if (rule == null) {
-                idIterator.remove();
+                iterator.remove();
                 continue;
             }
 
@@ -175,15 +196,13 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
     }
 
     private RuleInfo createRuleInfo(IRule rule) {
-        if (rule == null) {
+        if (rule == null || !rules.containsKey(rule.getId())) {
             return createEmptyRuleInfo();
         }
 
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(rule.getId()).build())
-                .putAllArguments(rule.getArguments())
-                .setType(rule.getType())
-                .setStatus(enableRules.contains(rule.getId()) ? RuleStatus.EXECUTE : RuleStatus.EXIST)
+                .setStatus(RuleStatus.ENABLE)
                 .build();
     }
 

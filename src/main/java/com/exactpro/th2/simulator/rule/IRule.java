@@ -16,7 +16,6 @@
 package com.exactpro.th2.simulator.rule;
 
 import java.util.List;
-import java.util.Map;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -25,8 +24,6 @@ import com.exactpro.evolution.api.phase_1.Message;
 public interface IRule {
 
     int getId();
-    @NotNull String getType();
-    @NotNull Map<String, String> getArguments();
     boolean checkTriggered(@NotNull Message message);
     @NotNull List<Message> handle(@NotNull Message message);
 
