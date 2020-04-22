@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 
 import com.exactpro.evolution.configuration.MicroserviceConfiguration;
 
@@ -28,21 +29,31 @@ public class SimulatorConfiguration extends MicroserviceConfiguration {
     private String exchangeName = getEnvExchangeName();
     private String inMsgQueue = getEnvInMsgQueue();
     private String sendMsgQueue = getEnvSendMsgQueue();
+    private String grpcHost = getEnvSimulatorGRPCHost();
+    private int grpcPort = getEnvSimulatorGRPCPort();
+
+    private int getEnvSimulatorGRPCPort() {
+        return NumberUtils.toInt(ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_GRPC_PORT"), "8080"));
+    }
+
+    private String getEnvSimulatorGRPCHost() {
+        return (String)ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_GRPC_HOST"), "localhost");
+    }
 
     private String getEnvSendMsgQueue() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("SEND_MSG_QUEUE"), "SEND_MSG_QUEUE");
+        return (String)ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_SEND_MSG_QUEUE"), null);
     }
 
     private String getEnvInMsgQueue() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("IN_MSG_QUEUE"), "IN_MSG_QUEUE");
+        return (String)ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_IN_MSG_QUEUE"), null);
     }
 
     private String getEnvExchangeName() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("EXCHANGE_NAME"), "EXCHANGE_NAME");
+        return (String)ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_EXCHANGE_NAME"), null);
     }
 
     private String getEnvConnectivityID() {
-        return (String)ObjectUtils.defaultIfNull(System.getenv("ID"), "ID");
+        return (String)ObjectUtils.defaultIfNull(System.getenv("TH2_SIMULATOR_CONNECTIVITY_ID"), "TH2_SIMULATOR_CONNECTIVITY_ID");
     }
 
     public String getConnectivityID() {
@@ -59,6 +70,14 @@ public class SimulatorConfiguration extends MicroserviceConfiguration {
 
     public String getSendMsgQueue() {
         return sendMsgQueue;
+    }
+
+    public String getGrpcSimulatorHost() {
+        return grpcHost;
+    }
+
+    public int getGrpcSimulatorPort() {
+        return grpcPort;
     }
 
     public static SimulatorConfiguration load(InputStream inputStream) throws IOException {

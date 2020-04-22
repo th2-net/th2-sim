@@ -30,7 +30,7 @@ public class ServiceSimulatorServer {
 
     public ServiceSimulatorServer(SimulatorConfiguration configuration) {
         ServiceSimulator simulator = new ServiceSimulator();
-        server = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator).build();
+        server = NettyServerBuilder.forPort(configuration.getGrpcSimulatorPort()).addService(simulator).build();
         adapter = new RabbitMqSimulatorAdapter(simulator, configuration);
     }
 
@@ -43,7 +43,7 @@ public class ServiceSimulatorServer {
                 public void run() {
                     // Use stderr here since the logger may have been reset by its JVM shutdown hook.
                     System.err.println("*** shutting down gRPC server since JVM is shutting down");
-                    ServiceSimulatorServer.this.stop();
+                    server.shutdownNow();
                     System.err.println("*** server shut down");
                 }
             });

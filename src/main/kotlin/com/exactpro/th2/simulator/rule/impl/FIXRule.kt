@@ -15,7 +15,6 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl
 
-import com.datastax.oss.driver.api.core.uuid.Uuids
 import com.exactpro.evolution.api.phase_1.Message
 import com.exactpro.evolution.api.phase_1.Metadata
 import com.exactpro.evolution.api.phase_1.NullValue.NULL_VALUE
@@ -37,7 +36,7 @@ class FIXRule(id: Int, newOrderArguments: MutableMap<String, Value>?) : MessageC
         return Collections.singletonList(
                 Message.newBuilder()
                     .setMetadata(Metadata.newBuilder()
-                        .setMessageId(Uuids.timeBased().toString())
+                        //.setMessageId(MessageId.newBuilder().Uuids.timeBased().toString())
                         .setMessageType("ExecutionReport")
                         .setNamespace(message.metadata.namespace)
                         .build())

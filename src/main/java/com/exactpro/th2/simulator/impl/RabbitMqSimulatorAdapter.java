@@ -84,14 +84,14 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
             try {
                 subscriber.close();
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Can not close rabbit mq subscriber", e);
             }
         }
         if (sender != null) {
             try {
                 sender.close();
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Can not close rabbit mq sender", e);
             }
         }
     }
@@ -116,7 +116,7 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
                 try {
                     sender.send(messageToSend);
                 } catch (Exception e) {
-                    logger.error("Can not send message", e);
+                    logger.error("Can not send message: " + messageToSend.toString(), e);
                 }
             }
         } catch (InvalidProtocolBufferException e) {
@@ -134,19 +134,25 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
         return queueInfo != null ? queueInfo :
                 QueueInfo
                         .newBuilder()
-                        .setExchangeName(configuration.getExchangeName())
-                        .setInMsgQueue(configuration.getInMsgQueue())
-                        .setSendMsgQueue(configuration.getSendMsgQueue())
+                        .setExchangeName(Objects.requireNonNull(configuration.getExchangeName(), "Can not get exchange name"))
+                        .setInMsgQueue(Objects.requireNonNull(configuration.getInMsgQueue(), "Can not get in message queue"))
+                        .setSendMsgQueue(Objects.requireNonNull(configuration.getSendMsgQueue(), "Can not get send message queue"))
                         .build();
     }
 
     private QueueInfo downloadQueueInfo(Address connectivityAddress) {
         ManagedChannel channel = ManagedChannelBuilder.forAddress(connectivityAddress.getHost(), connectivityAddress.getPort()).usePlaintext().build();
-        try  {
+        try {
             ConnectivityBlockingStub blockingStub = ConnectivityGrpc.newBlockingStub(channel);
             return blockingStub.getQueueInfo(QueueRequest.newBuilder().build());
-        } finally {
-            channel.shutdown();
+        } catch (Exception e) {
+            logger.error("Can not download queue info");
+            return null;
+        }
+        finally {
+            if (!channel.isShutdown()) {
+                channel.shutdownNow();
+            }
         }
     }
 

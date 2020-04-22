@@ -49,11 +49,12 @@ public class ClientSimulationMain {
     public static void main(String[] args) {
         SimulatorConfiguration configuration = readConfiguration(args);
 
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", configuration.getPort()).usePlaintext().build();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", configuration.getGrpcSimulatorPort()).usePlaintext().build();
         ServiceSimulatorBlockingStub serviceSimulatorGrps = ServiceSimulatorGrpc.newBlockingStub(channel);
         RabbitMqSubscriber subscriber = createSubscriber(configuration);
         RabbitMqMessageSender sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), "fix-client", "demo_exchange", "fix_client_to_send");
 
+        logger.warn("");
         //Send message without rule
         logger.warn("Send message without rule");
         sendMessage(sender, createNewOrderSingle());
