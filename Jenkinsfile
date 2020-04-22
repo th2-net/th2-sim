@@ -1,7 +1,7 @@
 pipeline {
     agent { label "sailfish" }
     tools {
-        jdk 'openjdk-11.0.2'
+        jdk 'openjdk-1.8u202'
     }
     environment {
         VERSION_MAINTENANCE = """${sh(
