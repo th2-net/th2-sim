@@ -23,7 +23,7 @@ plugins {
 }
 
 ext {
-    dockerImageVersion = "${version_major}.${version_minor}.${version_maintenance}.${build_number}"
+    dockerImageVersion = "${version_major}.${version_minor}.${version_maintenance}.${version_build}"
     version_slf4j       = '1.7.30'
     grpc_version        = '1.27.1'
     protobuf_version    = '3.11.0'
@@ -34,7 +34,7 @@ ext {
 }
 
 group 'com.exactpro.th2'
-version "${version_major}.${version_minor}.${version_maintenance}"
+version "${version_major}.${version_minor}.${version_maintenance}.${version_build}"
 
 repositories {
     mavenCentral()
