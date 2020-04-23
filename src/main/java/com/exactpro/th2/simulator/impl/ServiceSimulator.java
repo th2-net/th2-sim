@@ -15,15 +15,26 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.impl;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +48,7 @@ import com.exactpro.th2.simulator.RuleInfo.RuleStatus;
 import com.exactpro.th2.simulator.RulesInfo;
 import com.exactpro.th2.simulator.ServiceSimulatorGrpc.ServiceSimulatorImplBase;
 import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.simulator.rule.SimulatorRule;
 import com.google.protobuf.Empty;
 
 import io.grpc.stub.StreamObserver;
@@ -207,90 +219,106 @@ public class ServiceSimulator extends ServiceSimulatorImplBase implements IServi
                 .build();
     }
 
-    //FIXME: Add load from jar file
-    private void loadTypes() {}
+    private void loadTypes() {
+        try {
+            File fileOrDirectory = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
+            List<String> classesName = new ArrayList<>();
+            if (fileOrDirectory.isDirectory()) {
+                logger.info("Load from directory");
+                classesName.addAll(loadClassesNameFromDirectory(fileOrDirectory));
+            } else {
+                logger.info("Load rule types from jar");
+                classesName.addAll(loadClassesNameFromJar(fileOrDirectory));
+            }
 
-//    private void loadTypes() {
-//        try {
-//            File fileOrDirectory = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
-//            List<String> classesName = new ArrayList<>();
-//            if (fileOrDirectory.isDirectory()) {
-//                classesName.addAll(loadClassesNameFromDirectory(fileOrDirectory));
-//            } else {
-//                classesName.addAll(loadClassesNameFromJar(fileOrDirectory))
-//            }
-//        } catch (URISyntaxException e) {
-//            logger.error("Can not load types", e);
-//        }
-//        ClassLoader loader = this.getClass().getClassLoader();
-//        try {
-//            loader.loadClass("com.exactpro.th2.simulator.rule.SimulatorRule");
-//        } catch (ClassNotFoundException e) {
-//            logger.warn("Can not preload annotation class");
-//        }
-//        try {
-//            Field fieldClasses = ClassLoader.class.getDeclaredField("classes");
-//            boolean accessible = fieldClasses.isAccessible();
-//            try {
-//                fieldClasses.setAccessible(true);
-//                Vector<Class<?>> classes = (Vector<Class<?>>)fieldClasses.get(loader);
-//
-//                for (int i = 0; i < classes.size(); i++) {
-//                    Class<?> tmp = null;
-//                    while (true) {
-//                        try {
-//                            tmp = classes.get(i);
-//                            break;
-//                        } catch (ConcurrentModificationException e) {
-//                            Thread.yield();
-//                            continue;
-//                        }
-//                    }
-//                    checkClass(tmp);
-//                }
-////                List<Class<?>> list = new ArrayList<>();
-////                list.addAll(classes);
-////
-////                for (Class<?> tmp : list) {
-////                    checkClass(tmp);
-////                }
-//            } finally {
-//                try {
-//                    fieldClasses.setAccessible(accessible);
-//                } catch (Exception e) {
-//                    logger.warn("Can not change accessible filed to prev value");
-//                }
-//            }
-//
-//        } catch (NoSuchFieldException | IllegalAccessException e) {
-//            logger.error("Can not get all loaded classes from current class loader", e);
-//        }
-//    }
-//
-//    private Collection<? extends String> loadClassesNameFromDirectory(File fileOrDirectory) {
-//        return null;
-//    }
-//
-//    private void checkClass(Class<?> ruleClass) {
-//        if (ruleClass == null) {
-//            return;
-//        }
-//
-//        SimulatorRule annotation = ruleClass.getAnnotation(SimulatorRule.class);
-//
-//        if (annotation == null) {
-//            return;
-//        }
-//
-//        if (IRule.class.isAssignableFrom(ruleClass)) {
-//
-//            if (ruleTypes.containsKey(annotation.value())) {
-//                throw new IllegalStateException("Duplicate rule type's names: " + annotation.value());
-//            }
-//
-//            ruleTypes.put(annotation.value(), (Class<? extends IRule>)ruleClass);
-//        } else {
-//            logger.error("Can not add rule with class name: " + ruleClass.getName());
-//        }
-//    }
+            ClassLoader loader = this.getClass().getClassLoader();
+
+            for (String className : classesName) {
+                try {
+                    Class<?> _class = loader.loadClass(className);
+                    checkClass(_class);
+                } catch (ClassNotFoundException e) {
+                    logger.error("Can not check class with name: " + className);
+                }
+            }
+        } catch (URISyntaxException e) {
+            logger.error("Can not load types", e);
+        }
+    }
+
+    private Collection<? extends String> loadClassesNameFromJar(File fileOrDirectory) {
+        List<String> result = new ArrayList<>();
+        try (ZipInputStream zip = new ZipInputStream(new FileInputStream(fileOrDirectory))) {
+            for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                if (!entry.isDirectory() && entry.getName().endsWith(".class")) {
+                    String className = entry.getName().replace('/', '.');
+                    result.add(className.substring(0, className.length() - ".class".length()));
+                }
+            }
+
+            return result;
+        } catch (IOException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private Collection<? extends String> loadClassesNameFromDirectory(File dir) {
+        try {
+            Enumeration<URL> resources = this.getClass().getClassLoader().getResources("");
+
+            List<String> classesName = new ArrayList<>();
+            while (resources.hasMoreElements()) {
+                File tmp = new File(resources.nextElement().getFile());
+                classesName.addAll(loadClasses(tmp, tmp));
+            }
+
+            return classesName;
+        } catch (IOException e) {
+            logger.error("Can not get classpath directory from class loader", e);
+            return loadClasses(dir, dir);
+        }
+    }
+
+    private Collection<? extends String> loadClasses(File mainDirectory, File directory) {
+        List<String> list = new ArrayList<>();
+
+        for (File file : Objects.requireNonNull(directory.listFiles())) {
+            if (file.isDirectory()) {
+                list.addAll(loadClasses(mainDirectory, file));
+            } else if (file.getName().endsWith(".class") || file.getName().endsWith(".kt")) {
+                String className = mainDirectory
+                        .toPath()
+                        .relativize(file.toPath())
+                        .toString()
+                        .replace('/', '.')
+                        .replace('\\', '.')
+                        .replace(".class", "");
+                list.add(className);
+            }
+        }
+        return list;
+    }
+
+    private void checkClass(Class<?> ruleClass) {
+        if (ruleClass == null) {
+            return;
+        }
+
+        SimulatorRule annotation = ruleClass.getAnnotation(SimulatorRule.class);
+
+        if (annotation == null) {
+            return;
+        }
+
+        if (IRule.class.isAssignableFrom(ruleClass)) {
+
+            if (ruleTypes.containsKey(annotation.value())) {
+                throw new IllegalStateException("Duplicate rule type's names: " + annotation.value());
+            }
+
+            ruleTypes.put(annotation.value(), (Class<? extends IRule>)ruleClass);
+        } else {
+            logger.error("Can not add rule with class name: " + ruleClass.getName());
+        }
+    }
 }

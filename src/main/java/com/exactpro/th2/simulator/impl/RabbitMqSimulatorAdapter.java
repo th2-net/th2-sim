@@ -109,7 +109,9 @@ public class RabbitMqSimulatorAdapter implements AutoCloseable {
                 return;
             }
 
+            //FIXME: move to debug section
             logger.info("Handle message name = " + message.getMetadata().getMessageType());
+
             logger.trace("Handle message body = " + message.toString());
 
             for (Message messageToSend : simulator.handle(message)) {
