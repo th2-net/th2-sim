@@ -137,7 +137,7 @@ publishing {
     }
 }
 
-artifactoryPublish.skip = true
+artifactoryPublish.skip = false
 
 artifactory {
     publish {
