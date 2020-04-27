@@ -16,7 +16,6 @@
 package com.exactpro.th2.simulator.rule.impl;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -28,13 +27,10 @@ import com.exactpro.evolution.api.phase_1.NullValue;
 import com.exactpro.evolution.api.phase_1.Value;
 
 public abstract class MessageCompareRule extends AbstractRule {
-    public static final String MESSAGE_NAME = "#MessageName";
-
     private final String messageName;
     private final Map<String, Value> fieldsValue;
 
-    public MessageCompareRule(int id, @NotNull String messageName, @Nullable Map<String, Value> fieldsValue) {
-        super(id);
+    public MessageCompareRule(@NotNull String messageName, @Nullable Map<String, Value> fieldsValue) {
         this.messageName = Objects.requireNonNull(messageName, "Message name can not be null");
         this.fieldsValue = fieldsValue == null || fieldsValue.size() < 1 ? Collections.emptyMap() : fieldsValue;
     }
@@ -49,17 +45,6 @@ public abstract class MessageCompareRule extends AbstractRule {
             return entry.getValue().equals(fieldValue);
         });
     }
-
-    @Override
-    public @NotNull List<Message> handle(@NotNull Message message) {
-        if (checkTriggered(message)) {
-            return handleTriggered(message);
-        } else {
-            return Collections.emptyList();
-        }
-    }
-
-    public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
 
     private Value nullValue() {
         return Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build();

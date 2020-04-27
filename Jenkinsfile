@@ -15,14 +15,48 @@ pipeline {
         GCHAT_THREAD_NAME = credentials('th2-dev-environment-release-docker-images-thread')
     }
     stages {
-        stage('Build') {
+        stage ('Artifactory configuration') {
             steps {
-                sh """
-                    ./gradlew clean build ${GRADLE_SWITCHES}
-                """
+                rtGradleDeployer (
+                    id: "GRADLE_DEPLOYER",
+                    serverId: "artifatory5",
+                    repo: "libs-snapshot-local",
+                )
+
+                rtGradleResolver (
+                    id: "GRADLE_RESOLVER",
+                    serverId: "artifatory5",
+                    repo: "libs-snapshot"
+                )
             }
         }
-        stage('Publish') {
+        stage ('Config Build Info') {
+            steps {
+                rtBuildInfo (
+                    captureEnv: true
+                )
+            }
+        }
+        stage('Build') {
+            steps {
+                rtGradleRun (
+                    usesPlugin: true, // Artifactory plugin already defined in build script
+                    useWrapper: true,
+                    rootDir: "./",
+                    buildFile: 'build.gradle',
+                    tasks: "clean build artifactoryPublish ${GRADLE_SWITCHES}",
+                    deployerId: "GRADLE_DEPLOYER",
+                    resolverId: "GRADLE_RESOLVER",
+                )
+        }
+        stage ('Publish build info') {
+            steps {
+                rtPublishBuildInfo (
+                    serverId: "artifatory5"
+                )
+            }
+        }
+        stage('Docker publish') {
             steps {
                 // publish via docker cli image to Nexus
                 sh """

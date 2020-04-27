@@ -15,18 +15,24 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl;
 
+import java.util.Collections;
+import java.util.List;
+
+import org.jetbrains.annotations.NotNull;
+
+import com.exactpro.evolution.api.phase_1.Message;
 import com.exactpro.th2.simulator.rule.IRule;
 
 public abstract class AbstractRule implements IRule {
 
-    private int id;
-
-    public AbstractRule(int id) {
-        this.id = id;
-    }
-
     @Override
-    public int getId() {
-        return id;
+    public @NotNull List<Message> handle(@NotNull Message message) {
+        if (checkTriggered(message)) {
+            return handleTriggered(message);
+        } else {
+            return Collections.emptyList();
+        }
     }
+
+    public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
 }

@@ -19,11 +19,12 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.exactpro.evolution.api.phase_1.ConnectivityId;
 import com.exactpro.evolution.api.phase_1.Message;
 
 public interface IRule {
 
-    int getId();
+    ConnectivityId getConnectivityId();
     boolean checkTriggered(@NotNull Message message);
     @NotNull List<Message> handle(@NotNull Message message);
 

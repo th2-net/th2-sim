@@ -13,23 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator;
+package com.exactpro.th2.simulator.run;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.evolution.ConfigurationUtils;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.impl.ServiceSimulatorServer;
+import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.simulator.impl.RabbitMQAdapter;
+import com.exactpro.th2.simulator.impl.Simulator;
+import com.exactpro.th2.simulator.impl.SimulatorServer;
 
-public class ServiceSimulatorMain {
+public class SimulatorServerMain {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(ServiceSimulatorMain.class);
+    private final static Logger LOGGER = LoggerFactory.getLogger(SimulatorServerMain.class);
 
     public static void main(String[] args) {
         try {
-            SimulatorConfiguration configuration = readConfiguration(args);
-            ServiceSimulatorServer server = new ServiceSimulatorServer(configuration);
+            MicroserviceConfiguration configuration = readConfiguration(args);
+            SimulatorServer server = new SimulatorServer();
+            server.init(configuration, Simulator.class, RabbitMQAdapter.class);
             addShutdownHook(server);
             server.start();
             server.blockUntilShutdown();
@@ -39,15 +42,15 @@ public class ServiceSimulatorMain {
         }
     }
 
-    private static void addShutdownHook(ServiceSimulatorServer server) {
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+    private static void addShutdownHook(SimulatorServer server) {
+        Runtime.getRuntime().addShutdownHook(new Thread(server::close));
     }
 
-    private static SimulatorConfiguration readConfiguration(String[] args) {
+    private static MicroserviceConfiguration readConfiguration(String[] args) {
         if (args.length > 0) {
-            return ConfigurationUtils.safeLoad(SimulatorConfiguration::load, SimulatorConfiguration::new, args[0]);
+            return ConfigurationUtils.safeLoad(MicroserviceConfiguration::load, MicroserviceConfiguration::new, args[0]);
         } else {
-            return new SimulatorConfiguration();
+            return new MicroserviceConfiguration();
         }
     }
 }
