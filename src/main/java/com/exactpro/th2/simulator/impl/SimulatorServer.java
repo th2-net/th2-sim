@@ -84,7 +84,9 @@ public class SimulatorServer implements ISimulatorServer {
         }
         server = builder.build();
         try {
+            logger.debug("Simulator server is starting.");
             server.start();
+            logger.info("Simulator server was started.");
             return true;
         } catch (IOException e) {
             logger.error("Can not start server", e);
