@@ -48,6 +48,7 @@ pipeline {
                     deployerId: "GRADLE_DEPLOYER",
                     resolverId: "GRADLE_RESOLVER",
                 )
+            }
         }
         stage ('Publish build info') {
             steps {
