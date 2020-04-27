@@ -86,7 +86,7 @@ docker {
 }
 
 application {
-    mainClassName = "com.exactpro.th2.simulator.ServiceSimulatorMain"
+    mainClassName = "com.exactpro.th2.simulator.run.SimulatorServerMain"
 }
 
 sourceSets {
