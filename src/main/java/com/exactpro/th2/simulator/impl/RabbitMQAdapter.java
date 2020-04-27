@@ -91,7 +91,7 @@ public class RabbitMQAdapter implements IAdapter {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         if (subscriber != null) {
             try {
                 subscriber.close();

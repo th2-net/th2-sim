@@ -11,19 +11,16 @@ message RuleID {
     int32 id = 1;
 }
 
-message RulesInfo {
-    repeated RuleID ids = 1;
+message RuleInfo {
+    RuleID id = 1;
+    string className = 2;
 }
 
-message CreateFixRule {
-    map<string, phase_1.Value> messageFields = 1;
+message RulesInfo {
+    repeated RuleInfo info = 1;
 }
 
 service ServiceSimulator {
     rpc removeRule(RuleID) returns (google.protobuf.Empty) {}
     rpc getRulesInfo(google.protobuf.Empty) returns (RulesInfo) {}
-}
-
-service FixSimulator {
-    rpc createRule_FIX(CreateFixRule) returns (RuleID) {}
 }

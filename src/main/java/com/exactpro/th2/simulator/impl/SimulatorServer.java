@@ -40,12 +40,12 @@ public class SimulatorServer implements ISimulatorServer {
     private ISimulator simulator;
     private Server server;
 
-    public SimulatorServer() {
+    public SimulatorServer(Class<?> _class) {
         simulatorParts = new HashSet<>();
-        loadTypes();
+        loadTypes(_class);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (server != null) {
+            if (server != null && !server.isShutdown()) {
                 System.err.println("Stopping GRPC server in simulator");
                 server.shutdownNow();
                 System.err.println("GRPC server was stopped");
@@ -94,7 +94,7 @@ public class SimulatorServer implements ISimulatorServer {
 
     @Override
     public void close() {
-        if (server != null) {
+        if (server != null && !server.isShutdown()) {
             try {
                 server.shutdown().awaitTermination(1, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
@@ -118,9 +118,9 @@ public class SimulatorServer implements ISimulatorServer {
         }
     }
 
-    private void loadTypes() {
+    private void loadTypes(Class<?> _class) {
         try {
-            File fileOrDirectory = new File(this.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
+            File fileOrDirectory = new File(_class.getProtectionDomain().getCodeSource().getLocation().toURI());
             List<String> classesName = new ArrayList<>();
             if (fileOrDirectory.isDirectory()) {
                 logger.info("Load from directory");
@@ -130,12 +130,12 @@ public class SimulatorServer implements ISimulatorServer {
                 classesName.addAll(loadClassesNameFromJar(fileOrDirectory));
             }
 
-            ClassLoader loader = this.getClass().getClassLoader();
+            ClassLoader loader = _class.getClassLoader();
 
             for (String className : classesName) {
                 try {
-                    Class<?> _class = loader.loadClass(className);
-                    checkClass(_class);
+                    Class<?> tmp = loader.loadClass(className);
+                    checkClass(tmp);
                 } catch (ClassNotFoundException e) {
                     logger.error("Can not check class with name: " + className);
                 }

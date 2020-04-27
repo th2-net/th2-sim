@@ -23,6 +23,7 @@ import com.exactpro.evolution.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.RuleID;
+import com.exactpro.th2.simulator.RuleInfo;
 import com.exactpro.th2.simulator.RulesInfo;
 import com.exactpro.th2.simulator.ServiceSimulatorGrpc;
 import com.exactpro.th2.simulator.rule.IRule;
@@ -75,7 +76,18 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public void getRulesInfo(Empty request, StreamObserver<RulesInfo> responseObserver) {
-        responseObserver.onNext(RulesInfo.newBuilder().addAllIds(ruleIds.keySet().stream().map(id -> RuleID.newBuilder().setId(id).build()).collect(Collectors.toList())).build());
+        responseObserver.onNext(RulesInfo
+                .newBuilder()
+                .addAllInfo(ruleIds.entrySet().stream().map(entry -> RuleInfo
+                        .newBuilder()
+                        .setClassName(entry.getValue().getClass().getName())
+                        .setId(RuleID
+                                .newBuilder()
+                                .setId(entry.getKey()).build())
+                        .build())
+                        .collect(Collectors.toList())
+                )
+                .build());
         responseObserver.onCompleted();
     }
 
