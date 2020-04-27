@@ -29,13 +29,9 @@ public class SimulatorServerMain {
     private final static Logger LOGGER = LoggerFactory.getLogger(SimulatorServerMain.class);
 
     public static void main(String[] args) {
-        main(SimulatorServerMain.class, args);
-    }
-
-    public static void main(Class<?> _class, String[] args) {
         try {
             MicroserviceConfiguration configuration = readConfiguration(args);
-            SimulatorServer server = new SimulatorServer(_class);
+            SimulatorServer server = new SimulatorServer();
             server.init(configuration, Simulator.class, RabbitMQAdapter.class);
             addShutdownHook(server);
             server.start();
