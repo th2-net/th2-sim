@@ -19,6 +19,9 @@ import org.jetbrains.annotations.NotNull;
 
 import io.grpc.BindableService;
 
+/**
+ * Interface for external part of {@link ISimulator}
+ */
 public interface ISimulatorPart extends BindableService {
 
     void init(@NotNull ISimulator simulator);

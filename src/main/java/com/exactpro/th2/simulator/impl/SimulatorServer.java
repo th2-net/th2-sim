@@ -77,7 +77,7 @@ public class SimulatorServer implements ISimulatorServer {
 
         NettyServerBuilder builder = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator);
         for (ISimulatorPart tmp : ServiceLoader.load(ISimulatorPart.class)) {
-            logger.debug("Was load class with name: " + tmp.getClass());
+            logger.debug("Was load simulator part class with name: " + tmp.getClass());
             tmp.init(simulator);
             builder.addService(tmp);
         }

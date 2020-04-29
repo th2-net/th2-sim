@@ -15,6 +15,8 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl;
 
+import static com.exactpro.th2.simulator.util.ValueUtils.nullValue;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -23,30 +25,38 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.api.phase_1.NullValue;
 import com.exactpro.evolution.api.phase_1.Value;
+import com.exactpro.th2.simulator.rule.IRule;
 
+/**
+ * Abstract implementation {@link AbstractRule}
+ *
+ * Filter income message by type and fields.
+ *
+ * @see IRule
+ */
 public abstract class MessageCompareRule extends AbstractRule {
-    private final String messageName;
+    private final String messageType;
     private final Map<String, Value> fieldsValue;
 
-    public MessageCompareRule(@NotNull String messageName, @Nullable Map<String, Value> fieldsValue) {
-        this.messageName = Objects.requireNonNull(messageName, "Message name can not be null");
+    /**
+     * Create MessageCompareRule with arguments
+     * @param messageType
+     * @param fieldsValue
+     */
+    public MessageCompareRule(@NotNull String messageType, @Nullable Map<String, Value> fieldsValue) {
+        this.messageType = Objects.requireNonNull(messageType, "Message name can not be null");
         this.fieldsValue = fieldsValue == null || fieldsValue.size() < 1 ? Collections.emptyMap() : fieldsValue;
     }
 
     @Override
     public boolean checkTriggered(@NotNull Message message) {
-        if (!message.getMetadata().getMessageType().equals(messageName)) {
+        if (!message.getMetadata().getMessageType().equals(messageType)) {
             return false;
         }
         return fieldsValue.entrySet().stream().allMatch(entry -> {
             Value fieldValue = message.getFieldsOrDefault(entry.getKey(), nullValue());
             return entry.getValue().equals(fieldValue);
         });
-    }
-
-    private Value nullValue() {
-        return Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build();
     }
 }

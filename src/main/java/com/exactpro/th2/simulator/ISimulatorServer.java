@@ -20,10 +20,25 @@ import java.io.Closeable;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.simulator.impl.SimulatorServer;
 
+/**
+ * Interface of {@link Simulator} server.
+ * @see SimulatorServer
+ */
 public interface ISimulatorServer extends Closeable {
 
     void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorServer, @NotNull Class<? extends IAdapter> adapterServer);
+
+    /**
+     * Start server
+     * @return server was start
+     */
     boolean start();
+
+    /**
+     * Wait while server is running
+     * @throws InterruptedException
+     */
     void blockUntilShutdown() throws InterruptedException;
 }

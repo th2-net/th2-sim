@@ -23,8 +23,16 @@ import org.jetbrains.annotations.NotNull;
 import com.exactpro.evolution.api.phase_1.Message;
 import com.exactpro.th2.simulator.rule.IRule;
 
+/**
+ * Abstract implement of {@link IRule}
+ */
 public abstract class AbstractRule implements IRule {
 
+    /**
+     * Call {@link AbstractRule#handleTriggered(Message)} if rule will triggered on this message
+     * @param message
+     * @return Message which will send
+     */
     @Override
     public @NotNull List<Message> handle(@NotNull Message message) {
         if (checkTriggered(message)) {
@@ -34,5 +42,10 @@ public abstract class AbstractRule implements IRule {
         }
     }
 
+    /**
+     * Call this method with messages which trigger this rule
+     * @param message
+     * @return Message which will send
+     */
     public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
 }

@@ -53,6 +53,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     private final Map<ConnectivityId, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
     private final Map<ConnectivityId, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
     private final Map<Integer, IRule> ruleIds = new ConcurrentHashMap<>();
+    private final Map<Integer, ConnectivityId> rulesConnectivity = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(0);
 
     private MicroserviceConfiguration configuration;
@@ -65,11 +66,13 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule) {
-        if (createAdapterIfAbsent(rule.getConnectivityId())) {
+    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectivityId connectivityId) {
+        if (createAdapterIfAbsent(connectivityId)) {
             int id = nextId.incrementAndGet();
             ruleIds.put(id, rule);
-            connectivityRules.computeIfAbsent(rule.getConnectivityId(), (key) -> new ConcurrentHashSet<>()).add(id);
+            rulesConnectivity.put(id, connectivityId);
+            connectivityRules.computeIfAbsent(connectivityId, (key) -> new ConcurrentHashSet<>()).add(id);
+            logger.debug("Rule with class '{}', with id '{}' was added", rule.getClass().getName(), id);
             return RuleID.newBuilder().setId(id).build();
         } else {
             return RuleID.newBuilder().setId(-1).build();
@@ -77,13 +80,15 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     }
 
     @Override
-    public void removeRule(RuleID request, StreamObserver<Empty> responseObserver) {
-        IRule rule = ruleIds.remove(request.getId());
+    public void removeRule(RuleID id, StreamObserver<Empty> responseObserver) {
+        IRule rule = ruleIds.remove(id.getId());
         if (rule != null) {
-            Set<Integer> ids = connectivityRules.get(rule.getConnectivityId());
+            Set<Integer> ids = connectivityRules.get(rulesConnectivity.get(id.getId()));
             if (ids != null) {
-                ids.remove(request.getId());
+                ids.remove(id.getId());
             }
+
+            logger.debug("Rule with id {} was removed", id.getId());
         }
         responseObserver.onNext(Empty.newBuilder().build());
         responseObserver.onCompleted();
@@ -151,6 +156,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 try {
                     IAdapter iAdapter = adapterClass.newInstance();
                     iAdapter.init(configuration, connectivityId, this);
+                    logger.debug("Create adapter for connectivityID: " + connectivityId.getConnectivityId());
                     return iAdapter;
                 } catch (InstantiationException | IllegalAccessException e) {
                     throw new IllegalStateException("Can not create adapter with connectivity id: " + connectivityId, e);

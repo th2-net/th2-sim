@@ -27,10 +27,28 @@ import com.exactpro.th2.simulator.rule.IRule;
 
 import io.grpc.BindableService;
 
+/**
+ * Simulator interface
+ * @see Simulator
+ */
 public interface ISimulator extends BindableService, Closeable {
 
     void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception;
-    RuleID addRule(@NotNull IRule rule);
+
+    /**
+     * Add rule to simulator which listen connectivity with connectivityId
+     * @param rule
+     * @param connectivityId
+     * @return Rule's id
+     */
+    RuleID addRule(@NotNull IRule rule, @NotNull ConnectivityId connectivityId);
+
+    /**
+     * Get incoming message
+     * @param connectivityId from connectivity with this id
+     * @param message incoming message
+     * @return Messages which will send
+     */
     List<Message> handle(@NotNull ConnectivityId connectivityId, @NotNull Message message);
 
 }

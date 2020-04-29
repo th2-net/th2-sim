@@ -88,7 +88,6 @@ public class RabbitMQAdapter implements IAdapter {
                 return;
             }
 
-            //FIXME: move to debug section
             logger.debug("Handle message name = " + message.getMetadata().getMessageType());
 
             logger.trace("Handle message body = " + message.toString());

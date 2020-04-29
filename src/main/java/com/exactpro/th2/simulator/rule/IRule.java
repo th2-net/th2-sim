@@ -19,13 +19,23 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
 import com.exactpro.evolution.api.phase_1.Message;
+import com.exactpro.th2.simulator.ISimulator;
 
+/**
+ * Interface for {@link ISimulator} rules
+ */
 public interface IRule {
-
-    ConnectivityId getConnectivityId();
+    /**
+     * @param message
+     * @return True, if rule will triggered on this message
+     */
     boolean checkTriggered(@NotNull Message message);
+
+    /**
+     * @param message
+     * @return Messages which will send
+     */
     @NotNull List<Message> handle(@NotNull Message message);
 
 }
