@@ -61,7 +61,7 @@ public class ValueUtils {
 
     /**
      * @param value
-     * @return {@link ListValue} created from {@link Iterable<?>}
+     * @return {@link ListValue} created from {@link Iterable}
      */
     public static ListValue getListValue(Iterable<?> value) {
         Builder result = ListValue.newBuilder();

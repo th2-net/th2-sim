@@ -129,6 +129,10 @@ artifactory {
     }
 }
 
+jar {
+    from sourceSets.main.allJava
+}
+
 clean {
     delete genDir
 }
