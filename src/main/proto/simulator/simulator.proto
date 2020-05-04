@@ -14,6 +14,7 @@ message RuleID {
 message RuleInfo {
     RuleID id = 1;
     string className = 2;
+    phase_1.ConnectivityId connectivityId = 3;
 }
 
 message RulesInfo {

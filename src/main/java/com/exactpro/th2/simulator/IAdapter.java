@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.evolution.api.phase_1.ConnectivityId;
 import com.exactpro.evolution.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.simulator.impl.RabbitMQAdapter;
+import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
 
 /**
  * Adapter for transmits messages between external interface to {@link ISimulator}

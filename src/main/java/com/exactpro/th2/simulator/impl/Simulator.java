@@ -1,17 +1,17 @@
-/******************************************************************************
- * Copyright 2020 Exactpro (Exactpro Systems Limited)
+/*******************************************************************************
+ *  Copyright 2020 Exactpro (Exactpro Systems Limited)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  ******************************************************************************/
 package com.exactpro.th2.simulator.impl;
 
@@ -46,6 +46,9 @@ import com.google.protobuf.Empty;
 
 import io.grpc.stub.StreamObserver;
 
+/**
+ * Default implementation of {@link ISimulator}.
+ */
 public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase implements ISimulator {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
@@ -98,17 +101,24 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     public void getRulesInfo(Empty request, StreamObserver<RulesInfo> responseObserver) {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
-                .addAllInfo(ruleIds.entrySet().stream().map(entry -> RuleInfo
-                        .newBuilder()
-                        .setClassName(entry.getValue().getClass().getName())
-                        .setId(RuleID
-                                .newBuilder()
-                                .setId(entry.getKey()).build())
-                        .build())
+                .addAllInfo(ruleIds.keySet().stream().map(this::createRuleInfo)
                         .collect(Collectors.toList())
                 )
                 .build());
         responseObserver.onCompleted();
+    }
+
+    private RuleInfo createRuleInfo(int ruleId) {
+        IRule rule = ruleIds.get(ruleId);
+        if (rule == null) {
+            return RuleInfo.newBuilder().setId(RuleID.newBuilder().setId(-1).build()).build();
+        }
+
+        return RuleInfo.newBuilder()
+                .setId(RuleID.newBuilder().setId(ruleId).build())
+                .setClassName(rule.getClass().getName())
+                .setConnectivityId(rulesConnectivity.get(ruleId))
+                .build();
     }
 
     @Override

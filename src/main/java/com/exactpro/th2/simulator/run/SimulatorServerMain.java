@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import com.exactpro.evolution.ConfigurationUtils;
 import com.exactpro.evolution.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.simulator.impl.RabbitMQAdapter;
+import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.impl.SimulatorServer;
 

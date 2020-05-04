@@ -31,7 +31,7 @@ import com.exactpro.th2.simulator.rule.IRule;
 /**
  * Abstract implementation {@link AbstractRule}
  *
- * Filter income message by type and fields.
+ * Filter incoming message by type and fields.
  *
  * @see IRule
  */

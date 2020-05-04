@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.impl;
+package com.exactpro.th2.simulator.adapter;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -41,6 +41,9 @@ import com.rabbitmq.client.Delivery;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+/**
+ * Implementation {@link IAdapter} for connect to rabbit mq.
+ */
 public class RabbitMQAdapter implements IAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());

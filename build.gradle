@@ -130,7 +130,7 @@ artifactory {
 }
 
 jar {
-    from sourceSets.main.allJava
+    from sourceSets.test.output+sourceSets.test.allSource
 }
 
 clean {

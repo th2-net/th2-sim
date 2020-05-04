@@ -34,6 +34,9 @@ import com.exactpro.th2.simulator.ISimulatorServer;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 
+/**
+ * Default implementation {@link ISimulatorServer}.
+ */
 public class SimulatorServer implements ISimulatorServer {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
@@ -58,6 +61,7 @@ public class SimulatorServer implements ISimulatorServer {
         if (configuration.getTh2().getConnectivityAddresses().size() < 1) {
             throw new IllegalArgumentException("Connectivity addresses must contain at least 1 element");
         }
+
         this.configuration = configuration;
         try {
             simulator = simulatorClass.newInstance();
@@ -77,7 +81,7 @@ public class SimulatorServer implements ISimulatorServer {
 
         NettyServerBuilder builder = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator);
         for (ISimulatorPart tmp : ServiceLoader.load(ISimulatorPart.class)) {
-            logger.info("Was load simulator part class with name: " + tmp.getClass());
+            logger.info("Was loaded simulator part class with name: " + tmp.getClass());
             tmp.init(simulator);
             builder.addService(tmp);
         }
