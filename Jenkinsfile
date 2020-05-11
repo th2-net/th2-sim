@@ -2,7 +2,7 @@ pipeline {
     agent { label "sailfish" }
     options { timestamps () }
     tools {
-        jdk 'openjdk-1.8u202'
+        jdk 'openjdk-11.0.2'
     }
     environment {
         VERSION_MAINTENANCE = """${sh(
