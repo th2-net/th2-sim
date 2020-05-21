@@ -26,9 +26,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.adapter.EmptyAdapter;
 import com.exactpro.th2.simulator.impl.Simulator;
@@ -39,7 +39,7 @@ import com.exactpro.th2.simulator.rule.IRule;
  */
 public abstract class AbstractRuleTest {
 
-    private static final ConnectivityId DEFAULT_CONNECTIVITY_ID = ConnectivityId.newBuilder().setConnectivityId("default_connectivity_for_test").build();
+    private static final ConnectionID DEFAULT_CONNECTIVITY_ID = ConnectionID.newBuilder().setSessionAlias("default_connectivity_for_test").build();
 
     private Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
     private MicroserviceConfiguration configuration  = new MicroserviceConfiguration();

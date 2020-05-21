@@ -32,15 +32,16 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
-import com.exactpro.th2.simulator.RuleID;
-import com.exactpro.th2.simulator.RuleInfo;
-import com.exactpro.th2.simulator.RulesInfo;
-import com.exactpro.th2.simulator.ServiceSimulatorGrpc;
+import com.exactpro.th2.simulator.grpc.RuleID;
+import com.exactpro.th2.simulator.grpc.RuleInfo;
+import com.exactpro.th2.simulator.grpc.RulesInfo;
+import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
+import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
 import com.exactpro.th2.simulator.rule.IRule;
 import com.google.protobuf.Empty;
 
@@ -53,10 +54,10 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private final Map<ConnectivityId, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
-    private final Map<ConnectivityId, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
+    private final Map<ConnectionID, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
+    private final Map<ConnectionID, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
     private final Map<Integer, IRule> ruleIds = new ConcurrentHashMap<>();
-    private final Map<Integer, ConnectivityId> rulesConnectivity = new ConcurrentHashMap<>();
+    private final Map<Integer, ConnectionID> rulesConnectivity = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(0);
 
     private MicroserviceConfiguration configuration;
@@ -69,12 +70,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectivityId connectivityId) {
-        if (createAdapterIfAbsent(connectivityId)) {
+    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID) {
+        if (createAdapterIfAbsent(connectionID)) {
             int id = nextId.incrementAndGet();
             ruleIds.put(id, rule);
-            rulesConnectivity.put(id, connectivityId);
-            connectivityRules.computeIfAbsent(connectivityId, (key) -> new ConcurrentHashSet<>()).add(id);
+            rulesConnectivity.put(id, connectionID);
+            connectivityRules.computeIfAbsent(connectionID, (key) -> new ConcurrentHashSet<>()).add(id);
             logger.debug("Rule with class '{}', with id '{}' was added", rule.getClass().getName(), id);
             return RuleID.newBuilder().setId(id).build();
         } else {
@@ -117,16 +118,16 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getClass().getName())
-                .setConnectivityId(rulesConnectivity.get(ruleId))
+                .setConnectionId(rulesConnectivity.get(ruleId))
                 .build();
     }
 
     @Override
-    public List<Message> handle(@NotNull ConnectivityId connectivityId, @NotNull Message message) {
+    public List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message) {
         List<Message> result = new ArrayList<>();
         boolean triggered = false;
 
-        Iterator<Integer> iterator = connectivityRules.getOrDefault(connectivityId, Collections.emptySet()).iterator();
+        Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
 
         while (iterator.hasNext()) {
             Integer id = iterator.next();
@@ -151,7 +152,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public void close() {
-        for (Entry<ConnectivityId, IAdapter> entry : connectivityAdapters.entrySet()) {
+        for (Entry<ConnectionID, IAdapter> entry : connectivityAdapters.entrySet()) {
             try {
                 entry.getValue().close();
             } catch (IOException e) {
@@ -160,16 +161,16 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
         }
     }
 
-    private boolean createAdapterIfAbsent(ConnectivityId connectivityId) {
+    private boolean createAdapterIfAbsent(ConnectionID connectionID) {
         try {
-            connectivityAdapters.computeIfAbsent(connectivityId, (key) -> {
+            connectivityAdapters.computeIfAbsent(connectionID, (key) -> {
                 try {
                     IAdapter iAdapter = adapterClass.newInstance();
-                    iAdapter.init(configuration, connectivityId, this);
-                    logger.debug("Create adapter for connectivityID: " + connectivityId.getConnectivityId());
+                    iAdapter.init(configuration, connectionID, this);
+                    logger.debug("Create adapter for ConnectionID: " + connectionID.getSessionAlias());
                     return iAdapter;
                 } catch (InstantiationException | IllegalAccessException e) {
-                    throw new IllegalStateException("Can not create adapter with connectivity id: " + connectivityId, e);
+                    throw new IllegalStateException("Can not create adapter with connectivity id: " + connectionID, e);
                 }
             });
             return true;

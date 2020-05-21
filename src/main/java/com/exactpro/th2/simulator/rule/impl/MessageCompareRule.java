@@ -24,8 +24,8 @@ import java.util.Objects;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.api.phase_1.Value;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.infra.grpc.Value;
 import com.exactpro.th2.simulator.rule.IRule;
 
 /**

@@ -15,11 +15,11 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.util;
 
-import com.exactpro.evolution.api.phase_1.ListValue;
-import com.exactpro.evolution.api.phase_1.ListValue.Builder;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.api.phase_1.NullValue;
-import com.exactpro.evolution.api.phase_1.Value;
+import com.exactpro.th2.infra.grpc.ListValue;
+import com.exactpro.th2.infra.grpc.ListValue.Builder;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.infra.grpc.NullValue;
+import com.exactpro.th2.infra.grpc.Value;
 
 /**
  * Class for work with {@link Value}

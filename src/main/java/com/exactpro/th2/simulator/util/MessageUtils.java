@@ -21,11 +21,11 @@ import java.util.Map.Entry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.evolution.api.phase_1.ListValue;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.api.phase_1.Message.Builder;
-import com.exactpro.evolution.api.phase_1.Value;
-import com.exactpro.evolution.api.phase_1.Value.KindCase;
+import com.exactpro.th2.infra.grpc.ListValue;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.infra.grpc.Message.Builder;
+import com.exactpro.th2.infra.grpc.Value;
+import com.exactpro.th2.infra.grpc.Value.KindCase;
 
 /**
  * Util class for work with {@link Message} and {@link Message.Builder}

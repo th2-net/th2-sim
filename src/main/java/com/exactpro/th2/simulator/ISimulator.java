@@ -20,9 +20,11 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.simulator.grpc.RuleID;
+import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.rule.IRule;
 
 import io.grpc.BindableService;
@@ -36,19 +38,19 @@ public interface ISimulator extends BindableService, Closeable {
     void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception;
 
     /**
-     * Add rule to simulator which listen connectivity with connectivityId
+     * Add rule to simulator which listen connectivity with connectionID
      * @param rule
-     * @param connectivityId
+     * @param connectionID
      * @return Rule's id
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull ConnectivityId connectivityId);
+    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID);
 
     /**
      * Get incoming message
-     * @param connectivityId from connectivity with this id
+     * @param connectionID from connectivity with this id
      * @param message incoming message
      * @return Messages which will send
      */
-    List<Message> handle(@NotNull ConnectivityId connectivityId, @NotNull Message message);
+    List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message);
 
 }

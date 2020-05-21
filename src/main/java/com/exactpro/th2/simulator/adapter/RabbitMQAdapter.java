@@ -22,17 +22,17 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.evolution.RabbitMqMessageSender;
-import com.exactpro.evolution.RabbitMqSubscriber;
-import com.exactpro.evolution.api.phase_1.ConnectivityGrpc;
-import com.exactpro.evolution.api.phase_1.ConnectivityGrpc.ConnectivityBlockingStub;
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
-import com.exactpro.evolution.api.phase_1.Message;
-import com.exactpro.evolution.api.phase_1.QueueInfo;
-import com.exactpro.evolution.api.phase_1.QueueRequest;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
-import com.exactpro.evolution.configuration.RabbitMQConfiguration;
-import com.exactpro.evolution.configuration.Th2Configuration.Address;
+import com.exactpro.th2.RabbitMqMessageSender;
+import com.exactpro.th2.RabbitMqSubscriber;
+import com.exactpro.th2.connectivity.grpc.ConnectivityGrpc;
+import com.exactpro.th2.connectivity.grpc.ConnectivityGrpc.ConnectivityBlockingStub;
+import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.connectivity.grpc.QueueInfo;
+import com.exactpro.th2.connectivity.grpc.QueueRequest;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.configuration.RabbitMQConfiguration;
+import com.exactpro.th2.configuration.Th2Configuration.Address;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -51,21 +51,21 @@ public class RabbitMQAdapter implements IAdapter {
     private ISimulator simulator;
     private RabbitMqSubscriber subscriber;
     private RabbitMqMessageSender sender;
-    private ConnectivityId connectivityId;
+    private ConnectionID connectionID;
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectivityId connectivityId, @NotNull ISimulator simulator) {
+    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, @NotNull ISimulator simulator) {
         this.simulator = simulator;
-        this.connectivityId = connectivityId;
+        this.connectionID = connectionID;
 
-        QueueInfo queueInfo = getQueueInfo(configuration, connectivityId);
+        QueueInfo queueInfo = getQueueInfo(configuration, connectionID);
 
         subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
                 this::processIncomingMessage,
                 null,
                 queueInfo.getInMsgQueue());
 
-        sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), connectivityId.getConnectivityId(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
+        sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), connectionID.getSessionAlias(), queueInfo.getExchangeName(), queueInfo.getSendMsgQueue());
 
         RabbitMQConfiguration rabbitConf = configuration.getRabbitMQ();
         try {
@@ -75,7 +75,7 @@ public class RabbitMQAdapter implements IAdapter {
                     rabbitConf.getUsername(),
                     rabbitConf.getPassword());
         } catch (IOException | TimeoutException e) {
-            throw new IllegalStateException("Can not start listening rabbit mq with connectivity id: " + connectivityId, e);
+            throw new IllegalStateException("Can not start listening rabbit mq with connectivity id: " + connectionID, e);
         }
     }
 
@@ -95,7 +95,7 @@ public class RabbitMQAdapter implements IAdapter {
 
             logger.trace("Handle message body = " + message.toString());
 
-            for (Message messageToSend : simulator.handle(connectivityId, message)) {
+            for (Message messageToSend : simulator.handle(connectionID, message)) {
                 try {
                     sender.send(messageToSend);
                 } catch (Exception e) {
@@ -125,11 +125,11 @@ public class RabbitMQAdapter implements IAdapter {
         }
     }
 
-    private QueueInfo getQueueInfo(MicroserviceConfiguration configuration, ConnectivityId connectivityId) {
-        Address connectivityAddress = configuration.getTh2().getConnectivityAddresses().get(connectivityId.getConnectivityId());
+    private QueueInfo getQueueInfo(MicroserviceConfiguration configuration, ConnectionID connectionID) {
+        Address connectivityAddress = configuration.getTh2().getConnectivityAddresses().get(connectionID.getSessionAlias());
 
         if (connectivityAddress == null) {
-            throw new IllegalStateException("Can not get connectivity address with id:" + connectivityId.getConnectivityId());
+            throw new IllegalStateException("Can not get connectivity address with id:" + connectionID.getSessionAlias());
         }
 
         return downloadQueueInfo(connectivityAddress);

@@ -18,8 +18,8 @@ package com.exactpro.th2.simulator.run;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.evolution.ConfigurationUtils;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.ConfigurationUtils;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.impl.SimulatorServer;

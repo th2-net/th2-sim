@@ -19,8 +19,8 @@ import java.io.Closeable;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.evolution.api.phase_1.ConnectivityId;
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
 
 /**
@@ -29,6 +29,6 @@ import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
  */
 public interface IAdapter extends Closeable {
 
-    void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectivityId connectivityId, @NotNull ISimulator simulator);
+    void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, @NotNull ISimulator simulator);
 
 }

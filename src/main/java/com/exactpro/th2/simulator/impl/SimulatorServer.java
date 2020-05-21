@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.ISimulatorPart;

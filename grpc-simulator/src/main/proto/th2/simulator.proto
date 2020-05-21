@@ -1,11 +1,11 @@
 syntax = 'proto3';
-package simulator;
+package th2;
 
 import "google/protobuf/empty.proto";
-import "phase_1/infra.proto";
+import "th2/infra.proto";
 
 option java_multiple_files = true;
-option java_package = "com.exactpro.th2.simulator";
+option java_package = "com.exactpro.th2.simulator.grpc";
 
 message RuleID {
     int32 id = 1;
@@ -13,8 +13,8 @@ message RuleID {
 
 message RuleInfo {
     RuleID id = 1;
-    string className = 2;
-    phase_1.ConnectivityId connectivityId = 3;
+    string class_name = 2;
+    ConnectionID connection_id = 3;
 }
 
 message RulesInfo {

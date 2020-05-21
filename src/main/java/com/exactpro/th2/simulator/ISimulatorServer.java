@@ -19,7 +19,8 @@ import java.io.Closeable;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.evolution.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
+import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.impl.SimulatorServer;
 
 /**
