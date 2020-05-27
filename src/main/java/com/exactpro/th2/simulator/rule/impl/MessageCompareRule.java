@@ -15,16 +15,13 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.rule.impl;
 
-import static com.exactpro.th2.simulator.util.ValueUtils.nullValue;
-
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+import java.util.function.Predicate;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.infra.grpc.Value;
 import com.exactpro.th2.simulator.rule.IRule;
 
@@ -35,28 +32,22 @@ import com.exactpro.th2.simulator.rule.IRule;
  *
  * @see IRule
  */
-public abstract class MessageCompareRule extends AbstractRule {
-    private final String messageType;
-    private final Map<String, Value> fieldsValue;
+public abstract class MessageCompareRule extends MessagePredicateRule {
 
     /**
      * Create MessageCompareRule with arguments
      * @param messageType
      * @param fieldsValue
      */
-    public MessageCompareRule(@NotNull String messageType, @Nullable Map<String, Value> fieldsValue) {
-        this.messageType = Objects.requireNonNull(messageType, "Message name can not be null");
-        this.fieldsValue = fieldsValue == null || fieldsValue.size() < 1 ? Collections.emptyMap() : fieldsValue;
-    }
-
-    @Override
-    public boolean checkTriggered(@NotNull Message message) {
-        if (!message.getMetadata().getMessageType().equals(messageType)) {
-            return false;
+    public void init(@NotNull String messageType, @Nullable Map<String, Value> fieldsValue) {
+        Map<String, Predicate<Value>> tmp = new HashMap<>();
+        if (fieldsValue != null) {
+            fieldsValue.forEach((str, value) -> {
+                if (value != null) {
+                    tmp.put(str, value::equals);
+                }
+            });
         }
-        return fieldsValue.entrySet().stream().allMatch(entry -> {
-            Value fieldValue = message.getFieldsOrDefault(entry.getKey(), nullValue());
-            return entry.getValue().equals(fieldValue);
-        });
+        super.init((messageTypeIn) -> messageType.equals(messageTypeIn), tmp);
     }
 }

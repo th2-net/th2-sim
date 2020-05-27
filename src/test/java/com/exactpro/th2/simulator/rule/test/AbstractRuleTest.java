@@ -16,11 +16,16 @@
 
 package com.exactpro.th2.simulator.rule.test;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -56,28 +61,16 @@ public abstract class AbstractRuleTest {
     /**
      * @return Max count for messages
      */
-    protected int getCountMessages() {
-        return 1000;
-    }
-
-    /**
-     * Method for create all messages
-     * @return all messages for test
-     */
-    protected @NotNull List<Message> createMessages() {
-        List<Message> result = new ArrayList<>(getCountMessages());
-        for (int i = 0; i < getCountMessages(); i++) {
-            result.add(createMessage(i, Message.newBuilder()));
-        }
-        return result;
-    }
+    protected abstract int getCountMessages();
 
     /**
      * Create rule for {@link ISimulator}
      * @return all rules for test
      */
-    protected @NotNull List<IRule> createRules() {
-        return Collections.emptyList();
+    protected abstract @NotNull List<IRule> createRules();
+
+    protected @Nullable String getPathLoggingFile() {
+        return null;
     }
 
     /**
@@ -108,15 +101,69 @@ public abstract class AbstractRuleTest {
         List<Message> messages = createMessages();
         logger.info("Messages was created");
 
+        String logFile = getPathLoggingFile();
+        OutputStreamWriter logWriter = null;
+
+        if (StringUtils.isNotEmpty(logFile)) {
+            try {
+                logger.info("Prepare logging file");
+                logWriter = new OutputStreamWriter(new FileOutputStream(logFile));
+                logWriter.append("Index;In message;Out messages");
+                logger.info("Logging messages was enable");
+            } catch (IOException e) {
+                logger.error("Can not enable logging messages", e);
+                if (logWriter != null) {
+                    try {
+                        logWriter.flush();
+                    } catch (IOException e1) {
+                        logger.error("Can not flush log file", e1);
+                    }
+
+                    try {
+                        logWriter.close();
+                    } catch (IOException e1) {
+                        logger.error("Can not close log file", e1);
+                    }
+                }
+                logWriter = null;
+            }
+        }
+
         List<List<Message>> resultMessages = new ArrayList<>(getCountMessages());
         List<Long> timeEachMessage = new ArrayList<>(getCountMessages());
 
         logger.debug("Test start");
         long timeStart = System.currentTimeMillis();
-        for (Message message : messages) {
+        for (int i = 0; i < messages.size(); i++) {
             long timeStartRule = System.nanoTime();
-            resultMessages.add(simulator.handle(DEFAULT_CONNECTIVITY_ID, message));
+            List<Message> result = simulator.handle(DEFAULT_CONNECTIVITY_ID, messages.get(i));
             long timeEndRule = System.nanoTime();
+            if (logWriter != null) {
+                try {
+                    logWriter.append(i + ";").append(messages.get(i).toString());
+                    for (Message tmp : result) {
+                        logWriter.append("\n").append(tmp.toString());
+                    }
+                    logWriter.append("\n");
+                } catch (IOException e) {
+                    logger.error("Can not log messages with index: " + i, e);
+
+                    try {
+                        logWriter.flush();
+                    } catch (IOException e1) {
+                        logger.error("Can not flush log file", e1);
+                    }
+
+                    try {
+                        logWriter.close();
+                    } catch (IOException e1) {
+                        logger.error("Can not close log file", e1);
+                    }
+
+                    logWriter = null;
+                }
+            }
+            resultMessages.add(result);
             timeEachMessage.add(timeEndRule - timeStartRule);
         }
         long timeEnd = System.currentTimeMillis();
@@ -129,16 +176,41 @@ public abstract class AbstractRuleTest {
             }
         }
 
-        double averageTime = timeEachMessage.get(0);
+        long totalTime = timeEachMessage.get(0);
         logger.debug("Message with index {} take {} ns", 0, timeEachMessage.get(0));
         for (int i = 1; i < timeEachMessage.size(); i++) {
             Long time = timeEachMessage.get(i);
             logger.debug("Message with index {} take {} ns", i, time);
-            averageTime += time;
-            averageTime /= 2;
+            totalTime += time;
         }
 
-        logger.info("Average time with rules take {} ns", averageTime);
-        logger.info("All rules time take {} ms", timeEnd - timeStart);
+        logger.info("Average time with rules take {} ns", totalTime / getCountMessages());
+        logger.info("All rules time take {} ms", TimeUnit.NANOSECONDS.toMillis(totalTime));
+        logger.info("All test spend {} ms", timeEnd - timeStart);
+        if (logWriter != null) {
+            try {
+                logWriter.flush();
+            } catch (IOException e) {
+                logger.error("Can not flush log file", e);
+            }
+
+            try {
+                logWriter.close();
+            } catch (IOException e) {
+                logger.error("Can not close log file", e);
+            }
+        }
+    }
+
+    /**
+     * Method for create all messages
+     * @return all messages for test
+     */
+    private @NotNull List<Message> createMessages() {
+        List<Message> result = new ArrayList<>(getCountMessages());
+        for (int i = 0; i < getCountMessages(); i++) {
+            result.add(createMessage(i, Message.newBuilder()));
+        }
+        return result;
     }
 }
