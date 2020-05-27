@@ -117,3 +117,5 @@ application {
 jar {
     from sourceSets.test.output+sourceSets.test.allSource
 }
+
+artifactoryPublish.skip = false
