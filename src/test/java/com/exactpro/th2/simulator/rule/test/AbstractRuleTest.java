@@ -31,9 +31,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.adapter.EmptyAdapter;
 import com.exactpro.th2.simulator.impl.Simulator;
@@ -108,7 +108,7 @@ public abstract class AbstractRuleTest {
             try {
                 logger.info("Prepare logging file");
                 logWriter = new OutputStreamWriter(new FileOutputStream(logFile));
-                logWriter.append("Index;In message;Out messages");
+                logWriter.append("Index;In message;Out messages\n\n");
                 logger.info("Logging messages was enable");
             } catch (IOException e) {
                 logger.error("Can not enable logging messages", e);
@@ -140,9 +140,10 @@ public abstract class AbstractRuleTest {
             long timeEndRule = System.nanoTime();
             if (logWriter != null) {
                 try {
-                    logWriter.append(i + ";").append(messages.get(i).toString());
+                    String inMessageString = messages.get(i).toString().replace("\n", "\n;");
+                    logWriter.append(i + "\n;").append(inMessageString);
                     for (Message tmp : result) {
-                        logWriter.append("\n").append(tmp.toString());
+                        logWriter.append("\n;;").append(tmp.toString().replace("\n", "\n;;"));
                     }
                     logWriter.append("\n");
                 } catch (IOException e) {

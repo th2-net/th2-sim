@@ -15,11 +15,14 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.util;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.exactpro.th2.infra.grpc.ListValue;
 import com.exactpro.th2.infra.grpc.ListValue.Builder;
 import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.infra.grpc.NullValue;
 import com.exactpro.th2.infra.grpc.Value;
+import com.exactpro.th2.infra.grpc.Value.KindCase;
 
 /**
  * Class for work with {@link Value}
@@ -69,6 +72,21 @@ public class ValueUtils {
             result.addValues(getValue(obj));
         }
         return result.build();
+    }
+
+    @Nullable
+    public static String toSimpleValue(Value value) {
+        return value.getKindCase() == KindCase.SIMPLE_VALUE ? value.getSimpleValue() : null;
+    }
+
+    @Nullable
+    public static Message toMessageValue(Value value) {
+        return value.getKindCase() == KindCase.MESSAGE_VALUE ? value.getMessageValue() : null;
+    }
+
+    @Nullable
+    public static ListValue toListValue(Value value) {
+        return value.getKindCase() == KindCase.LIST_VALUE ? value.getListValue() : null;
     }
 
 }

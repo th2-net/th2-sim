@@ -21,6 +21,7 @@ import java.util.Map.Entry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.ListValue;
 import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.infra.grpc.Message.Builder;
@@ -170,6 +171,52 @@ public class MessageUtils {
         for (String key : keys) {
             copyField(builder, key, message);
         }
+        return builder;
+    }
+
+    /**
+     * Copy all message to builder
+     * @param builder
+     * @param message
+     * @return builder
+     */
+    public static Message.Builder copyMessage(@NotNull Message.Builder builder, @NotNull Message message) {
+        builder.putAllFields(message.getFieldsMap());
+        builder.setMetadata(message.getMetadata());
+        return builder;
+    }
+
+    /**
+     * Copy all message from builder to another builder
+     * @param builder
+     * @param message
+     * @return builder
+     */
+    public static Message.Builder copyMessage(@NotNull Message.Builder builder, @NotNull Message.Builder message) {
+        builder.putAllFields(message.getFieldsMap());
+        builder.setMetadata(message.getMetadata());
+        return builder;
+    }
+
+    /**
+     * Set message type to builder
+     * @param builder
+     * @param messageType
+     * @return builder
+     */
+    public static Message.Builder setMessageType(@NotNull Message.Builder builder, @NotNull String messageType) {
+        builder.getMetadataBuilder().setMessageType(messageType);
+        return builder;
+    }
+
+    /**
+     * Set connection id to builder
+     * @param builder
+     * @param connectionID
+     * @return builder
+     */
+    public static Message.Builder setConnectionID(@NotNull Message.Builder builder, @NotNull ConnectionID connectionID) {
+        builder.getMetadataBuilder().getIdBuilder().setConnectionId(connectionID);
         return builder;
     }
 
