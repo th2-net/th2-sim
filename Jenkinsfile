@@ -64,7 +64,6 @@ pipeline {
                     docker login -u ${TH2_REGISTRY_USR} -p ${TH2_REGISTRY_PSW} ${TH2_REGISTRY_URL}
                     ./gradlew dockerPush ${GRADLE_SWITCHES} \
                      -Ptarget_docker_repository=${TH2_REGISTRY_URL}
-                    docker logout ${TH2_REGISTRY_URL}
                 """ // TODO: Exec from root repository
             }
         }
