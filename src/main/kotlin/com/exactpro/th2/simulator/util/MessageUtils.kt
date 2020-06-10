@@ -28,10 +28,14 @@ fun Message.Builder.getField(key: String) : Value? = this.getFieldsOrDefault(key
 
 fun Message.Builder.addField(key: String, value: Any?) = this.putFields(key, value?.toValue() ?: ValueUtils.nullValue())
 fun Message.Builder.addFields(fields: Map<String, Any?>?) = fields?.forEach {this.addField(it.key, it.value)}
+
 fun Message.Builder.copyField(message: Message.Builder, vararg key: String) = key.forEach { this.putFields(it, message.getField(it) ?: ValueUtils.nullValue())}
 fun Message.Builder.copyField(message: Message, vararg key: String) = key.forEach { this.putFields(it, message.getField(it) ?: ValueUtils.nullValue()) }
+
 fun Message.copy() = Message.newBuilder().putAllFields(this.fieldsMap)
+
 fun Message.Builder.copy() = Message.newBuilder().putAllFields(this.fieldsMap)
+
 fun Message.Builder.setMetadata(messageType: String?, direction: Direction?, sessionAlias: String?) {
     this.setMetadata(MessageMetadata.newBuilder().also {
         if (messageType != null) {it.messageType = messageType}
@@ -45,4 +49,5 @@ fun Message.Builder.setMetadata(messageType: String?, direction: Direction?, ses
 }
 
 fun Message.Builder.setMetadata(messageType: String?, sessionAlias: String?) = setMetadata(messageType, null, sessionAlias)
+
 fun Message.Builder.setMessageType(messageType: String?) = setMetadata(messageType, null, null)

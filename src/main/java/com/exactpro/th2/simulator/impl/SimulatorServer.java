@@ -1,24 +1,22 @@
-/******************************************************************************
- * Copyright 2020 Exactpro (Exactpro Systems Limited)
+/*******************************************************************************
+ *  Copyright 2020 Exactpro (Exactpro Systems Limited)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  ******************************************************************************/
 package com.exactpro.th2.simulator.impl;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.jetbrains.annotations.NotNull;
@@ -41,7 +39,6 @@ public class SimulatorServer implements ISimulatorServer {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private final Set<Class<? extends ISimulatorPart>> simulatorParts = new HashSet<>();
     private MicroserviceConfiguration configuration;
     private ISimulator simulator;
     private Server server;
@@ -58,7 +55,7 @@ public class SimulatorServer implements ISimulatorServer {
 
     @Override
     public void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorClass, @NotNull Class<? extends IAdapter> adapterClass) {
-        if (configuration.getTh2().getConnectivityAddresses().size() < 1) {
+        if (configuration.getTh2().getConnectivityQueueNames().size() < 1) {
             throw new IllegalArgumentException("Connectivity addresses must contain at least 1 element");
         }
 

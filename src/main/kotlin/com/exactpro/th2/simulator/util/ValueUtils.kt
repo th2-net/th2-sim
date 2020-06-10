@@ -22,15 +22,17 @@ import com.exactpro.th2.infra.grpc.Value
 import com.exactpro.th2.infra.grpc.Value.KindCase.LIST_VALUE
 import com.exactpro.th2.infra.grpc.Value.KindCase.MESSAGE_VALUE
 import com.exactpro.th2.infra.grpc.Value.KindCase.SIMPLE_VALUE
+import java.math.BigDecimal
 
 fun Value.getString(): String? = if (this.kindCase == SIMPLE_VALUE) this.simpleValue else null
 fun Value.getInt(): Int? = this.getString()?.toInt()
 fun Value.getLong(): Long? = this.getString()?.toLong()
+fun Value.getBigDecimal() : BigDecimal? = this.getString()?.toBigDecimal()
 fun Value.getMessage(): Message? = if (this.kindCase == MESSAGE_VALUE) this.messageValue else null
 fun Value.getList(): ListValue? = if (this.kindCase == LIST_VALUE) this.listValue else null
 
 fun String.toValue(): Value = Value.newBuilder().setSimpleValue(this).build()
-fun <T> List<T>.toValue(): Value = Value.newBuilder()
+fun <T> Iterable<T>.toValue(): Value = Value.newBuilder()
     .setListValue(ListValue.newBuilder().also { builder -> this.forEach { builder.addValues(ValueUtils.getValue(it)) }}.build()).build()
 fun Message.toValue() : Value = Value.newBuilder().setMessageValue(this).build()
 fun Any.toValue(): Value = this.toString().toValue()
