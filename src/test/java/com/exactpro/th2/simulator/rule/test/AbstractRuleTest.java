@@ -7,7 +7,7 @@
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
+ *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
@@ -38,6 +38,7 @@ import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.adapter.EmptyAdapter;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.rule.IRule;
+import com.google.protobuf.TextFormat;
 
 /**
  * Class for test work {@link IRule} in {@link ISimulator}
@@ -71,6 +72,10 @@ public abstract class AbstractRuleTest {
 
     protected @Nullable String getPathLoggingFile() {
         return null;
+    }
+
+    protected boolean shortMessageFormat() {
+        return true;
     }
 
     /**
@@ -140,10 +145,17 @@ public abstract class AbstractRuleTest {
             long timeEndRule = System.nanoTime();
             if (logWriter != null) {
                 try {
-                    String inMessageString = messages.get(i).toString().replace("\n", "\n;");
+                    String inMessageString = (shortMessageFormat()
+                            ? TextFormat.shortDebugString(messages.get(i))
+                            : messages.get(i).toString())
+                            .replace("\n", "\n;");
+
                     logWriter.append(i + "\n;").append(inMessageString);
                     for (Message tmp : result) {
-                        logWriter.append("\n;;").append(tmp.toString().replace("\n", "\n;;"));
+                        String resultString = (shortMessageFormat()
+                                 ? TextFormat.shortDebugString(tmp).replace("\n","\n;")
+                                 : tmp.toString()).replace("\n", "\n;");
+                        logWriter.append("\n;;").append(resultString);
                     }
                     logWriter.append("\n");
                 } catch (IOException e) {
