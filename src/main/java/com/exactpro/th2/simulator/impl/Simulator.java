@@ -1,17 +1,14 @@
 /*******************************************************************************
- *  Copyright 2020 Exactpro (Exactpro Systems Limited)
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  ******************************************************************************/
 package com.exactpro.th2.simulator.impl;
 
@@ -32,15 +29,14 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.grpc.RuleID;
 import com.exactpro.th2.simulator.grpc.RuleInfo;
 import com.exactpro.th2.simulator.grpc.RulesInfo;
-import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
 import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
 import com.exactpro.th2.simulator.rule.IRule;
 import com.google.protobuf.Empty;
@@ -71,7 +67,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID) {
-        if (createAdapterIfAbsent(connectionID)) {
+        return addRule(rule, connectionID, false);
+    }
+
+    @Override
+    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch) {
+        if (createAdapterIfAbsent(connectionID, parseBatch)) {
             int id = nextId.incrementAndGet();
             ruleIds.put(id, rule);
             rulesConnectivity.put(id, connectionID);
@@ -161,12 +162,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
         }
     }
 
-    private boolean createAdapterIfAbsent(ConnectionID connectionID) {
+    private boolean createAdapterIfAbsent(ConnectionID connectionID, boolean parseBatch) {
         try {
             connectivityAdapters.computeIfAbsent(connectionID, (key) -> {
                 try {
                     IAdapter iAdapter = adapterClass.newInstance();
-                    iAdapter.init(configuration, connectionID, this);
+                    iAdapter.init(configuration, connectionID, parseBatch,this);
                     logger.debug("Create adapter for ConnectionID: " + connectionID.getSessionAlias());
                     return iAdapter;
                 } catch (InstantiationException | IllegalAccessException e) {

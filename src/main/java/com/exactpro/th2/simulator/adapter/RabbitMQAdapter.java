@@ -1,17 +1,14 @@
 /*******************************************************************************
- *  Copyright 2020 Exactpro (Exactpro Systems Limited)
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  ******************************************************************************/
 package com.exactpro.th2.simulator.adapter;
 
@@ -29,6 +26,7 @@ import com.exactpro.th2.configuration.RabbitMQConfiguration;
 import com.exactpro.th2.configuration.Th2Configuration.QueueNames;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.infra.grpc.MessageBatch;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -45,11 +43,13 @@ public class RabbitMQAdapter implements IAdapter {
     private RabbitMqSubscriber subscriber;
     private RabbitMqMessageSender sender;
     private ConnectionID connectionID;
+    private boolean parseBatch;
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, @NotNull ISimulator simulator) {
+    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, @NotNull ISimulator simulator) {
         this.simulator = simulator;
         this.connectionID = connectionID;
+        this.parseBatch = parseBatch;
 
         QueueNames queueInfo = getQueueNames(configuration, connectionID);
 
@@ -79,24 +79,40 @@ public class RabbitMQAdapter implements IAdapter {
                 return;
             }
 
-            Message message = Message.parseFrom(delivery.getBody());
-            if (message == null) {
-                return;
-            }
-
-            logger.debug("Handle message name = " + message.getMetadata().getMessageType());
-
-            logger.trace("Handle message body = " + message.toString());
-
-            for (Message messageToSend : simulator.handle(connectionID, message)) {
-                try {
-                    sender.send(messageToSend);
-                } catch (Exception e) {
-                    logger.error("Can not send message: " + messageToSend.toString(), e);
+            if (parseBatch) {
+                logger.trace("Parsing input to message batch");
+                MessageBatch batch = MessageBatch.parseFrom(delivery.getBody());
+                logger.debug("Parsed input to message batch");
+                for (Message message : batch.getMessagesList()) {
+                    processSingleMessage(message);
                 }
+            } else {
+                logger.trace("Parsing input to single message");
+                Message message = Message.parseFrom(delivery.getBody());
+                logger.debug("Parsed input to single message");
+                processSingleMessage(message);
             }
+
         } catch (InvalidProtocolBufferException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void processSingleMessage(Message message) {
+        if (message == null) {
+            return;
+        }
+
+        logger.debug("Handle message name = " + message.getMetadata().getMessageType());
+
+        logger.trace("Handle message body = " + message.toString());
+
+        for (Message messageToSend : simulator.handle(connectionID, message)) {
+            try {
+                sender.send(messageToSend);
+            } catch (Exception e) {
+                logger.error("Can not send message: " + messageToSend.toString(), e);
+            }
         }
     }
 

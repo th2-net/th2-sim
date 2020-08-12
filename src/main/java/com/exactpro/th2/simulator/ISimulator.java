@@ -1,12 +1,9 @@
-/******************************************************************************
- * Copyright 2020 Exactpro (Exactpro Systems Limited)
- *
+/*******************************************************************************
+ * Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * http://www.apache.org/licenses/LICENSE-2.0
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,9 +17,9 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.simulator.grpc.RuleID;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.rule.IRule;
@@ -39,11 +36,21 @@ public interface ISimulator extends BindableService, Closeable {
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
+     * Parse input to message
      * @param rule
      * @param connectionID
      * @return Rule's id
      */
     RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID);
+
+    /**
+     * Add rule to simulator which listen connectivity with connectionID
+     * @param rule
+     * @param connectionID
+     * @param parseBatch Parse input to message batch or single message
+     * @return Rule's id
+     */
+    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch);
 
     /**
      * Get incoming message
