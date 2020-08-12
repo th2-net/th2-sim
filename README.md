@@ -1,10 +1,37 @@
-Example of Simulator component env variables:
-
-
-GRPC_PORT=8080 \
-RABBITMQ_PASS=some_pass \
-RABBITMQ_HOST=some_host_name_or_ip \
-RABBITMQ_PORT=7777 \
-RABBITMQ_VHOST=someVhost \
-RABBITMQ_USER=some_user \
-TH2_CONNECTIVITY_ADDRESSES={"connectivity_name1": {"host": "127.0.0.1", "port": 5555}, "connectivity_name2": {"host": "some-host-name", "port": 5454}}
+# Simulator
+## Description
+The Simulator is service for simulate different logic.
+All logic contains in a Rule. 
+You can turn on/off rules for different connections or some rules for one connection
+This project is java framework for creating custom the Simulator 
+## Interfaces
+### ISimulator
+Main interface of simulator, which contains logic for managing rules and handle on message 
+### IAdapter
+Interface for connection's messages' source
+### ISimulatorServer
+Interface for managing gRPC server
+### ISimulatorPart
+Interface for gRPC services for creating Rules
+## Settings
+Simulator using environment variables for settings
+#### GRPC_PORT
+Simulator's gRPC server's port
+#### RABBITMQ_HOST
+RabbitMQ host \
+(Example: localhost)
+#### RABBITMQ_PORT
+RabbitMQ port \
+(Example: 8080)
+#### RABBITMQ_VHOST
+RabbitMQ virtual host \
+(Example: vh)
+#### RABBITMQ_USER
+RabbitMQ user \
+(Example: guest)
+#### RABBITMQ_PASS
+RabbitMQ password \
+(Example: guest)
+#### TH2_CONNECTIVITY_QUEUE_NAMES
+RabbitMQ queues of connectivity \
+(Example: {"fix_client": {"exchangeName":"demo_exchange", "toSendQueueName":"client_to_send", "toSendRawQueueName":"client_to_send_raw", "inQueueName": "fix_codec_out_client", "inRawQueueName": "client_in_raw", "outQueueName": "client_out" , "outRawQueueName": "client_out_raw"  }, "fix_server": {"exchangeName":"demo_exchange", "toSendQueueName":"server_to_send", "toSendRawQueueName":"server_to_send_raw", "inQueueName": "fix_codec_out_server", "inRawQueueName": "server_in_raw", "outQueueName": "server_out" , "outRawQueueName": "server_out_raw"  }})
