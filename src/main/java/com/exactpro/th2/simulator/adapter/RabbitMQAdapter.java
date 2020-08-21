@@ -13,13 +13,14 @@
 package com.exactpro.th2.simulator.adapter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.RabbitMqMessageSender;
+import com.exactpro.th2.RabbitMqMessageBatchSender;
 import com.exactpro.th2.RabbitMqSubscriber;
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.configuration.RabbitMQConfiguration;
@@ -41,7 +42,7 @@ public class RabbitMQAdapter implements IAdapter {
 
     private ISimulator simulator;
     private RabbitMqSubscriber subscriber;
-    private RabbitMqMessageSender sender;
+    private RabbitMqMessageBatchSender sender;
     private ConnectionID connectionID;
     private boolean parseBatch;
 
@@ -58,7 +59,7 @@ public class RabbitMQAdapter implements IAdapter {
                 null,
                 queueInfo.getInQueueName());
 
-        sender = new RabbitMqMessageSender(configuration.getRabbitMQ(), connectionID.getSessionAlias(), queueInfo.getExchangeName(), queueInfo.getToSendQueueName());
+        sender = new RabbitMqMessageBatchSender(configuration.getRabbitMQ(), queueInfo.getExchangeName(), queueInfo.getToSendQueueName());
 
         RabbitMQConfiguration rabbitConf = configuration.getRabbitMQ();
         try {
@@ -107,11 +108,15 @@ public class RabbitMQAdapter implements IAdapter {
 
         logger.trace("Handle message body = " + message.toString());
 
-        for (Message messageToSend : simulator.handle(connectionID, message)) {
+        List<Message> messages = simulator.handle(connectionID, message);
+
+        if (messages.size() > 0) {
+            MessageBatch batch = MessageBatch.newBuilder().addAllMessages(messages).build();
+
             try {
-                sender.send(messageToSend);
-            } catch (Exception e) {
-                logger.error("Can not send message: " + messageToSend.toString(), e);
+                sender.send(batch);
+            } catch (IOException e) {
+                logger.error("Can not send message batch: " +  batch.toString(), e);
             }
         }
     }

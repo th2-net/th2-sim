@@ -15,6 +15,7 @@ package com.exactpro.th2.simulator.impl;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.apache.mina.util.ConcurrentHashSet;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +76,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             int id = nextId.incrementAndGet();
             ruleIds.put(id, rule);
             rulesConnectivity.put(id, connectionID);
-            connectivityRules.computeIfAbsent(connectionID, (key) -> new ConcurrentHashSet<>()).add(id);
+            connectivityRules.computeIfAbsent(connectionID, (key) -> Collections.synchronizedSet(new HashSet<>())).add(id);
             logger.debug("Rule with class '{}', with id '{}' was added", rule.getClass().getName(), id);
             return RuleID.newBuilder().setId(id).build();
         } else {
