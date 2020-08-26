@@ -36,21 +36,36 @@ public interface ISimulator extends BindableService, Closeable {
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
-     * Parse input to message
+     * Parse input to single message
+     * Parse output to single message
      * @param rule
      * @param connectionID
      * @return Rule's id
+     * @see ISimulator#addRule(IRule, ConnectionID, boolean)
+     * @see ISimulator#addRule(IRule, ConnectionID, boolean, boolean)
      */
     RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID);
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
+     * Parse output to single message
      * @param rule
      * @param connectionID
-     * @param parseBatch Parse input to message batch or single message
+     * @param parseBatch If true, parse input to message batch else to single message
      * @return Rule's id
+     * @see ISimulator#addRule(IRule, ConnectionID, boolean, boolean)
      */
     RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch);
+
+    /**
+     * Add rule to simulator which listen connectivity with connectionID
+     * @param rule
+     * @param connectionID
+     * @param parseBatch If true, parse input to message batch else to single message
+     * @param sendBatch If true, parse output to message batch else to single message
+     * @return Rule's id
+     */
+    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch);
 
     /**
      * Get incoming message

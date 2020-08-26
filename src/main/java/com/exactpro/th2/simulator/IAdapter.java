@@ -26,6 +26,6 @@ import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
  */
 public interface IAdapter extends Closeable {
 
-    void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, @NotNull ISimulator simulator);
+    void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch, @NotNull ISimulator simulator);
 
 }

@@ -13,13 +13,16 @@
 package com.exactpro.th2.simulator.impl;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,7 +75,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch) {
-        if (createAdapterIfAbsent(connectionID, parseBatch)) {
+       return addRule(rule, connectionID, parseBatch, false);
+    }
+
+    @Override
+    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean receiveBatch, boolean sendBatch) {
+        if (createAdapterIfAbsent(connectionID, receiveBatch, sendBatch)) {
             int id = nextId.incrementAndGet();
             ruleIds.put(id, rule);
             rulesConnectivity.put(id, connectionID);
@@ -126,9 +134,10 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     @Override
     public List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message) {
         List<Message> result = new ArrayList<>();
-        boolean triggered = false;
 
         Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
+
+        Queue<Integer> triggeredRules = new LinkedList<>();
 
         while (iterator.hasNext()) {
             Integer id = iterator.next();
@@ -139,13 +148,13 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             }
 
             if (rule.checkTriggered(message)) {
-                if (triggered) {
-                    logger.info("Triggered on message more one rule. Rule id: " + id);
-                }
-
+                triggeredRules.add(id);
                 result.addAll(rule.handle(message));
-                triggered = true;
             }
+        }
+
+        if (triggeredRules.size() > 1) {
+            logger.info("Triggered on message more one rule. Rules ids: " + triggeredRules);
         }
 
         return result;
@@ -162,15 +171,15 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
         }
     }
 
-    private boolean createAdapterIfAbsent(ConnectionID connectionID, boolean parseBatch) {
+    private boolean createAdapterIfAbsent(ConnectionID connectionID, boolean parseBatch, boolean sendBatch) {
         try {
             connectivityAdapters.computeIfAbsent(connectionID, (key) -> {
                 try {
-                    IAdapter iAdapter = adapterClass.newInstance();
-                    iAdapter.init(configuration, connectionID, parseBatch,this);
-                    logger.debug("Create adapter for ConnectionID: " + connectionID.getSessionAlias());
-                    return iAdapter;
-                } catch (InstantiationException | IllegalAccessException e) {
+                    IAdapter adapter = adapterClass.getConstructor().newInstance();
+                    adapter.init(configuration, connectionID, parseBatch, sendBatch, this);
+                    logger.debug("Create adapter for connection: " + connectionID.getSessionAlias());
+                    return adapter;
+                } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
                     throw new IllegalStateException("Can not create adapter with connectivity id: " + connectionID, e);
                 }
             });

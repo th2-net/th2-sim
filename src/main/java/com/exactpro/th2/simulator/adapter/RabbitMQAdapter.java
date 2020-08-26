@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.RabbitMqMessageBatchSender;
+import com.exactpro.th2.RabbitMqMessageSender;
 import com.exactpro.th2.RabbitMqSubscriber;
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.configuration.RabbitMQConfiguration;
@@ -42,15 +43,18 @@ public class RabbitMQAdapter implements IAdapter {
 
     private ISimulator simulator;
     private RabbitMqSubscriber subscriber;
-    private RabbitMqMessageBatchSender sender;
+    private RabbitMqMessageBatchSender batchSender;
+    private RabbitMqMessageSender messageSender;
     private ConnectionID connectionID;
     private boolean parseBatch;
+    private boolean sendBatch;
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, @NotNull ISimulator simulator) {
+    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch, @NotNull ISimulator simulator) {
         this.simulator = simulator;
         this.connectionID = connectionID;
         this.parseBatch = parseBatch;
+        this.sendBatch = sendBatch;
 
         QueueNames queueInfo = getQueueNames(configuration, connectionID);
 
@@ -59,7 +63,11 @@ public class RabbitMQAdapter implements IAdapter {
                 null,
                 queueInfo.getInQueueName());
 
-        sender = new RabbitMqMessageBatchSender(configuration.getRabbitMQ(), queueInfo.getExchangeName(), queueInfo.getToSendQueueName());
+        if (sendBatch) {
+            batchSender = new RabbitMqMessageBatchSender(configuration.getRabbitMQ(), queueInfo.getExchangeName(), queueInfo.getToSendQueueName());
+        } else {
+            messageSender = new RabbitMqMessageSender(configuration.getRabbitMQ(), queueInfo.getExchangeName(), queueInfo.getToSendQueueName());
+        }
 
         RabbitMQConfiguration rabbitConf = configuration.getRabbitMQ();
         try {
@@ -75,22 +83,22 @@ public class RabbitMQAdapter implements IAdapter {
 
     private void processIncomingMessage(String tag, Delivery delivery) {
         try {
-            if (sender == null) {
+            if (batchSender == null || messageSender == null) {
                 logger.error("Can not process message, because sender did not init");
                 return;
             }
 
             if (parseBatch) {
-                logger.trace("Parsing input to message batch");
+                logger.trace("Parsing input to message batch in connection = {}", connectionID.getSessionAlias());
                 MessageBatch batch = MessageBatch.parseFrom(delivery.getBody());
-                logger.debug("Parsed input to message batch");
+                logger.debug("Parsed input to message batch in connection = {}", connectionID.getSessionAlias());
                 for (Message message : batch.getMessagesList()) {
                     processSingleMessage(message);
                 }
             } else {
-                logger.trace("Parsing input to single message");
+                logger.trace("Parsing input to single message in connection = {}", connectionID.getSessionAlias());
                 Message message = Message.parseFrom(delivery.getBody());
-                logger.debug("Parsed input to single message");
+                logger.debug("Parsed input to single message in connection = {}", connectionID.getSessionAlias());
                 processSingleMessage(message);
             }
 
@@ -104,19 +112,30 @@ public class RabbitMQAdapter implements IAdapter {
             return;
         }
 
-        logger.debug("Handle message name = " + message.getMetadata().getMessageType());
+        logger.debug("Handle message name = {}", message.getMetadata().getMessageType());
 
-        logger.trace("Handle message body = " + message.toString());
+        logger.trace("Handle message body = {}", message.toString());
 
         List<Message> messages = simulator.handle(connectionID, message);
 
         if (messages.size() > 0) {
-            MessageBatch batch = MessageBatch.newBuilder().addAllMessages(messages).build();
 
-            try {
-                sender.send(batch);
-            } catch (IOException e) {
-                logger.error("Can not send message batch: " +  batch.toString(), e);
+            if (sendBatch) {
+                MessageBatch batch = MessageBatch.newBuilder().addAllMessages(messages).build();
+
+                try {
+                    batchSender.send(batch);
+                } catch (IOException e) {
+                    logger.error("Can not send message batch to connection: {}.\n{}", connectionID.getSessionAlias(), batch, e);
+                }
+            } else {
+                for (Message tmp : messages) {
+                    try {
+                        messageSender.send(tmp);
+                    } catch (IOException e) {
+                        logger.error("Can not send single message to connection: {}.\n{} ", connectionID.getSessionAlias(), tmp, e);
+                    }
+                }
             }
         }
     }
@@ -130,11 +149,11 @@ public class RabbitMQAdapter implements IAdapter {
                 logger.error("Can not close rabbit mq subscriber", e);
             }
         }
-        if (sender != null) {
+        if (batchSender != null) {
             try {
-                sender.close();
+                batchSender.close();
             } catch (Exception e) {
-                logger.error("Can not close rabbit mq sender", e);
+                logger.error("Can not close rabbit mq batchSender", e);
             }
         }
     }
