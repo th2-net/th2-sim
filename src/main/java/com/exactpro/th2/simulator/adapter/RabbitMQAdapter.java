@@ -89,16 +89,16 @@ public class RabbitMQAdapter implements IAdapter {
             }
 
             if (parseBatch) {
-                logger.trace("Parsing input to message batch in connection = {}", connectionID.getSessionAlias());
+                logger.trace("Parsing input to message batch in connection = {}", connectionId.getSessionAlias());
                 MessageBatch batch = MessageBatch.parseFrom(delivery.getBody());
-                logger.debug("Parsed input to message batch in connection = {}", connectionID.getSessionAlias());
+                logger.debug("Parsed input to message batch in connection = {}", connectionId.getSessionAlias());
                 for (Message message : batch.getMessagesList()) {
                     processSingleMessage(message);
                 }
             } else {
-                logger.trace("Parsing input to single message in connection = {}", connectionID.getSessionAlias());
+                logger.trace("Parsing input to single message in connection = {}", connectionId.getSessionAlias());
                 Message message = Message.parseFrom(delivery.getBody());
-                logger.debug("Parsed input to single message in connection = {}", connectionID.getSessionAlias());
+                logger.debug("Parsed input to single message in connection = {}", connectionId.getSessionAlias());
                 processSingleMessage(message);
             }
 
@@ -126,14 +126,14 @@ public class RabbitMQAdapter implements IAdapter {
                 try {
                     batchSender.send(batch);
                 } catch (IOException e) {
-                    logger.error("Can not send message batch to connection: {}.\n{}", connectionID.getSessionAlias(), batch, e);
+                    logger.error("Can not send message batch to connection: {}.\n{}", connectionId.getSessionAlias(), batch, e);
                 }
             } else {
                 for (Message tmp : messages) {
                     try {
                         messageSender.send(tmp);
                     } catch (IOException e) {
-                        logger.error("Can not send single message to connection: {}.\n{} ", connectionID.getSessionAlias(), tmp, e);
+                        logger.error("Can not send single message to connection: {}.\n{} ", connectionId.getSessionAlias(), tmp, e);
                     }
                 }
             }
