@@ -31,5 +31,5 @@ public class EmptyAdapter implements IAdapter {
     public void close() throws IOException {}
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, @NotNull ISimulator simulator) { }
+    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch, @NotNull ISimulator simulator) { }
 }
