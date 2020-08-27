@@ -45,14 +45,14 @@ public class RabbitMQAdapter implements IAdapter {
     private RabbitMqSubscriber subscriber;
     private RabbitMqMessageBatchSender batchSender;
     private RabbitMqMessageSender messageSender;
-    private ConnectionID connectionID;
+    private ConnectionID connectionId;
     private boolean parseBatch;
     private boolean sendBatch;
 
     @Override
     public void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch, @NotNull ISimulator simulator) {
         this.simulator = simulator;
-        this.connectionID = connectionID;
+        this.connectionId = connectionID;
         this.parseBatch = parseBatch;
         this.sendBatch = sendBatch;
 
@@ -116,7 +116,7 @@ public class RabbitMQAdapter implements IAdapter {
 
         logger.trace("Handle message body = {}", message.toString());
 
-        List<Message> messages = simulator.handle(connectionID, message);
+        List<Message> messages = simulator.handle(connectionId, message);
 
         if (messages.size() > 0) {
 
