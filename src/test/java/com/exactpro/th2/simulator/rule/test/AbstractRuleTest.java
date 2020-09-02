@@ -1,17 +1,14 @@
 /*******************************************************************************
- *  Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  ******************************************************************************/
 
 package com.exactpro.th2.simulator.rule.test;
@@ -20,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -31,11 +29,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.adapter.EmptyAdapter;
+import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.rule.IRule;
 import com.google.protobuf.TextFormat;
@@ -48,7 +46,7 @@ public abstract class AbstractRuleTest {
     private static final ConnectionID DEFAULT_CONNECTIVITY_ID = ConnectionID.newBuilder().setSessionAlias("default_connectivity_for_test").build();
 
     private Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
-    private MicroserviceConfiguration configuration  = new MicroserviceConfiguration();
+    private SimulatorConfiguration configuration  = new SimulatorConfiguration();
     private ISimulator simulator = new Simulator();
 
     /**
@@ -69,6 +67,8 @@ public abstract class AbstractRuleTest {
      * @return all rules for test
      */
     protected abstract @NotNull List<IRule> createRules();
+
+    protected @NotNull List<IRule> createDefaultRules() { return Collections.emptyList(); }
 
     protected @Nullable String getPathLoggingFile() {
         return null;
@@ -93,6 +93,10 @@ public abstract class AbstractRuleTest {
         logger.debug("Simulator is initializing");
         simulator.init(configuration, EmptyAdapter.class);
         logger.info("Simulator was init");
+
+        for (IRule rule : createDefaultRules()) {
+            simulator.addDefaultRule(simulator.addRule(rule, DEFAULT_CONNECTIVITY_ID));
+        }
 
         for (IRule rule : createRules()) {
             simulator.addRule(rule, DEFAULT_CONNECTIVITY_ID);

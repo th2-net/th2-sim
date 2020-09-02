@@ -17,9 +17,9 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
 import com.exactpro.th2.simulator.grpc.RuleID;
 import com.exactpro.th2.simulator.impl.Simulator;
 import com.exactpro.th2.simulator.rule.IRule;
@@ -32,7 +32,7 @@ import io.grpc.BindableService;
  */
 public interface ISimulator extends BindableService, Closeable {
 
-    void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception;
+    void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception;
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
@@ -66,6 +66,12 @@ public interface ISimulator extends BindableService, Closeable {
      * @return Rule's id
      */
     RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch);
+
+    /**
+     * Add default rule to simulator
+     * @param ruleID
+     */
+    void addDefaultRule(RuleID ruleID);
 
     /**
      * Get incoming message

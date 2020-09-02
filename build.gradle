@@ -104,6 +104,7 @@ apply plugin: "org.jetbrains.kotlin.jvm"
 ext {
     dockerImageVersion          = "${version_major}.${version_minor}.${version_maintenance}.${version_build}"
     version_slf4j               = '1.7.30'
+    versionProtobuf             = "3.11.0"
 
     genDir              = file('src/gen')
 }
@@ -116,6 +117,8 @@ dependencies {
 
     compile "com.exactpro.th2:th2-common:${commonVersion}"
     compile "com.exactpro.th2:th2-grpc-connectivity:${connectivityVersion}"
+
+    compile "com.google.protobuf:protobuf-java-util:${versionProtobuf}"
 
     testImplementation 'junit:junit:4.12'
 }

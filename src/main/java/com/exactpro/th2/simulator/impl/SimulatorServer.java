@@ -13,30 +13,44 @@
 package com.exactpro.th2.simulator.impl;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
 import com.exactpro.th2.simulator.ISimulatorPart;
 import com.exactpro.th2.simulator.ISimulatorServer;
+import com.exactpro.th2.simulator.configuration.DefaultRuleConfiguration;
+import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
+import com.exactpro.th2.simulator.grpc.RuleID;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.Message.Builder;
+import com.google.protobuf.util.JsonFormat;
 
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
+import io.grpc.stub.StreamObserver;
 
 /**
  * Default implementation {@link ISimulatorServer}.
  */
 public class SimulatorServer implements ISimulatorServer {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private MicroserviceConfiguration configuration;
+    private SimulatorConfiguration configuration;
     private ISimulator simulator;
     private Server server;
 
@@ -51,7 +65,7 @@ public class SimulatorServer implements ISimulatorServer {
     }
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorClass, @NotNull Class<? extends IAdapter> adapterClass) {
+    public void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorClass, @NotNull Class<? extends IAdapter> adapterClass) {
         if (configuration.getTh2().getConnectivityQueueNames().size() < 1) {
             throw new IllegalArgumentException("Connectivity addresses must contain at least 1 element");
         }
@@ -73,10 +87,23 @@ public class SimulatorServer implements ISimulatorServer {
             return false;
         }
 
+        Map<String, DefaultRuleConfiguration> defaultRules = configuration
+                .getDefaultRules()
+                .stream()
+                .filter(DefaultRuleConfiguration::isEnable)
+                .filter(it -> it.getMethodName() != null)
+                .collect(
+                        Collectors.toMap(
+                                DefaultRuleConfiguration::getMethodName,
+                                it -> it));
+
         NettyServerBuilder builder = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator);
         for (ISimulatorPart tmp : ServiceLoader.load(ISimulatorPart.class)) {
             logger.info("Was loaded simulator part class with name: " + tmp.getClass());
             tmp.init(simulator);
+
+            addDefaultRules(tmp, defaultRules);
+
             builder.addService(tmp);
             logger.debug("Was added to gRPC simulator part class with name: " + tmp.getClass());
         }
@@ -89,6 +116,93 @@ public class SimulatorServer implements ISimulatorServer {
         } catch (IOException e) {
             logger.error("Can not start server", e);
             return false;
+        }
+    }
+
+    private void addDefaultRules(ISimulatorPart tmp, Map<String, DefaultRuleConfiguration> defaultRules) {
+        Method[] methods = tmp.getClass().getDeclaredMethods();
+        for (Method method : methods) {
+            DefaultRuleConfiguration configuration = defaultRules.get(method.getName());
+
+            if (configuration != null && method.getParameterCount() == 2) {
+                Class<?>[] parameterTypes = method.getParameterTypes();
+
+                DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger);
+                Object request = null;
+                JsonNode ruleRequest = configuration.getSettings();
+
+                if (ruleRequest != null) {
+                    try {
+                        Builder builder = getBuilder(parameterTypes[0]);
+                        if (builder != null) {
+                            JsonFormat.parser().merge(ruleRequest.toString(), builder);
+                            request = builder.build();
+                        } else {
+                            logger.warn("Can not create builder for class: '{}'", parameterTypes[0]);
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
+                    }
+                }
+
+                if (request == null) {
+                    logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), tmp.getClass());
+                }
+
+                try {
+                    method.invoke(tmp, request, defaultSetterObserver);
+                } catch (Exception ex) {
+                    logger.error("Can not execute method: '{}'", method.getName(), ex);
+                    continue;
+                }
+
+                defaultSetterObserver.waitFinished();
+            }
+        }
+    }
+
+    private Builder getBuilder(Class<?> parameterType) {
+        try {
+            return (Builder) parameterType.getMethod("newBuilder").invoke(null);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            logger.warn("Can not create builder", e);
+            return null;
+        }
+
+    }
+
+    private static class DefaultSetterObserver implements StreamObserver<RuleID> {
+
+
+        private final ISimulator simulator;
+        private final Logger logger;
+        private final AtomicBoolean isFinish = new AtomicBoolean(false);
+
+        public DefaultSetterObserver(ISimulator simulator, Logger logger) {
+            this.simulator = simulator;
+            this.logger = logger;
+        }
+
+        @Override
+        public void onNext(RuleID value) {
+            simulator.addDefaultRule(value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            isFinish.set(true);
+            logger.error("Can not execute method", t);
+        }
+
+        @Override
+        public void onCompleted() {
+            isFinish.set(true);
+        }
+
+        public void waitFinished() {
+            while (!isFinish.get()) {
+                Thread.yield();
+            }
         }
     }
 

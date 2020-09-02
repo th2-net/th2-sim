@@ -18,11 +18,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,6 +35,7 @@ import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.simulator.IAdapter;
 import com.exactpro.th2.simulator.ISimulator;
+import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
 import com.exactpro.th2.simulator.grpc.RuleID;
 import com.exactpro.th2.simulator.grpc.RuleInfo;
 import com.exactpro.th2.simulator.grpc.RulesInfo;
@@ -57,13 +56,18 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     private final Map<ConnectionID, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
     private final Map<Integer, IRule> ruleIds = new ConcurrentHashMap<>();
     private final Map<Integer, ConnectionID> rulesConnectivity = new ConcurrentHashMap<>();
+
     private final AtomicInteger nextId = new AtomicInteger(0);
+
+    private final Set<Integer> defaultsRules = Collections.synchronizedSet(new HashSet<>());
+    private final Object lockCanUseDefaultRules = new Object();
+    private Boolean canUseDefaultRules = true;
 
     private MicroserviceConfiguration configuration;
     private Class<? extends IAdapter> adapterClass;
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception {
+    public void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends IAdapter> adapterClass) throws Exception {
         this.configuration = configuration;
         this.adapterClass = adapterClass;
     }
@@ -82,14 +86,23 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean receiveBatch, boolean sendBatch) {
         if (createAdapterIfAbsent(connectionID, receiveBatch, sendBatch)) {
             int id = nextId.incrementAndGet();
-            ruleIds.put(id, rule);
-            rulesConnectivity.put(id, connectionID);
-            connectivityRules.computeIfAbsent(connectionID, (key) -> Collections.synchronizedSet(new HashSet<>())).add(id);
+            synchronized (lockCanUseDefaultRules) {
+                ruleIds.put(id, rule);
+                rulesConnectivity.put(id, connectionID);
+                connectivityRules.computeIfAbsent(connectionID, (key) -> Collections.synchronizedSet(new HashSet<>())).add(id);
+                canUseDefaultRules = false;
+            }
             logger.debug("Rule with class '{}', with id '{}' was added", rule.getClass().getName(), id);
             return RuleID.newBuilder().setId(id).build();
         } else {
             return RuleID.newBuilder().setId(-1).build();
         }
+    }
+
+    @Override
+    public void addDefaultRule(RuleID ruleID) {
+        defaultsRules.add(ruleID.getId());
+        updatePossibleUseDefaultRules();
     }
 
     @Override
@@ -103,8 +116,19 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
             logger.debug("Rule with id {} was removed", id.getId());
         }
+
         responseObserver.onNext(Empty.newBuilder().build());
         responseObserver.onCompleted();
+    }
+
+    private void updatePossibleUseDefaultRules() {
+        synchronized (lockCanUseDefaultRules) {
+            if (defaultsRules.size() > 0 && defaultsRules.containsAll(ruleIds.keySet())) {
+                canUseDefaultRules = true;
+            } else {
+                canUseDefaultRules = false;
+            }
+        }
     }
 
     @Override
@@ -137,10 +161,20 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
         Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
 
-        Queue<Integer> triggeredRules = new LinkedList<>();
+        Set<Integer> triggeredRules = new HashSet<>();
+
+        boolean canUseDefaultRulesLocal;
+        synchronized (lockCanUseDefaultRules) {
+            canUseDefaultRulesLocal = canUseDefaultRules;
+        }
 
         while (iterator.hasNext()) {
             Integer id = iterator.next();
+
+            if (defaultsRules.contains(id) && !canUseDefaultRulesLocal) {
+                continue;
+            }
+
             IRule rule = ruleIds.get(id);
             if (rule == null) {
                 iterator.remove();

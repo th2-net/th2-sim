@@ -16,22 +16,64 @@ Interface for gRPC services for creating Rules
 ## Settings
 Simulator using environment variables for settings
 #### GRPC_PORT
-Simulator's gRPC server's port
+Simulator's gRPC server's port \
+*Example:* 8080
 #### RABBITMQ_HOST
 RabbitMQ host \
-(Example: localhost)
+*Example:* localhost
 #### RABBITMQ_PORT
 RabbitMQ port \
-(Example: 8080)
+*Example:* 8888
 #### RABBITMQ_VHOST
 RabbitMQ virtual host \
-(Example: vh)
+*Example:* vh
 #### RABBITMQ_USER
 RabbitMQ user \
-(Example: guest)
+*Example:* guest
 #### RABBITMQ_PASS
 RabbitMQ password \
-(Example: guest)
+*Example:* guest
 #### TH2_CONNECTIVITY_QUEUE_NAMES
 RabbitMQ queues of connectivity \
-(Example: {"fix_client": {"exchangeName":"demo_exchange", "toSendQueueName":"client_to_send", "toSendRawQueueName":"client_to_send_raw", "inQueueName": "fix_codec_out_client", "inRawQueueName": "client_in_raw", "outQueueName": "client_out" , "outRawQueueName": "client_out_raw"  }, "fix_server": {"exchangeName":"demo_exchange", "toSendQueueName":"server_to_send", "toSendRawQueueName":"server_to_send_raw", "inQueueName": "fix_codec_out_server", "inRawQueueName": "server_in_raw", "outQueueName": "server_out" , "outRawQueueName": "server_out_raw"  }})
+*Example:*
+```
+{
+  "fix_client": {
+    "exchangeName":"demo_exchange", 
+    "toSendQueueName":"client_to_send", 
+    "toSendRawQueueName":"client_to_send_raw", 
+    "inQueueName": "fix_codec_out_client", 
+    "inRawQueueName": "client_in_raw", 
+    "outQueueName": "client_out" , 
+    "outRawQueueName": "client_out_raw"  
+  }, 
+  "fix_server": {
+    "exchangeName":"demo_exchange", 
+    "toSendQueueName":"server_to_send", 
+    "toSendRawQueueName":"server_to_send_raw", 
+    "inQueueName": "fix_codec_out_server", 
+    "inRawQueueName": "server_in_raw", 
+    "outQueueName": "server_out" , 
+    "outRawQueueName": "server_out_raw"  
+  }
+}
+```
+#### SIMULATOR_DEFAULT_RULES
+Default rules which start with simulator \
+*Example:*
+```
+[{
+  "methodName": "createRuleFIX",
+  "enable": false
+  "settings": {
+    "fields": {
+      "ClOrdID": {
+        "simple_value":"order_id"
+      }
+    },
+    "connection_id": {
+      "session_alias": "fix-client"
+    }
+  }
+}]
+```

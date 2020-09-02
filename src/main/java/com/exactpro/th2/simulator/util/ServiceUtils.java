@@ -32,4 +32,9 @@ public class ServiceUtils {
         responseObserver.onCompleted();
     }
 
+    public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
+        responseObserver.onNext(simulator.addRule(rule, connectionID, parseBatch, sendBatch));
+        responseObserver.onCompleted();
+    }
+
 }

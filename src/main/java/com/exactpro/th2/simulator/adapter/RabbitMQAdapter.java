@@ -58,6 +58,10 @@ public class RabbitMQAdapter implements IAdapter {
 
         QueueNames queueInfo = getQueueNames(configuration, connectionID);
 
+        if (queueInfo == null) {
+            throw new IllegalStateException("Can not find queues for connectionID: '" + connectionID + "'");
+        }
+
         subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
                 this::processIncomingMessage,
                 null,
