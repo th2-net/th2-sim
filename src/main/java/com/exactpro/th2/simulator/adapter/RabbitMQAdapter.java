@@ -87,7 +87,7 @@ public class RabbitMQAdapter implements IAdapter {
 
     private void processIncomingMessage(String tag, Delivery delivery) {
         try {
-            if (batchSender == null || messageSender == null) {
+            if (batchSender == null && messageSender == null) {
                 logger.error("Can not process message, because sender did not init");
                 return;
             }
