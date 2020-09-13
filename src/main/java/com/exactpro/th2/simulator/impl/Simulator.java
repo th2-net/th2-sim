@@ -84,6 +84,13 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean receiveBatch, boolean sendBatch) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("try to add rule '{}' for connectionID '{}'. Input type: '{}'. Output type: '{}'",
+                    rule.getClass().getName(),
+                    connectionID.getSessionAlias(),
+                    receiveBatch ? "BATCH" : "SINGLE",
+                    sendBatch ? "BATCH" : "SINGLE");
+        }
         if (createAdapterIfAbsent(connectionID, receiveBatch, sendBatch)) {
             int id = nextId.incrementAndGet();
             synchronized (lockCanUseDefaultRules) {

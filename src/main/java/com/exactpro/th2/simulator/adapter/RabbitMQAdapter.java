@@ -12,6 +12,8 @@
  ******************************************************************************/
 package com.exactpro.th2.simulator.adapter;
 
+import static java.lang.String.format;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -107,7 +109,7 @@ public class RabbitMQAdapter implements IAdapter {
             }
 
         } catch (InvalidProtocolBufferException e) {
-            e.printStackTrace();
+            logger.error("could not parse proto message", e);
         }
     }
 
@@ -163,6 +165,10 @@ public class RabbitMQAdapter implements IAdapter {
     }
 
     private QueueNames getQueueNames(MicroserviceConfiguration configuration, ConnectionID connectionID) {
-        return configuration.getTh2().getConnectivityQueueNames().get(connectionID.getSessionAlias());
+        QueueNames queueNames = configuration.getTh2().getConnectivityQueueNames().get(connectionID.getSessionAlias());
+        if (queueNames == null) {
+            throw new IllegalArgumentException(format("unknown connectionID '%s'", connectionID.getSessionAlias()));
+        }
+        return queueNames;
     }
 }

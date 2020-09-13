@@ -71,6 +71,9 @@ public class SimulatorServer implements ISimulatorServer {
         }
 
         this.configuration = configuration;
+
+        logger.info("Configuration {}", configuration);
+
         try {
             simulator = simulatorClass.newInstance();
             simulator.init(configuration, adapterClass);
