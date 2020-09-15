@@ -236,7 +236,6 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public void close() {
-        logger.info("Try to close simulator");
         for (Entry<ConnectionID, IAdapter> entry : connectivityAdapters.entrySet()) {
             try {
                 entry.getValue().close();

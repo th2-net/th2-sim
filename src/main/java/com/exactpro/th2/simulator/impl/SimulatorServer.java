@@ -222,8 +222,11 @@ public class SimulatorServer implements ISimulatorServer {
 
     @Override
     public void close() {
+        logger.debug("Try to close simulator server");
+
         if (server != null && !server.isShutdown()) {
             try {
+                logger.debug("Try to shutdown GRPC server");
                 server.shutdown().awaitTermination(1, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 logger.debug("Can not wait to terminate server", e);
@@ -232,11 +235,14 @@ public class SimulatorServer implements ISimulatorServer {
 
         if (simulator != null) {
             try {
+                logger.debug("Try to close simulator");
                 simulator.close();
             } catch (IOException e) {
                 logger.error("Can not close simulator" ,e);
             }
         }
+
+        logger.info("Simulator server was closed");
     }
 
     @Override
