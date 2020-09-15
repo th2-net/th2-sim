@@ -264,7 +264,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 }
             });
             return true;
-        } catch (IllegalStateException e) {
+        } catch (Exception e) {
             logger.error("Can not get adapter", e);
         }
         return false;
