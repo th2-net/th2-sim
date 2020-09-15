@@ -67,7 +67,7 @@ public class SimulatorServer implements ISimulatorServer {
     @Override
     public void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorClass, @NotNull Class<? extends IAdapter> adapterClass) {
         if (configuration.getTh2().getConnectivityQueueNames().size() < 1) {
-            throw new IllegalArgumentException("Connectivity addresses must contain at least 1 element");
+            throw new IllegalArgumentException("Connectivity queues must contain at least 1 element");
         }
 
         this.configuration = configuration;
@@ -75,21 +75,25 @@ public class SimulatorServer implements ISimulatorServer {
         logger.info("Configuration {}", configuration);
 
         try {
-            simulator = simulatorClass.newInstance();
+            simulator = simulatorClass.getConstructor().newInstance();
             simulator.init(configuration, adapterClass);
-        } catch (InstantiationException | IllegalAccessException e) {
-            throw new IllegalArgumentException("Can not create simulator with default constructor", e);
+        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {
-            throw new IllegalStateException("Can not init simulator", e);
+            throw new IllegalStateException("Can not init simulator from class" + simulatorClass, e);
         }
     }
 
     @Override
     public boolean start() {
+        logger.debug("Try to start simulator server");
+
         if (server != null) {
+            logger.debug("Simulator server have already started");
             return false;
         }
 
+        logger.debug("Try to get all defaults rules");
         Map<String, DefaultRuleConfiguration> defaultRules = configuration
                 .getDefaultRules()
                 .stream()
@@ -99,6 +103,8 @@ public class SimulatorServer implements ISimulatorServer {
                         Collectors.toMap(
                                 DefaultRuleConfiguration::getMethodName,
                                 it -> it));
+
+        logger.info("Count default rules = {}", defaultRules.size());
 
         NettyServerBuilder builder = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator);
         for (ISimulatorPart tmp : ServiceLoader.load(ISimulatorPart.class)) {
@@ -114,23 +120,24 @@ public class SimulatorServer implements ISimulatorServer {
         try {
             logger.debug("Simulator server is starting.");
             server.start();
-            logger.info("Simulator server was started.");
+            logger.info("Simulator server was started on port = {}", configuration.getPort());
             return true;
         } catch (IOException e) {
-            logger.error("Can not start server", e);
+            logger.error("Can not start simulator server on port = {}", configuration.getPort(), e);
             return false;
         }
     }
 
     private void addDefaultRules(ISimulatorPart tmp, Map<String, DefaultRuleConfiguration> defaultRules) {
-        Method[] methods = tmp.getClass().getDeclaredMethods();
+        Class<? extends ISimulatorPart> serviceClass = tmp.getClass();
+        Method[] methods = serviceClass.getDeclaredMethods();
         for (Method method : methods) {
             DefaultRuleConfiguration configuration = defaultRules.get(method.getName());
 
             if (configuration != null && method.getParameterCount() == 2) {
                 Class<?>[] parameterTypes = method.getParameterTypes();
 
-                DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger);
+                DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
                 Object request = null;
                 JsonNode ruleRequest = configuration.getSettings();
 
@@ -141,7 +148,7 @@ public class SimulatorServer implements ISimulatorServer {
                             JsonFormat.parser().merge(ruleRequest.toString(), builder);
                             request = builder.build();
                         } else {
-                            logger.warn("Can not create builder for class: '{}'", parameterTypes[0]);
+                            logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
                         }
                     } catch (Exception e) {
                         logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
@@ -149,13 +156,13 @@ public class SimulatorServer implements ISimulatorServer {
                 }
 
                 if (request == null) {
-                    logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), tmp.getClass());
+                    logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
                 }
 
                 try {
                     method.invoke(tmp, request, defaultSetterObserver);
                 } catch (Exception ex) {
-                    logger.error("Can not execute method: '{}'", method.getName(), ex);
+                    logger.error("Can not execute method: '{}' in class '{}'", method.getName(), serviceClass, ex);
                     continue;
                 }
 
@@ -168,7 +175,7 @@ public class SimulatorServer implements ISimulatorServer {
         try {
             return (Builder) parameterType.getMethod("newBuilder").invoke(null);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            logger.warn("Can not create builder", e);
+            logger.error("Can not create builder for class = {}", parameterType, e);
             return null;
         }
 
@@ -179,11 +186,15 @@ public class SimulatorServer implements ISimulatorServer {
 
         private final ISimulator simulator;
         private final Logger logger;
+        private final String methodName;
+        private final Class<?> serviceClass;
         private final AtomicBoolean isFinish = new AtomicBoolean(false);
 
-        public DefaultSetterObserver(ISimulator simulator, Logger logger) {
+        public DefaultSetterObserver(ISimulator simulator, Logger logger, String methodName, Class<?> serviceClass) {
             this.simulator = simulator;
             this.logger = logger;
+            this.methodName = methodName;
+            this.serviceClass = serviceClass;
         }
 
         @Override
@@ -194,7 +205,7 @@ public class SimulatorServer implements ISimulatorServer {
         @Override
         public void onError(Throwable t) {
             isFinish.set(true);
-            logger.error("Can not execute method", t);
+            logger.error("Method with name '{}' in class '{}' was executed with error", methodName, serviceClass, t);
         }
 
         @Override

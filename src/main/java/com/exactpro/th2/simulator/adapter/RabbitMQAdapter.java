@@ -60,10 +60,6 @@ public class RabbitMQAdapter implements IAdapter {
 
         QueueNames queueInfo = getQueueNames(configuration, connectionID);
 
-        if (queueInfo == null) {
-            throw new IllegalStateException("Can not find queues for connectionID: '" + connectionID + "'");
-        }
-
         subscriber = new RabbitMqSubscriber(queueInfo.getExchangeName(),
                 this::processIncomingMessage,
                 null,
@@ -90,7 +86,7 @@ public class RabbitMQAdapter implements IAdapter {
     private void processIncomingMessage(String tag, Delivery delivery) {
         try {
             if (batchSender == null && messageSender == null) {
-                logger.error("Can not process message, because sender did not init");
+                logger.error("Can not process message, because sender did not init. Connection =  {}", connectionId.getSessionAlias());
                 return;
             }
 
@@ -109,7 +105,7 @@ public class RabbitMQAdapter implements IAdapter {
             }
 
         } catch (InvalidProtocolBufferException e) {
-            logger.error("could not parse proto message", e);
+            logger.error("Could not parse proto message for connection = {}", connectionId.getSessionAlias(), e);
         }
     }
 
@@ -127,6 +123,7 @@ public class RabbitMQAdapter implements IAdapter {
         if (messages.size() > 0) {
 
             if (sendBatch) {
+                logger.trace("Send messages like batch");
                 MessageBatch batch = MessageBatch.newBuilder().addAllMessages(messages).build();
 
                 try {
@@ -135,6 +132,8 @@ public class RabbitMQAdapter implements IAdapter {
                     logger.error("Can not send message batch to connection: {}.\n{}", connectionId.getSessionAlias(), batch, e);
                 }
             } else {
+                logger.trace("Send messages like single message");
+
                 for (Message tmp : messages) {
                     try {
                         messageSender.send(tmp);
@@ -164,10 +163,11 @@ public class RabbitMQAdapter implements IAdapter {
         }
     }
 
+    @NotNull
     private QueueNames getQueueNames(MicroserviceConfiguration configuration, ConnectionID connectionID) {
         QueueNames queueNames = configuration.getTh2().getConnectivityQueueNames().get(connectionID.getSessionAlias());
         if (queueNames == null) {
-            throw new IllegalArgumentException(format("unknown connectionID '%s'", connectionID.getSessionAlias()));
+            throw new IllegalArgumentException(format("Unknown connectionID '%s'. Please check your configuration", connectionID.getSessionAlias()));
         }
         return queueNames;
     }

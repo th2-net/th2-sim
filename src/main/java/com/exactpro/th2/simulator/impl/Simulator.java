@@ -85,7 +85,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean receiveBatch, boolean sendBatch) {
         if (logger.isDebugEnabled()) {
-            logger.debug("try to add rule '{}' for connectionID '{}'. Input type: '{}'. Output type: '{}'",
+            logger.debug("Try to add rule '{}' for connectionID '{}'. Input type: '{}'. Output type: '{}'",
                     rule.getClass().getName(),
                     connectionID.getSessionAlias(),
                     receiveBatch ? "BATCH" : "SINGLE",
@@ -99,7 +99,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 connectivityRules.computeIfAbsent(connectionID, (key) -> Collections.synchronizedSet(new HashSet<>())).add(id);
                 canUseDefaultRules = false;
             }
-            logger.debug("Rule with class '{}', with id '{}' was added", rule.getClass().getName(), id);
+
+            logger.info("Rule from class '{}' was added to simulator for connection '{}' with id = {}",
+                    rule.getClass().getName(),
+                    connectionID.getSessionAlias(),
+                    id);
+
             return RuleID.newBuilder().setId(id).build();
         } else {
             return RuleID.newBuilder().setId(-1).build();
@@ -109,19 +114,30 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     @Override
     public void addDefaultRule(RuleID ruleID) {
         defaultsRules.add(ruleID.getId());
+        logger.debug("Added default rule with id = {}", ruleID.getId());
         updatePossibleUseDefaultRules();
     }
 
     @Override
     public void removeRule(RuleID id, StreamObserver<Empty> responseObserver) {
+
+        logger.debug("Try to remove rule with id = {}", id.getId());
+
         IRule rule = ruleIds.remove(id.getId());
+
         if (rule != null) {
             Set<Integer> ids = connectivityRules.get(rulesConnectivity.get(id.getId()));
             if (ids != null) {
                 ids.remove(id.getId());
             }
 
-            logger.debug("Rule with id {} was removed", id.getId());
+            if (defaultsRules.remove(id.getId())) {
+                logger.warn("Removed default rule with id = {}", id.getId());
+            }
+
+            updatePossibleUseDefaultRules();
+
+            logger.info("Rule with id '{}' was removed", id.getId());
         }
 
         responseObserver.onNext(Empty.newBuilder().build());
@@ -166,6 +182,9 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     public List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message) {
         List<Message> result = new ArrayList<>();
 
+        logger.debug("Get message from connection = {}", connectionID.getSessionAlias());
+        logger.trace("Message from connection '{}' = {}", connectionID.getSessionAlias(), message);
+
         Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
 
         Set<Integer> triggeredRules = new HashSet<>();
@@ -179,23 +198,37 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             Integer id = iterator.next();
 
             if (defaultsRules.contains(id) && !canUseDefaultRulesLocal) {
+                logger.debug("Skip rule with id '{}', because it is default rule", id);
                 continue;
             }
 
             IRule rule = ruleIds.get(id);
+
             if (rule == null) {
+                logger.warn("Skip rule with id '{}', because it is already removed", id);
+
                 iterator.remove();
                 continue;
             }
 
-            if (rule.checkTriggered(message)) {
-                triggeredRules.add(id);
-                result.addAll(rule.handle(message));
+            try {
+                if (rule.checkTriggered(message)) {
+                    try {
+                        result.addAll(rule.handle(message));
+                        triggeredRules.add(id);
+                    } catch (Exception e) {
+                        logger.error("Can not handle message in rule with id = {}", id, e);
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Can not check trigger in rule with id = {}", id, e);
             }
         }
 
+        logger.debug("Triggered on message rules with ids = {}", triggeredRules);
+
         if (triggeredRules.size() > 1) {
-            logger.info("Triggered on message more one rule. Rules ids: " + triggeredRules);
+            logger.info("Triggered on message more one rule. Rules ids = {}", triggeredRules);
         }
 
         return result;
@@ -203,11 +236,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public void close() {
+        logger.info("Try to close simulator");
         for (Entry<ConnectionID, IAdapter> entry : connectivityAdapters.entrySet()) {
             try {
                 entry.getValue().close();
             } catch (IOException e) {
-                logger.error("Can not close adapter with connectivity id: " + entry.getKey(), e);
+                logger.error("Can not close adapter for connectivity = {}", entry.getKey(), e);
             }
         }
     }
@@ -218,10 +252,15 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 try {
                     IAdapter adapter = adapterClass.getConstructor().newInstance();
                     adapter.init(configuration, connectionID, parseBatch, sendBatch, this);
-                    logger.debug("Create adapter for connection: " + connectionID.getSessionAlias());
+
+                    logger.info("Create adapter for connection '{}'. Input Type = '{}'. Output Type = '{}'",
+                            connectionID.getSessionAlias(),
+                            parseBatch ? "BATCH" : "SINGLE",
+                            sendBatch ? "BATCH" : "SINGLE");
+
                     return adapter;
                 } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                    throw new IllegalStateException("Can not create adapter with connectivity id: " + connectionID, e);
+                    throw new IllegalStateException("Can not create adapter for connectivity id: " + connectionID, e);
                 }
             });
             return true;
