@@ -36,7 +36,7 @@ allprojects {
     ext {
         sharedDir           = file("${project.rootDir}/shared")
 
-        commonVersion       = '1.2-SNAPSHOT'
+        commonVersion       = '1.4.0'
         connectivityVersion = '1.1-SNAPSHOT'
     }
 
@@ -55,6 +55,10 @@ allprojects {
         maven {
             name 'Artifactory snapshot'
             url 'http://artifactory5.exp.exactpro.com/artifactory/libs-snapshot'
+        }
+        maven {
+            name 'Artifactory release local'
+            url 'http://artifactory5.exp.exactpro.com/artifactory/libs-release-local'
         }
         mavenLocal()
 
