@@ -37,11 +37,11 @@ allprojects {
         sharedDir           = file("${project.rootDir}/shared")
 
         commonVersion       = '1.4.0'
-        connectivityVersion = '1.1-SNAPSHOT'
+        connectivityVersion = '1.2.0'
     }
 
     group = 'com.exactpro.th2'
-    version = "${version_major}.${version_minor}-SNAPSHOT"
+    version = release_version
 
     sourceCompatibility = 1.11
     targetCompatibility = 1.11
@@ -106,7 +106,7 @@ apply plugin: 'application'
 apply plugin: "org.jetbrains.kotlin.jvm"
 
 ext {
-    dockerImageVersion          = "${version_major}.${version_minor}.${version_maintenance}.${version_build}"
+    dockerImageVersion          = release_version
     version_slf4j               = '1.7.30'
     versionProtobuf             = "3.11.0"
 
