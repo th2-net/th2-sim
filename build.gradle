@@ -43,8 +43,8 @@ allprojects {
     group = 'com.exactpro.th2'
     version = release_version
 
-    sourceCompatibility = 1.11
-    targetCompatibility = 1.11
+    sourceCompatibility = 11
+    targetCompatibility = 11
 
     repositories {
         maven {
@@ -70,14 +70,15 @@ allprojects {
 
     jar {
         manifest {
-            attributes('Created-By': System.getProperty('java.version') + ' (' + System.getProperty('java.vendor') + ')')
-            attributes('Specification-Title': '')
-            attributes('Specification-Vendor': 'Exactpro Systems LLC')
-            attributes('Implementation-Title': "${project.name}")
-            attributes('Implementation-Vendor': 'Exactpro Systems LLC')
-            attributes('Implementation-Vendor-Id': 'com.exactpro')
-            attributes('Implementation-Version': "${version}")
-            attributes('Implementation-Version-Date': getDate())
+            attributes(
+                    'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+                    'Specification-Title':      '',
+                    'Specification-Vendor':     'Exactpro Systems LLC',
+                    'Implementation-Title':     project.archivesBaseName,
+                    'Implementation-Vendor':    'Exactpro Systems LLC',
+                    'Implementation-Vendor-Id': 'com.exactpro',
+                    'Implementation-Version':   project.version
+            )
         }
     }
 
@@ -133,7 +134,7 @@ ext {
 }
 
 dependencies {
-    compile project('grpc-simulator')
+    compile project('th2-grpc-simulator')
 
     compile "org.slf4j:slf4j-api:${version_slf4j}"
     compile "org.slf4j:slf4j-log4j12:${version_slf4j}"
@@ -146,8 +147,10 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 }
 
+applicationName = 'service'
+
 distTar {
-    archiveName "${archivesBaseName}.tar"
+    archiveName "${applicationName}.tar"
 }
 
 dockerPrepare {
@@ -155,10 +158,7 @@ dockerPrepare {
 }
 
 docker {
-    name "${target_docker_repository}/${docke_image_name}:${dockerImageVersion}"
-    tag 'local-version', "${docke_image_name}:${dockerImageVersion}"
-    
-    copySpec.from(tarTree("$buildDir/distributions/${archivesBaseName}.tar"))
+    copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
 }
 
 application {
@@ -175,9 +175,3 @@ sourceSets {
 }
 
 artifactoryPublish.skip = false
-
-static def getDate() {
-    def date = new Date()
-    def formattedDate = date.format('yyyyMMdd-HH:mm:ss.SSS')
-    return formattedDate
-}

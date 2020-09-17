@@ -1,3 +1,4 @@
 rootProject.name = 'th2-simulator'
 
 include 'grpc-simulator'
+project(':grpc-simulator').name = 'th2-grpc-simulator'

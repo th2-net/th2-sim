@@ -12,5 +12,5 @@ ENV GRPC_PORT=8080 \
     RABBITMQ_PASS=password \
     TH2_CONNECTIVITY_ADDRESSES={}
 WORKDIR /home
-COPY --from=build ./ .
-ENTRYPOINT ["/home/th2-simulator/bin/th2-simulator"]
+COPY --from=build --from=build /home/gradle/build/docker .
+ENTRYPOINT ["/home/service/bin/service"]
