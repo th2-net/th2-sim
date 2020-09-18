@@ -214,7 +214,11 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             try {
                 if (rule.checkTriggered(message)) {
                     try {
-                        result.addAll(rule.handle(message));
+                        logger.debug("Process message by rule with ID '{}'", id);
+                        var messageListToRespond = rule.handle(message);
+
+                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToRespond.size());
+                        result.addAll(messageListToRespond);
                         triggeredRules.add(id);
                     } catch (Exception e) {
                         logger.error("Can not handle message in rule with id = {}", id, e);
@@ -225,7 +229,7 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             }
         }
 
-        logger.debug("Triggered on message rules with ids = {}", triggeredRules);
+        logger.debug("Triggered on message rules with ids = {}, messages to respond = {}", triggeredRules, result.size());
 
         if (triggeredRules.size() > 1) {
             logger.info("Triggered on message more one rule. Rules ids = {}", triggeredRules);
