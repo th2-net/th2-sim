@@ -11,12 +11,12 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.util;
+package com.exactpro.th2.sim.util;
 
 import com.exactpro.th2.infra.grpc.ConnectionID;
-import com.exactpro.th2.simulator.ISimulator;
-import com.exactpro.th2.simulator.grpc.RuleID;
-import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.grpc.RuleID;
+import com.exactpro.th2.sim.rule.IRule;
 
 import io.grpc.stub.StreamObserver;
 

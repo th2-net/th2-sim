@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.rule;
+package com.exactpro.th2.sim.rule;
 
 import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.simulator.ISimulator;
+import com.exactpro.th2.sim.ISimulator;
 
 /**
  * Interface for {@link ISimulator} rules

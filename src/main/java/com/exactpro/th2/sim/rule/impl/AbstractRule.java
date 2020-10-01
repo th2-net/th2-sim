@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.rule.impl;
+package com.exactpro.th2.sim.rule.impl;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,7 +21,7 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.sim.rule.IRule;
 
 /**
  * Abstract implement of {@link IRule}

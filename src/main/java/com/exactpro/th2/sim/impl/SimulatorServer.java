@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.impl;
+package com.exactpro.th2.sim.impl;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -25,13 +25,13 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.simulator.IAdapter;
-import com.exactpro.th2.simulator.ISimulator;
-import com.exactpro.th2.simulator.ISimulatorPart;
-import com.exactpro.th2.simulator.ISimulatorServer;
-import com.exactpro.th2.simulator.configuration.DefaultRuleConfiguration;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.grpc.RuleID;
+import com.exactpro.th2.sim.IAdapter;
+import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.ISimulatorPart;
+import com.exactpro.th2.sim.ISimulatorServer;
+import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.grpc.RuleID;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Message.Builder;

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator;
+package com.exactpro.th2.sim;
 
 import org.jetbrains.annotations.NotNull;
 

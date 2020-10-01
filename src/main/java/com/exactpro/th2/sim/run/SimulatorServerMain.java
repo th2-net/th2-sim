@@ -10,16 +10,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.run;
+package com.exactpro.th2.sim.run;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.ConfigurationUtils;
-import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.impl.Simulator;
-import com.exactpro.th2.simulator.impl.SimulatorServer;
+import com.exactpro.th2.sim.adapter.RabbitMQAdapter;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.impl.Simulator;
+import com.exactpro.th2.sim.impl.SimulatorServer;
 
 public class SimulatorServerMain {
 

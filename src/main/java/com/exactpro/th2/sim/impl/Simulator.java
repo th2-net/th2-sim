@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.impl;
+package com.exactpro.th2.sim.impl;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -33,14 +33,14 @@ import org.slf4j.LoggerFactory;
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.simulator.IAdapter;
-import com.exactpro.th2.simulator.ISimulator;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.grpc.RuleID;
-import com.exactpro.th2.simulator.grpc.RuleInfo;
-import com.exactpro.th2.simulator.grpc.RulesInfo;
-import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
-import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.sim.IAdapter;
+import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.grpc.RuleID;
+import com.exactpro.th2.sim.grpc.RuleInfo;
+import com.exactpro.th2.sim.grpc.RulesInfo;
+import com.exactpro.th2.sim.grpc.ServiceSimulatorGrpc;
+import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.Empty;
 
 import io.grpc.stub.StreamObserver;

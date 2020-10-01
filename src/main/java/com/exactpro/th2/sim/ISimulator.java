@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator;
+package com.exactpro.th2.sim;
 
 import java.io.Closeable;
 import java.util.List;
@@ -19,10 +19,10 @@ import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.grpc.RuleID;
-import com.exactpro.th2.simulator.impl.Simulator;
-import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.grpc.RuleID;
+import com.exactpro.th2.sim.impl.Simulator;
+import com.exactpro.th2.sim.rule.IRule;
 
 import io.grpc.BindableService;
 

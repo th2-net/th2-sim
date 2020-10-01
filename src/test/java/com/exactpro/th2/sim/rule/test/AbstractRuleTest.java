@@ -11,7 +11,7 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.rule.test;
+package com.exactpro.th2.sim.rule.test;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -31,11 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.simulator.ISimulator;
-import com.exactpro.th2.simulator.adapter.EmptyAdapter;
-import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
-import com.exactpro.th2.simulator.impl.Simulator;
-import com.exactpro.th2.simulator.rule.IRule;
+import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.adapter.EmptyAdapter;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.impl.Simulator;
+import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.TextFormat;
 
 /**

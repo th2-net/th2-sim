@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator.adapter;
+package com.exactpro.th2.sim.adapter;
 
 import static java.lang.String.format;
 
@@ -31,8 +31,8 @@ import com.exactpro.th2.configuration.Th2Configuration.QueueNames;
 import com.exactpro.th2.infra.grpc.ConnectionID;
 import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.infra.grpc.MessageBatch;
-import com.exactpro.th2.simulator.IAdapter;
-import com.exactpro.th2.simulator.ISimulator;
+import com.exactpro.th2.sim.IAdapter;
+import com.exactpro.th2.sim.ISimulator;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.rabbitmq.client.Delivery;
 

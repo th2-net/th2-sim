@@ -11,7 +11,7 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.adapter;
+package com.exactpro.th2.sim.adapter;
 
 import java.io.IOException;
 
@@ -19,8 +19,8 @@ import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
-import com.exactpro.th2.simulator.IAdapter;
-import com.exactpro.th2.simulator.ISimulator;
+import com.exactpro.th2.sim.IAdapter;
+import com.exactpro.th2.sim.ISimulator;
 
 /**
  * Implementation of {@link IAdapter}. Does nothing.

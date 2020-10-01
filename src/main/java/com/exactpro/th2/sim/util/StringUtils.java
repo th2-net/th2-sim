@@ -14,7 +14,7 @@
  *  limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.util;
+package com.exactpro.th2.sim.util;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

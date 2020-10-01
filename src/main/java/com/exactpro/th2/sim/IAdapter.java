@@ -10,7 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-package com.exactpro.th2.simulator;
+package com.exactpro.th2.sim;
 
 import java.io.Closeable;
 
@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.infra.grpc.ConnectionID;
-import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
+import com.exactpro.th2.sim.adapter.RabbitMQAdapter;
 
 /**
  * Adapter for transmits messages between external interface to {@link ISimulator}

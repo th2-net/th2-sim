@@ -14,7 +14,7 @@
  *  limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.rule.impl;
+package com.exactpro.th2.sim.rule.impl;
 
 import java.util.HashMap;
 import java.util.Map;

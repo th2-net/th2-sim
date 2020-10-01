@@ -11,7 +11,7 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.configuration;
+package com.exactpro.th2.sim.configuration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
