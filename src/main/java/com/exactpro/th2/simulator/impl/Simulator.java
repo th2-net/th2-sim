@@ -46,6 +46,7 @@ import com.exactpro.th2.simulator.grpc.ServiceSimulatorGrpc;
 import com.exactpro.th2.simulator.rule.IRule;
 import com.google.protobuf.Empty;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.TextFormat;
 import com.rabbitmq.client.Delivery;
 
 import io.grpc.stub.StreamObserver;
@@ -229,7 +230,9 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                     try {
                         batch = MessageBatch.parseFrom(delivery.getBody());
 
-                        logger.trace("Parse delivery to message bath for rule with id '{}' = '{}'", id, batch);
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("Parse delivery to message bath for rule with id '{}' = '{}'", id, TextFormat.shortDebugString(batch));
+                        }
                     } catch (InvalidProtocolBufferException e) {
                         logger.error("Skip rule with id = '{}', because can not parse message batch from delivery", id);
                         continue;
@@ -241,8 +244,6 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 if (message == null) {
                     try {
                         message = Message.parseFrom(delivery.getBody());
-
-                        logger.debug("Handle message name = {}", message.getMetadata().getMessageType());
                     } catch (InvalidProtocolBufferException e) {
                         logger.error("Skip rule with id = '{}', because can not parse single message from delivery", id);
                         continue;
@@ -253,10 +254,14 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
             }
 
             for (Message triggerMessage : triggerMessages) {
-                logger.debug("Handle message name = {}", triggerMessage.getMetadata().getMessageType());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Handle message name = {}", triggerMessage.getMetadata().getMessageType());
+                }
                 if (rule.getRule().checkTriggered(triggerMessage)) {
                     try {
-                        logger.debug("Process message by rule with ID '{}' = {}", id, triggerMessage);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(triggerMessage));
+                        }
                         var messageListToResponse = rule.getRule().handle(triggerMessage);
 
                         for (Message responseMessage : messageListToResponse) {
@@ -269,7 +274,18 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                         }
 
                         triggeredRules.add(id);
-                        logger.trace("Rule with ID '{}' has returned '{}' message(s)", id, messageListToResponse.size());
+                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToResponse.size());
+                        if (logger.isTraceEnabled()) {
+                            StringBuilder builder = new StringBuilder();
+                            builder.append("{");
+                            for (Message messageList : messageListToResponse) {
+                                builder.append(TextFormat.shortDebugString(messageList));
+                                builder.append(";");
+                            }
+                            builder.append("}");
+
+                            logger.trace("Rule with id '{}' generate messages '{}'", id, builder.toString());
+                        }
                     } catch (Exception e) {
                         logger.error("Can not handle message in rule with id = {}", id, e);
                     }

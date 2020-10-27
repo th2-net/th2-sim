@@ -22,6 +22,7 @@ import io.grpc.stub.StreamObserver;
 
 public class ServiceUtils {
 
+    @Deprecated(since = "1.5.0", forRemoval = true)
     public static void addRule(IRule rule, ConnectionID connectionID, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
         addRule(rule, connectionID.getSessionAlias(), simulator, responseObserver);
     }
@@ -31,6 +32,7 @@ public class ServiceUtils {
         responseObserver.onCompleted();
     }
 
+    @Deprecated(since = "1.5.0", forRemoval = true)
     public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
         addRule(rule, connectionID.getSessionAlias(), parseBatch, simulator, responseObserver);
     }
@@ -40,6 +42,7 @@ public class ServiceUtils {
         responseObserver.onCompleted();
     }
 
+    @Deprecated(since = "1.5.0", forRemoval = true)
     public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
         addRule(rule, connectionID.getSessionAlias(), parseBatch, sendBatch, simulator, responseObserver);
     }
