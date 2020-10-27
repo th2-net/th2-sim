@@ -13,12 +13,15 @@
 package com.exactpro.th2.simulator;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.infra.grpc.MessageBatch;
 import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
+import com.rabbitmq.client.DeliverCallback;
 
 /**
  * Adapter for transmits messages between external interface to {@link ISimulator}
@@ -26,6 +29,12 @@ import com.exactpro.th2.simulator.adapter.RabbitMQAdapter;
  */
 public interface IAdapter extends Closeable {
 
-    void init(@NotNull MicroserviceConfiguration configuration, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch, @NotNull ISimulator simulator);
+    void init(@NotNull MicroserviceConfiguration configuration, @NotNull String sessionAlias);
+
+    void startListen(DeliverCallback deliverCallback);
+
+    void send(Message message) throws IOException;
+
+    void send(MessageBatch batch) throws IOException;
 
 }

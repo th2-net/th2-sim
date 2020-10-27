@@ -13,12 +13,9 @@
 package com.exactpro.th2.simulator;
 
 import java.io.Closeable;
-import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.infra.grpc.ConnectionID;
-import com.exactpro.th2.infra.grpc.Message;
 import com.exactpro.th2.simulator.configuration.SimulatorConfiguration;
 import com.exactpro.th2.simulator.grpc.RuleID;
 import com.exactpro.th2.simulator.impl.Simulator;
@@ -39,46 +36,38 @@ public interface ISimulator extends BindableService, Closeable {
      * Parse input to single message
      * Parse output to single message
      * @param rule
-     * @param connectionID
+     * @param sessionAlias
      * @return Rule's id
-     * @see ISimulator#addRule(IRule, ConnectionID, boolean)
-     * @see ISimulator#addRule(IRule, ConnectionID, boolean, boolean)
+     * @see ISimulator#addRule(IRule, String, boolean)
+     * @see ISimulator#addRule(IRule, String, boolean, boolean)
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID);
+    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
      * Parse output to single message
      * @param rule
-     * @param connectionID
+     * @param sessionAlias
      * @param parseBatch If true, parse input to message batch else to single message
      * @return Rule's id
-     * @see ISimulator#addRule(IRule, ConnectionID, boolean, boolean)
+     * @see ISimulator#addRule(IRule, String, boolean, boolean)
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch);
+    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean parseBatch);
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
      * @param rule
-     * @param connectionID
+     * @param sessionAlias
      * @param parseBatch If true, parse input to message batch else to single message
      * @param sendBatch If true, parse output to message batch else to single message
      * @return Rule's id
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch, boolean sendBatch);
+    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean parseBatch, boolean sendBatch);
 
     /**
      * Add default rule to simulator
      * @param ruleID
      */
     void addDefaultRule(RuleID ruleID);
-
-    /**
-     * Get incoming message
-     * @param connectionID from connectivity with this id
-     * @param message incoming message
-     * @return Messages which will send
-     */
-    List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message);
 
 }
