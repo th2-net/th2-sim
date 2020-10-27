@@ -328,72 +328,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
             MessageBatch batchMessage = batchBuilder.build();
             try {
-                createAdapterIfAbsent(connectivityAlias).send(batchMessage);
+                adapter.send(batchMessage);
             } catch (IOException e) {
                 logger.error("Can not send batch message to session alias '{}'. Batch message = {}", connectivityAlias, batchMessage, e);
             }
         });
     }
-
-//    @Override
-//    public List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message) {
-//        List<Message> result = new ArrayList<>();
-//
-//        logger.debug("Get message from connection = {}", connectionID.getSessionAlias());
-//        logger.trace("Message from connection '{}' = {}", connectionID.getSessionAlias(), message);
-//
-//        Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
-//
-//        Set<Integer> triggeredRules = new HashSet<>();
-//
-//        boolean canUseDefaultRulesLocal;
-//        synchronized (lockCanUseDefaultRules) {
-//            canUseDefaultRulesLocal = canUseDefaultRules;
-//        }
-//
-//        while (iterator.hasNext()) {
-//            Integer id = iterator.next();
-//
-//            if (defaultsRules.contains(id) && !canUseDefaultRulesLocal) {
-//                logger.debug("Skip rule with id '{}', because it is default rule", id);
-//                continue;
-//            }
-//
-//            SimulatorRule rule = ruleIds.get(id);
-//
-//            if (rule == null) {
-//                logger.warn("Skip rule with id '{}', because it is already removed", id);
-//
-//                iterator.remove();
-//                continue;
-//            }
-//
-//            try {
-//                if (rule.checkTriggered(message)) {
-//                    try {
-//                        logger.debug("Process message by rule with ID '{}'", id);
-//                        var messageListToRespond = rule.handle(message);
-//
-//                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToRespond.size());
-//                        result.addAll(messageListToRespond);
-//                        triggeredRules.add(id);
-//                    } catch (Exception e) {
-//                        logger.error("Can not handle message in rule with id = {}", id, e);
-//                    }
-//                }
-//            } catch (Exception e) {
-//                logger.error("Can not check trigger in rule with id = {}", id, e);
-//            }
-//        }
-//
-//        logger.debug("Triggered on message rules with ids = {}, messages to respond = {}", triggeredRules, result.size());
-//
-//        if (triggeredRules.size() > 1) {
-//            logger.info("Triggered on message more one rule. Rules ids = {}", triggeredRules);
-//        }
-//
-//        return result;
-//    }
 
     @Override
     public void close() {
