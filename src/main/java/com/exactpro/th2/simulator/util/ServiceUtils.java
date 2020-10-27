@@ -23,18 +23,32 @@ import io.grpc.stub.StreamObserver;
 public class ServiceUtils {
 
     public static void addRule(IRule rule, ConnectionID connectionID, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, connectionID));
+        addRule(rule, connectionID.getSessionAlias(), simulator, responseObserver);
+    }
+
+    public static void addRule(IRule rule, String sessionAlias, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
+        responseObserver.onNext(simulator.addRule(rule, sessionAlias));
         responseObserver.onCompleted();
     }
 
     public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, connectionID, parseBatch));
+        addRule(rule, connectionID.getSessionAlias(), parseBatch, simulator, responseObserver);
+    }
+
+    public static void addRule(IRule rule, String sessionAlias, boolean parseBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
+        responseObserver.onNext(simulator.addRule(rule, sessionAlias, parseBatch));
         responseObserver.onCompleted();
     }
 
     public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, connectionID, parseBatch, sendBatch));
+        addRule(rule, connectionID.getSessionAlias(), parseBatch, sendBatch, simulator, responseObserver);
+    }
+
+    public static void addRule(IRule rule, String sessionAlias, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
+        responseObserver.onNext(simulator.addRule(rule, sessionAlias, parseBatch, sendBatch));
         responseObserver.onCompleted();
     }
+
+
 
 }
