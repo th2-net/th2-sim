@@ -39,6 +39,7 @@ import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.sim.IAdapter;
 import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.adapter.SupplierAdapter;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.rule.IRule;
@@ -106,7 +107,7 @@ public abstract class AbstractRuleTest {
     }
 
     Method handleMethod;
-    com.exactpro.th2.simulator.adapter.SupplierAdapter supplierAdapter;
+    SupplierAdapter supplierAdapter;
 
     @Before
     public void setUp() throws Exception {
@@ -119,7 +120,7 @@ public abstract class AbstractRuleTest {
         }
 
         logger.debug("Simulator is initializing");
-        simulator.init(configuration, com.exactpro.th2.simulator.adapter.SupplierAdapter.class);
+        simulator.init(configuration, SupplierAdapter.class);
         logger.info("Simulator was init");
 
         addRules(simulator, DEFAULT_SESSION_ALIAS);
@@ -129,8 +130,8 @@ public abstract class AbstractRuleTest {
             Field connectivityMap = simulator.getClass().getDeclaredField("connectivityAdapters");
             connectivityMap.setAccessible(true);
             IAdapter adapter = ((Map<String, IAdapter>) connectivityMap.get(simulator)).get(DEFAULT_SESSION_ALIAS);
-            if (adapter instanceof com.exactpro.th2.simulator.adapter.SupplierAdapter) {
-                this.supplierAdapter = (com.exactpro.th2.simulator.adapter.SupplierAdapter) adapter;
+            if (adapter instanceof SupplierAdapter) {
+                this.supplierAdapter = (SupplierAdapter) adapter;
             } else {
                 throw new IllegalStateException("Can not start test, because can not get supplier adapter");
             }

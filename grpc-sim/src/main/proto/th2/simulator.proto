@@ -21,7 +21,7 @@ import "google/protobuf/empty.proto";
 import "grpc_common/common.proto";
 
 option java_multiple_files = true;
-option java_package = "com.exactpro.th2.simulator.grpc";
+option java_package = "com.exactpro.th2.sim.grpc";
 
 message RuleID {
     int32 id = 1;

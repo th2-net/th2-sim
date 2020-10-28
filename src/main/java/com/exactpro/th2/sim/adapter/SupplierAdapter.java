@@ -11,7 +11,7 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.simulator.adapter;
+package com.exactpro.th2.sim.adapter;
 
 import java.io.IOException;
 import java.util.ArrayList;
