@@ -1,8 +1,8 @@
 variables:
-  APP_NAME: "th2-simulator"
+  APP_NAME: "th2-sim"
   MAJOR_VERSION: "2"
   MINOR_VERSION: "0"
-  MAINTENANCE_VERSION: "2"
+  MAINTENANCE_VERSION: "3"
   DOCKER_PUBLISH_ENABLED: "false"
 
 include:
