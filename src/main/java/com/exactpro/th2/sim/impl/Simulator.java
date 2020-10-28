@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -26,10 +27,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Message;
@@ -42,6 +45,9 @@ import com.exactpro.th2.sim.grpc.RulesInfo;
 import com.exactpro.th2.sim.grpc.ServiceSimulatorGrpc;
 import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.Empty;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.TextFormat;
+import com.rabbitmq.client.Delivery;
 
 import io.grpc.stub.StreamObserver;
 
@@ -52,10 +58,9 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private final Map<ConnectionID, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
-    private final Map<ConnectionID, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
-    private final Map<Integer, IRule> ruleIds = new ConcurrentHashMap<>();
-    private final Map<Integer, ConnectionID> rulesConnectivity = new ConcurrentHashMap<>();
+    private final Map<String, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
+    private final Map<String, IAdapter> connectivityAdapters = new ConcurrentHashMap<>();
+    private final Map<Integer, SimulatorRule> ruleIds = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
 
@@ -73,36 +78,41 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID) {
-        return addRule(rule, connectionID, false);
+    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
+        return addRule(rule, sessionAlias, false);
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean parseBatch) {
-       return addRule(rule, connectionID, parseBatch, false);
+    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean parseBatch) {
+       return addRule(rule, sessionAlias, parseBatch, false);
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull ConnectionID connectionID, boolean receiveBatch, boolean sendBatch) {
+    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean receiveBatch, boolean sendBatch) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Try to add rule '{}' for connectionID '{}'. Input type: '{}'. Output type: '{}'",
+            logger.debug("Try to add rule '{}' for session alias '{}'. Input type: '{}'. Output type: '{}'",
                     rule.getClass().getName(),
-                    connectionID.getSessionAlias(),
+                    sessionAlias,
                     receiveBatch ? "BATCH" : "SINGLE",
                     sendBatch ? "BATCH" : "SINGLE");
         }
-        if (createAdapterIfAbsent(connectionID, receiveBatch, sendBatch)) {
+        IAdapter adapter = createAdapterIfAbsent(sessionAlias);
+        if (adapter != null) {
+
+            adapter.startListen((consumerTag, message) -> handleDelivery(sessionAlias, consumerTag, message));
+
             int id = nextId.incrementAndGet();
             synchronized (lockCanUseDefaultRules) {
-                ruleIds.put(id, rule);
-                rulesConnectivity.put(id, connectionID);
-                connectivityRules.computeIfAbsent(connectionID, (key) -> Collections.synchronizedSet(new HashSet<>())).add(id);
+                ruleIds.put(id, new SimulatorRule(rule, sessionAlias, receiveBatch, sendBatch));
+                connectivityRules.computeIfAbsent(sessionAlias, key -> Collections.synchronizedSet(new HashSet<>())).add(id);
                 canUseDefaultRules = false;
             }
 
-            logger.info("Rule from class '{}' was added to simulator for connection '{}' with id = {}",
+            logger.info("Rule from class '{}' was added to simulator for session alias '{}' with input type '{}' and output type '{}' with id = {}",
                     rule.getClass().getName(),
-                    connectionID.getSessionAlias(),
+                    receiveBatch ? "BATCH" : "SINGLE",
+                    sendBatch ? "BATCH" : "SINGLE",
+                    sessionAlias,
                     id);
 
             return RuleID.newBuilder().setId(id).build();
@@ -123,10 +133,10 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
         logger.debug("Try to remove rule with id = {}", id.getId());
 
-        IRule rule = ruleIds.remove(id.getId());
+        SimulatorRule rule = ruleIds.remove(id.getId());
 
         if (rule != null) {
-            Set<Integer> ids = connectivityRules.get(rulesConnectivity.get(id.getId()));
+            Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
             if (ids != null) {
                 ids.remove(id.getId());
             }
@@ -166,26 +176,29 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
     }
 
     private RuleInfo createRuleInfo(int ruleId) {
-        IRule rule = ruleIds.get(ruleId);
+        SimulatorRule rule = ruleIds.get(ruleId);
         if (rule == null) {
             return RuleInfo.newBuilder().setId(RuleID.newBuilder().setId(-1).build()).build();
         }
 
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
-                .setClassName(rule.getClass().getName())
-                .setConnectionId(rulesConnectivity.get(ruleId))
+                .setClassName(rule.getRule().getClass().getName())
+                .setConnectionId(ConnectionID.newBuilder().setSessionAlias(rule.getSessionAlias()).build())
                 .build();
     }
 
-    @Override
-    public List<Message> handle(@NotNull ConnectionID connectionID, @NotNull Message message) {
-        List<Message> result = new ArrayList<>();
+    public void handleDelivery(String sessionAlias, String consumerTag, Delivery delivery) {
 
-        logger.debug("Get message from connection = {}", connectionID.getSessionAlias());
-        logger.trace("Message from connection '{}' = {}", connectionID.getSessionAlias(), message);
+        Map<String, List<Message>> singleMessages = new HashMap<>();
+        Map<String, MessageBatch.Builder> batchMessages = new HashMap<>();
 
-        Iterator<Integer> iterator = connectivityRules.getOrDefault(connectionID, Collections.emptySet()).iterator();
+        Message message = null;
+        MessageBatch batch = null;
+
+        logger.debug("Get delivery from session alias '{}' with consumer tag '{}'", sessionAlias, consumerTag);
+
+        Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
 
         Set<Integer> triggeredRules = new HashSet<>();
 
@@ -202,74 +215,187 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 continue;
             }
 
-            IRule rule = ruleIds.get(id);
+            SimulatorRule rule = ruleIds.get(id);
 
-            if (rule == null) {
+            if (rule == null || rule.getRule() == null) {
                 logger.warn("Skip rule with id '{}', because it is already removed", id);
 
                 iterator.remove();
                 continue;
             }
 
-            try {
-                if (rule.checkTriggered(message)) {
+            List<Message> triggerMessages;
+            if (rule.isParseBatch()) {
+                if (batch == null) {
                     try {
-                        logger.debug("Process message by rule with ID '{}'", id);
-                        var messageListToRespond = rule.handle(message);
+                        batch = MessageBatch.parseFrom(delivery.getBody());
 
-                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToRespond.size());
-                        result.addAll(messageListToRespond);
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("Parse delivery to message bath for rule with id '{}' = '{}'", id, TextFormat.shortDebugString(batch));
+                        }
+                    } catch (InvalidProtocolBufferException e) {
+                        logger.error("Skip rule with id = '{}', because can not parse message batch from delivery", id);
+                        continue;
+                    }
+                }
+
+                triggerMessages = batch.getMessagesList();
+            } else {
+                if (message == null) {
+                    try {
+                        message = Message.parseFrom(delivery.getBody());
+                    } catch (InvalidProtocolBufferException e) {
+                        logger.error("Skip rule with id = '{}', because can not parse single message from delivery", id);
+                        continue;
+                    }
+                }
+
+                triggerMessages = Collections.singletonList(message);
+            }
+
+            for (Message triggerMessage : triggerMessages) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Handle message name = {}", triggerMessage.getMetadata().getMessageType());
+                }
+                if (rule.getRule().checkTriggered(triggerMessage)) {
+                    try {
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(triggerMessage));
+                        }
+                        var messageListToResponse = rule.getRule().handle(triggerMessage);
+
+                        for (Message responseMessage : messageListToResponse) {
+                            String responseSessionAlias = StringUtils.defaultIfEmpty(responseMessage.getMetadata().getId().getConnectionId().getSessionAlias(), sessionAlias);
+                            if (rule.isSendBatch()) {
+                                batchMessages.computeIfAbsent(responseSessionAlias, key -> MessageBatch.newBuilder()).addMessages(responseMessage);
+                            } else {
+                                singleMessages.computeIfAbsent(responseSessionAlias, key -> new ArrayList<>()).add(responseMessage);
+                            }
+                        }
+
                         triggeredRules.add(id);
+                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToResponse.size());
+                        if (logger.isTraceEnabled()) {
+                            StringBuilder builder = new StringBuilder();
+                            builder.append("{");
+                            for (Message messageList : messageListToResponse) {
+                                builder.append(TextFormat.shortDebugString(messageList));
+                                builder.append(";");
+                            }
+                            builder.append("}");
+
+                            logger.trace("Rule with id '{}' generate messages '{}'", id, builder.toString());
+                        }
                     } catch (Exception e) {
                         logger.error("Can not handle message in rule with id = {}", id, e);
                     }
+                } else {
+                    logger.trace("Skip rule with id = '{}', because not triggered", id);
                 }
-            } catch (Exception e) {
-                logger.error("Can not check trigger in rule with id = {}", id, e);
+            }
+
+            logger.debug("Triggered on message rules with ids = {}, count single messages to respond = {}, count batches messages to respond = {}", triggeredRules, singleMessages.size(), batchMessages.size());
+
+            if (triggeredRules.size() > 1) {
+                logger.info("Triggered on message more one rule. Rules ids = {}", triggeredRules);
             }
         }
 
-        logger.debug("Triggered on message rules with ids = {}, messages to respond = {}", triggeredRules, result.size());
+        singleMessages.forEach((connectivityAlias, messages) -> {
+            IAdapter adapter = createAdapterIfAbsent(connectivityAlias);
 
-        if (triggeredRules.size() > 1) {
-            logger.info("Triggered on message more one rule. Rules ids = {}", triggeredRules);
-        }
+            if (adapter == null) {
+                logger.error("Can not send single messages to session alias '{}'. Can no create adapter", sessionAlias);
+                return;
+            }
 
-        return result;
+            for (Message singleMessage : messages) {
+                try {
+                    adapter.send(singleMessage);
+                } catch (IOException e) {
+                    logger.error("Can not send single message to session alias '{}'. Single message = {}", connectivityAlias, singleMessage, e);
+                }
+            }
+        });
+
+        batchMessages.forEach((connectivityAlias, batchBuilder) -> {
+            IAdapter adapter = createAdapterIfAbsent(connectivityAlias);
+
+            if (adapter == null) {
+                logger.error("Can not send batch message to session alias '{}'. Can no create adapter", sessionAlias);
+                return;
+            }
+
+            MessageBatch batchMessage = batchBuilder.build();
+            try {
+                adapter.send(batchMessage);
+            } catch (IOException e) {
+                logger.error("Can not send batch message to session alias '{}'. Batch message = {}", connectivityAlias, batchMessage, e);
+            }
+        });
     }
 
     @Override
     public void close() {
-        for (Entry<ConnectionID, IAdapter> entry : connectivityAdapters.entrySet()) {
+        for (Entry<String, IAdapter> entry : connectivityAdapters.entrySet()) {
             try {
                 entry.getValue().close();
             } catch (IOException e) {
                 logger.error("Can not close adapter for connectivity = {}", entry.getKey(), e);
             }
         }
+        connectivityAdapters.clear();
+        connectivityRules.clear();
+        ruleIds.clear();
     }
 
-    private boolean createAdapterIfAbsent(ConnectionID connectionID, boolean parseBatch, boolean sendBatch) {
+    private class SimulatorRule {
+        private final IRule rule;
+        private final String sessionAlias;
+        private final boolean parseBatch;
+        private final boolean sendBatch;
+
+        public SimulatorRule(IRule rule, String sessionAlias, boolean parseBatch, boolean sendBatch) {
+            this.rule = rule;
+            this.sessionAlias = sessionAlias;
+            this.parseBatch = parseBatch;
+            this.sendBatch = sendBatch;
+        }
+
+        public IRule getRule() {
+            return rule;
+        }
+
+        public String getSessionAlias() {
+            return sessionAlias;
+        }
+
+        public boolean isParseBatch() {
+            return parseBatch;
+        }
+
+        public boolean isSendBatch() {
+            return sendBatch;
+        }
+    }
+
+    private IAdapter createAdapterIfAbsent(String sessionAlias) {
         try {
-            connectivityAdapters.computeIfAbsent(connectionID, (key) -> {
+            return connectivityAdapters.computeIfAbsent(sessionAlias, (key) -> {
                 try {
                     IAdapter adapter = adapterClass.getConstructor().newInstance();
-                    adapter.init(configuration, connectionID, parseBatch, sendBatch, this);
+                    adapter.init(configuration, sessionAlias);
 
-                    logger.info("Create adapter for connection '{}'. Input Type = '{}'. Output Type = '{}'",
-                            connectionID.getSessionAlias(),
-                            parseBatch ? "BATCH" : "SINGLE",
-                            sendBatch ? "BATCH" : "SINGLE");
+                    logger.info("Create adapter for connection '{}'", sessionAlias);
 
                     return adapter;
                 } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-                    throw new IllegalStateException("Can not create adapter for connectivity id: " + connectionID, e);
+                    throw new IllegalStateException("Can not create adapter for session alias: " + sessionAlias, e);
                 }
             });
-            return true;
         } catch (Exception e) {
-            logger.error("Can not get adapter", e);
+            logger.error("Can not get adapter for session alias: " + sessionAlias, e);
         }
-        return false;
+        return null;
     }
 }

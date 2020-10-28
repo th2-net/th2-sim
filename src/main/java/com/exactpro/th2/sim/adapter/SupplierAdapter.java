@@ -11,9 +11,12 @@
  * limitations under the License.
  ******************************************************************************/
 
-package com.exactpro.th2.sim.adapter;
+package com.exactpro.th2.simulator.adapter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -23,29 +26,37 @@ import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.sim.IAdapter;
 import com.rabbitmq.client.DeliverCallback;
 
-/**
- * Implementation of {@link IAdapter}. Does nothing.
- */
-public class EmptyAdapter implements IAdapter {
+public class SupplierAdapter implements IAdapter {
+
+    private final List<Consumer<Message>> messageListener = new ArrayList<>();
+    private final List<Consumer<MessageBatch>> messageBatchListener = new ArrayList<>();
+    
+    @Override
+    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull String sessionAlias){}
 
     @Override
-    public void init(@NotNull MicroserviceConfiguration configuration, @NotNull String sessionAlias) {
-
-    }
-
-    @Override
-    public void startListen(DeliverCallback deliverCallback) {
-
-    }
+    public void startListen(DeliverCallback deliverCallback) {}
 
     @Override
     public void send(Message message) throws IOException {
-
+        for (Consumer<Message> messageConsumer : messageListener) {
+            messageConsumer.accept(message);
+        }
     }
 
     @Override
     public void send(MessageBatch batch) throws IOException {
+        for (Consumer<MessageBatch> messageBatchConsumer : messageBatchListener) {
+            messageBatchConsumer.accept(batch);
+        }
+    }
 
+    public void addMessageListener(Consumer<Message> consumer) {
+        messageListener.add(consumer);
+    }
+
+    public void addMessageBatchListener(Consumer<MessageBatch> consumer) {
+        messageBatchListener.add(consumer);
     }
 
     @Override
@@ -53,3 +64,4 @@ public class EmptyAdapter implements IAdapter {
 
     }
 }
+
