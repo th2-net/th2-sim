@@ -13,7 +13,7 @@
 
 package com.exactpro.th2.sim.util;
 
-import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.rule.IRule;

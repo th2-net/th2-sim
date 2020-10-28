@@ -31,8 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.infra.grpc.ConnectionID;
-import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.common.grpc.ConnectionID;
+import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.sim.IAdapter;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;

@@ -22,7 +22,7 @@ import java.util.function.Predicate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.th2.infra.grpc.Value;
+import com.exactpro.th2.common.grpc.Value;
 import com.exactpro.th2.sim.rule.IRule;
 
 /**

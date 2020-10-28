@@ -24,8 +24,8 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.th2.infra.grpc.Message;
-import com.exactpro.th2.infra.grpc.Value;
+import com.exactpro.th2.common.grpc.Message;
+import com.exactpro.th2.common.grpc.Value;
 
 public abstract class MessagePredicateRule extends AbstractRule {
     protected Predicate<String> messageTypePredicate;

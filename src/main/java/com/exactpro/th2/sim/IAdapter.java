@@ -17,7 +17,7 @@ import java.io.Closeable;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.sim.adapter.RabbitMQAdapter;
 
 /**

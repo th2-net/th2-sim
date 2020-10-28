@@ -128,12 +128,31 @@ apply plugin: 'application'
 apply plugin: "org.jetbrains.kotlin.jvm"
 
 dependencies {
+    api platform('com.exactpro.th2:bom:2.0.+')
+
     implementation(project(':grpc-sim'))
 
     implementation "org.slf4j:slf4j-log4j12"
     implementation "org.slf4j:slf4j-api"
 
+    implementation "com.fasterxml.jackson.core:jackson-core"
+    implementation "com.fasterxml.jackson.core:jackson-databind"
+
+    implementation "org.jetbrains:annotations"
+
+    implementation "org.apache.commons:commons-lang3"
+
+    implementation "com.google.guava:guava"
+
+    implementation "com.rabbitmq:amqp-client"
+
+    implementation "com.google.protobuf:protobuf-java-util"
+    implementation "io.grpc:grpc-netty"
+    implementation "io.grpc:grpc-protobuf"
+    implementation "io.grpc:grpc-stub"
+
     implementation "com.exactpro.th2:common"
+    implementation "com.exactpro.th2:grpc-common"
 
     testImplementation 'junit:junit:4.12'
 }

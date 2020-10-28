@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.infra.grpc.Message;
+import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.sim.rule.IRule;
 
 /**

@@ -18,7 +18,7 @@ import java.io.IOException;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.configuration.MicroserviceConfiguration;
-import com.exactpro.th2.infra.grpc.ConnectionID;
+import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.sim.IAdapter;
 import com.exactpro.th2.sim.ISimulator;
 
