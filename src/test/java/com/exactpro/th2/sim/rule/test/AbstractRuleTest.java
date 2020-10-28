@@ -17,8 +17,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,8 +57,195 @@ public abstract class AbstractRuleTest {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
     private SimulatorConfiguration configuration  = new SimulatorConfiguration();
-    private ISimulator simulator = new Simulator();
+    private Simulator simulator = new Simulator();
 
+    private SupplierAdapter supplierAdapter;
+
+    @Before
+    public void setUp() throws Exception {
+
+        logger.debug("Simulator is initializing");
+        simulator.init(configuration, SupplierAdapter.class);
+        logger.info("Simulator was init");
+
+        addRules(simulator, DEFAULT_SESSION_ALIAS);
+        logger.info("Rules was added to simulator");
+
+        try {
+            Field connectivityMap = simulator.getClass().getDeclaredField("connectivityAdapters");
+            connectivityMap.setAccessible(true);
+            IAdapter adapter = ((Map<String, IAdapter>) connectivityMap.get(simulator)).get(DEFAULT_SESSION_ALIAS);
+            if (adapter instanceof SupplierAdapter) {
+                this.supplierAdapter = (SupplierAdapter) adapter;
+            } else {
+                throw new IllegalStateException("Can not start test, because can not get supplier adapter");
+            }
+        } catch (NoSuchFieldException | ClassCastException | IllegalAccessException e) {
+            throw new IllegalStateException("Can not start test, because can get map field \"connectivityAdapters\"", e);
+        }
+    }
+
+    @Test
+    public void testRule() {
+        logger.debug("Start create messages and messages batches");
+
+        List<MessageLite> messages = createObjects();
+        logger.info("Messages and messages batches was created");
+
+        String logFile = getPathLoggingFile();
+        OutputStreamWriter logWriter = null;
+
+        if (StringUtils.isNotEmpty(logFile)) {
+
+            logger.info("Try to use logging file");
+
+            try {
+                logger.trace("Preparing logging file");
+                logWriter = new OutputStreamWriter(new FileOutputStream(logFile));
+                logWriter.append("Index;In message;Out messages\n\n");
+                logger.trace("Logging file was prepared");
+                logger.info("Logging to file was enabled");
+            } catch (IOException e) {
+                logger.error("Can not use logging messages", e);
+                if (logWriter != null) {
+                    try {
+                        logWriter.flush();
+                    } catch (IOException e1) {
+                        logger.error("Can not flush log file", e1);
+                    }
+
+                    try {
+                        logWriter.close();
+                    } catch (IOException e1) {
+                        logger.error("Can not close log file", e1);
+                    }
+                }
+                logWriter = null;
+            }
+        }
+
+        List<Long> timeEachMessage = new ArrayList<>(getCountObjects());
+
+        logger.info("Start test");
+        long timeStart = System.currentTimeMillis();
+        AtomicInteger index = new AtomicInteger();
+
+        Map<Integer, List<MessageOrBuilder>> results = new HashMap<>();
+
+
+        supplierAdapter.addMessageListener(message -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(message));
+        supplierAdapter.addMessageBatchListener(batch -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(batch));
+        logger.trace("Added listeners to adapter");
+
+        for (; index.get() < messages.size(); index.incrementAndGet()) {
+
+            Delivery delivery = new Delivery(null, null, messages.get(index.get()).toByteArray());
+            logger.trace("Created delivery for id = {}", index.get());
+
+            long timeStartRule = System.nanoTime();
+
+            try {
+                simulator.handleDelivery(DEFAULT_SESSION_ALIAS, DEFAULT_CONSUMER_TAG, delivery);
+            } catch (Exception e) {
+                logger.error("Can not execute method with id = {}", index.get(), e);
+                continue;
+            }
+
+            long timeEndRule = System.nanoTime();
+            if (logWriter != null) {
+                try {
+                    String inMessageString = (useShortMessageFormat()
+                            ? TextFormat.shortDebugString((MessageOrBuilder) messages.get(index.get()))
+                            : messages.get(index.get()).toString())
+                            .replace("\n", "\n" + CSV_CHAR);
+
+                    logWriter.append(index.get() + "\n").append(CSV_CHAR).append(inMessageString);
+                    List<MessageOrBuilder> indexResults = results.get(index.get());
+                    if (indexResults != null && !indexResults.isEmpty()) {
+                        for (MessageOrBuilder tmp : indexResults) {
+                            String resultString = (useShortMessageFormat()
+                                    ? TextFormat.shortDebugString(tmp)
+                                    : tmp.toString()).replace("\n", "\n" + CSV_CHAR + CSV_CHAR);
+                            logWriter.append("\n").append(CSV_CHAR).append(CSV_CHAR).append(resultString);
+                        }
+                    }
+                    logWriter.append("\n");
+                } catch (IOException e) {
+                    logger.error("Can not log messages with index: " + index, e);
+
+                    try {
+                        logWriter.flush();
+                    } catch (IOException e1) {
+                        logger.error("Can not flush log file", e1);
+                    }
+
+                    try {
+                        logWriter.close();
+                    } catch (IOException e1) {
+                        logger.error("Can not close log file", e1);
+                    }
+
+                    logWriter = null;
+                }
+            }
+            timeEachMessage.add(timeEndRule - timeStartRule);
+        }
+        long timeEnd = System.currentTimeMillis();
+        logger.info("End test");
+
+        boolean checkResultPassed = true;
+
+        for (int i = 0; i < results.size(); i++) {
+            List<MessageOrBuilder> list = results.get(i);
+            List<Message> resultMessage = new ArrayList<>();
+            List<MessageBatch> resultBatches = new ArrayList<>();
+
+            if (list != null && !list.isEmpty()) {
+                for (MessageOrBuilder messageOrBuilder : list) {
+                    if (messageOrBuilder instanceof Message) {
+                        resultMessage.add((Message)messageOrBuilder);
+                    } else if (messageOrBuilder instanceof MessageBatch) {
+                        resultBatches.add((MessageBatch)messageOrBuilder);
+                    }
+                }
+            }
+
+            if (!checkResultMessages(i, resultMessage, resultBatches)) {
+                checkResultPassed = false;
+                logger.info("Check was failed on index {}", i);
+                logger.debug("Check was failed on index {} with single messages {} and batch messages {}", i, resultMessage, resultBatches);
+            }
+        }
+
+        long totalTime = 0;
+        TimeUnit loggingTimeUnit = getLoggingTimeUnit();
+        for (int i = 0; i < timeEachMessage.size(); i++) {
+            Long time = timeEachMessage.get(i);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Message with index {} take {} {}", i, loggingTimeUnit.convert(time, TimeUnit.NANOSECONDS), getShortNameForTimeUnit(loggingTimeUnit));
+            }
+            totalTime += time;
+        }
+
+        logger.info("Average time with rules take {} {}", loggingTimeUnit.convert(totalTime / getCountObjects(), TimeUnit.NANOSECONDS), getShortNameForTimeUnit(loggingTimeUnit));
+        logger.info("All rules time take {} ms", TimeUnit.NANOSECONDS.toMillis(totalTime));
+        logger.info("All test spend {} ms", timeEnd - timeStart);
+        if (logWriter != null) {
+            try {
+                logWriter.flush();
+            } catch (IOException e) {
+                logger.error("Can not flush log file", e);
+            }
+
+            try {
+                logWriter.close();
+            } catch (IOException e) {
+                logger.error("Can not close log file", e);
+            }
+        }
+
+        Assert.assertTrue(isNegativeTest() != checkResultPassed);
+    }
 
     /**
      * Create message for index.
@@ -92,7 +277,7 @@ public abstract class AbstractRuleTest {
         return null;
     }
 
-    protected boolean shortMessageFormat() {
+    protected boolean useShortMessageFormat() {
         return true;
     }
 
@@ -106,183 +291,23 @@ public abstract class AbstractRuleTest {
         return true;
     }
 
-    Method handleMethod;
-    SupplierAdapter supplierAdapter;
+    protected boolean isNegativeTest() { return false; }
 
-    @Before
-    public void setUp() throws Exception {
+    protected TimeUnit getLoggingTimeUnit() { return TimeUnit.NANOSECONDS; }
 
-        try {
-            handleMethod = simulator.getClass().getDeclaredMethod("handleDelivery", String.class, String.class, Delivery.class);
-            handleMethod.setAccessible(true);
-        } catch (NoSuchMethodException e) {
-            throw new IllegalStateException("Can not start test, because can not find method \"handleDelivery\"", e);
+    private String getShortNameForTimeUnit(TimeUnit loggingTimeUnit) {
+        switch (loggingTimeUnit) {
+        case NANOSECONDS: return  "ns";
+        case MILLISECONDS: return  "ms";
+        case MICROSECONDS: return  "mcs";
+        case SECONDS: return  "s";
+        case MINUTES: return  "minutes";
+        case HOURS: return  "hours";
+        case DAYS: return  "days";
         }
-
-        logger.debug("Simulator is initializing");
-        simulator.init(configuration, SupplierAdapter.class);
-        logger.info("Simulator was init");
-
-        addRules(simulator, DEFAULT_SESSION_ALIAS);
-        logger.info("Rules was added to simulator");
-
-        try {
-            Field connectivityMap = simulator.getClass().getDeclaredField("connectivityAdapters");
-            connectivityMap.setAccessible(true);
-            IAdapter adapter = ((Map<String, IAdapter>) connectivityMap.get(simulator)).get(DEFAULT_SESSION_ALIAS);
-            if (adapter instanceof SupplierAdapter) {
-                this.supplierAdapter = (SupplierAdapter) adapter;
-            } else {
-                throw new IllegalStateException("Can not start test, because can not get supplier adapter");
-            }
-        } catch (NoSuchFieldException | ClassCastException | IllegalAccessException e) {
-            throw new IllegalStateException("Can not start test, because can get map field \"connectivityAdapters\"", e);
-        }
+        return null;
     }
 
-    @Test
-    public void testRule() {
-        logger.debug("Messages starting create");
-
-        List<MessageLite> messages = createObjects();
-        logger.info("Messages was created");
-
-        String logFile = getPathLoggingFile();
-        OutputStreamWriter logWriter = null;
-
-        if (StringUtils.isNotEmpty(logFile)) {
-            try {
-                logger.info("Prepare logging file");
-                logWriter = new OutputStreamWriter(new FileOutputStream(logFile));
-                logWriter.append("Index;In message;Out messages\n\n");
-                logger.info("Logging messages was enable");
-            } catch (IOException e) {
-                logger.error("Can not enable logging messages", e);
-                if (logWriter != null) {
-                    try {
-                        logWriter.flush();
-                    } catch (IOException e1) {
-                        logger.error("Can not flush log file", e1);
-                    }
-
-                    try {
-                        logWriter.close();
-                    } catch (IOException e1) {
-                        logger.error("Can not close log file", e1);
-                    }
-                }
-                logWriter = null;
-            }
-        }
-
-        List<Long> timeEachMessage = new ArrayList<>(getCountObjects());
-
-        logger.debug("Test start");
-        long timeStart = System.currentTimeMillis();
-        AtomicInteger index = new AtomicInteger();
-
-        Map<Integer, List<MessageOrBuilder>> results = new HashMap<>();
-
-        supplierAdapter.addMessageListener(message -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(message));
-        supplierAdapter.addMessageBatchListener(batch -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(batch));
-
-        for (; index.get() < messages.size(); index.incrementAndGet()) {
-            long timeStartRule = System.nanoTime();
-
-            try {
-                handleMethod.invoke(simulator, DEFAULT_SESSION_ALIAS, DEFAULT_CONSUMER_TAG, new Delivery(null, null, messages.get(index.get()).toByteArray()));
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                logger.error("Can not invoke method", e);
-                continue;
-            }
-            long timeEndRule = System.nanoTime();
-            if (logWriter != null) {
-                try {
-                    String inMessageString = (shortMessageFormat()
-                            ? TextFormat.shortDebugString((MessageOrBuilder) messages.get(index.get()))
-                            : messages.get(index.get()).toString())
-                            .replace("\n", "\n;");
-
-                    logWriter.append(index.get() + "\n;").append(inMessageString);
-                    for (MessageOrBuilder tmp : results.get(index.get())) {
-                        String resultString = (shortMessageFormat()
-                                ? TextFormat.shortDebugString(tmp)
-                                : tmp.toString()).replace("\n", "\n;;");
-                        logWriter.append("\n;;").append(resultString);
-                    }
-                    logWriter.append("\n");
-                } catch (IOException e) {
-                    logger.error("Can not log messages with index: " + index, e);
-
-                    try {
-                        logWriter.flush();
-                    } catch (IOException e1) {
-                        logger.error("Can not flush log file", e1);
-                    }
-
-                    try {
-                        logWriter.close();
-                    } catch (IOException e1) {
-                        logger.error("Can not close log file", e1);
-                    }
-
-                    logWriter = null;
-                }
-            }
-            timeEachMessage.add(timeEndRule - timeStartRule);
-        }
-        long timeEnd = System.currentTimeMillis();
-        logger.info("Test end");
-
-        boolean checkResultPassed = true;
-
-        for (int i = 0; i < results.size(); i++) {
-            List<MessageOrBuilder> list = results.get(i);
-            List<Message> resultMessage = new ArrayList<>();
-            List<MessageBatch> resultBatches = new ArrayList<>();
-
-            for (MessageOrBuilder messageOrBuilder : list) {
-                if (messageOrBuilder instanceof  Message) {
-                    resultMessage.add((Message)messageOrBuilder);
-                } else if (messageOrBuilder instanceof MessageBatch) {
-                    resultBatches.add((MessageBatch)messageOrBuilder);
-                }
-            }
-
-            if (!checkResultMessages(i, resultMessage, resultBatches)) {
-                checkResultPassed = false;
-                logger.info("Check was failed on index {}", i);
-                logger.debug("Check was failed on index {} with single messages {} and batch messages {}", i, resultMessage, resultBatches);
-            }
-        }
-
-        long totalTime = timeEachMessage.get(0);
-        logger.debug("Message with index {} take {} ns", 0, timeEachMessage.get(0));
-        for (int i = 1; i < timeEachMessage.size(); i++) {
-            Long time = timeEachMessage.get(i);
-            logger.debug("Message with index {} take {} ns", i, time);
-            totalTime += time;
-        }
-
-        logger.info("Average time with rules take {} ns", totalTime / getCountObjects());
-        logger.info("All rules time take {} ms", TimeUnit.NANOSECONDS.toMillis(totalTime));
-        logger.info("All test spend {} ms", timeEnd - timeStart);
-        if (logWriter != null) {
-            try {
-                logWriter.flush();
-            } catch (IOException e) {
-                logger.error("Can not flush log file", e);
-            }
-
-            try {
-                logWriter.close();
-            } catch (IOException e) {
-                logger.error("Can not close log file", e);
-            }
-        }
-
-        Assert.assertTrue(checkResultPassed);
-    }
 
     /**
      * Method for create all messages

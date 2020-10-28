@@ -32,10 +32,10 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.common.grpc.MessageBatch;
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Message;
+import com.exactpro.th2.common.grpc.MessageBatch;
+import com.exactpro.th2.configuration.MicroserviceConfiguration;
 import com.exactpro.th2.sim.IAdapter;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
@@ -110,9 +110,9 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
             logger.info("Rule from class '{}' was added to simulator for session alias '{}' with input type '{}' and output type '{}' with id = {}",
                     rule.getClass().getName(),
+                    sessionAlias,
                     receiveBatch ? "BATCH" : "SINGLE",
                     sendBatch ? "BATCH" : "SINGLE",
-                    sessionAlias,
                     id);
 
             return RuleID.newBuilder().setId(id).build();
@@ -210,11 +210,6 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
         while (iterator.hasNext()) {
             Integer id = iterator.next();
 
-            if (defaultsRules.contains(id) && !canUseDefaultRulesLocal) {
-                logger.debug("Skip rule with id '{}', because it is default rule", id);
-                continue;
-            }
-
             SimulatorRule rule = ruleIds.get(id);
 
             if (rule == null || rule.getRule() == null) {
@@ -231,7 +226,13 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                         batch = MessageBatch.parseFrom(delivery.getBody());
 
                         if (logger.isTraceEnabled()) {
-                            logger.trace("Parse delivery to message bath for rule with id '{}' = '{}'", id, TextFormat.shortDebugString(batch));
+                            logger.trace("Parse delivery to message bath = '{}'", TextFormat.shortDebugString(batch));
+                        }
+
+                        if (logger.isDebugEnabled()) {
+                            for (Message tmp : batch.getMessagesList()) {
+                                logger.debug("Handle message name = {}", tmp.getMetadata().getMessageType());
+                            }
                         }
                     } catch (InvalidProtocolBufferException e) {
                         logger.error("Skip rule with id = '{}', because can not parse message batch from delivery", id);
@@ -244,6 +245,14 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 if (message == null) {
                     try {
                         message = Message.parseFrom(delivery.getBody());
+
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("Parse delivery to single message = {}", TextFormat.shortDebugString(message));
+                        }
+
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Handle message name = {}", message.getMetadata().getMessageType());
+                        }
                     } catch (InvalidProtocolBufferException e) {
                         logger.error("Skip rule with id = '{}', because can not parse single message from delivery", id);
                         continue;
@@ -253,10 +262,12 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                 triggerMessages = Collections.singletonList(message);
             }
 
+            if (defaultsRules.contains(id) && !canUseDefaultRulesLocal) {
+                logger.debug("Skip rule with id '{}', because it is default rule", id);
+                continue;
+            }
+
             for (Message triggerMessage : triggerMessages) {
-                if (logger.isDebugEnabled()) {
-                    logger.debug("Handle message name = {}", triggerMessage.getMetadata().getMessageType());
-                }
                 if (rule.getRule().checkTriggered(triggerMessage)) {
                     try {
                         if (logger.isDebugEnabled()) {
@@ -274,18 +285,23 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
                         }
 
                         triggeredRules.add(id);
-                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToResponse.size());
+
                         if (logger.isTraceEnabled()) {
                             StringBuilder builder = new StringBuilder();
-                            builder.append("{");
-                            for (Message messageList : messageListToResponse) {
-                                builder.append(TextFormat.shortDebugString(messageList));
-                                builder.append(";");
+                            builder.append("[");
+                            for (int i = 0; i < messageListToResponse.size(); i++) {
+                                builder.append(TextFormat.shortDebugString(messageListToResponse.get(i)));
+                                if (i != messageListToResponse.size() - 1) {
+                                    builder.append(";");
+                                }
                             }
-                            builder.append("}");
+                            builder.append("]");
 
                             logger.trace("Rule with id '{}' generate messages '{}'", id, builder.toString());
                         }
+
+                        logger.debug("Rule with ID '{}' has returned '{}' message(s)", id, messageListToResponse.size());
+
                     } catch (Exception e) {
                         logger.error("Can not handle message in rule with id = {}", id, e);
                     }
