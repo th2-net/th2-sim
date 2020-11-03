@@ -15,9 +15,7 @@ package com.exactpro.th2.sim.run;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.ConfigurationUtils;
-import com.exactpro.th2.sim.adapter.RabbitMQAdapter;
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.common.schema.factory.CommonFactory;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.impl.SimulatorServer;
 
@@ -27,10 +25,10 @@ public class SimulatorServerMain {
 
     public static void main(String[] args) {
         try {
-            SimulatorConfiguration configuration = readConfiguration(args);
+            CommonFactory commonFactory = CommonFactory.createFromArguments(args);
             SimulatorServer server = new SimulatorServer();
-            server.init(configuration, Simulator.class, RabbitMQAdapter.class);
-            addShutdownHook(server);
+            server.init(commonFactory, Simulator.class);
+            addShutdownHook(server, commonFactory);
             server.start();
             server.blockUntilShutdown();
         } catch (Throwable th) {
@@ -39,15 +37,20 @@ public class SimulatorServerMain {
         }
     }
 
-    private static void addShutdownHook(SimulatorServer server) {
-        Runtime.getRuntime().addShutdownHook(new Thread(server::close));
-    }
-
-    private static SimulatorConfiguration readConfiguration(String[] args) {
-        if (args.length > 0) {
-            return ConfigurationUtils.safeLoad(SimulatorConfiguration::load, SimulatorConfiguration::new, args[0]);
-        } else {
-            return new SimulatorConfiguration();
-        }
+    private static void addShutdownHook(SimulatorServer server, CommonFactory factory) {
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    try {
+                        server.close();
+                    } finally {
+                        factory.close();
+                    }
+                } catch (Exception e) {
+                    LOGGER.error(e.getMessage(), e);
+                }
+            }
+        }));
     }
 }

@@ -2,78 +2,65 @@
 ## Description
 The Simulator is service for simulate different logic.
 All logic contains in a Rule. 
-You can turn on/off rules for different connections or some rules for one connection
+You can turn on/off rules for different connections or some rules for one connection.
 This project is java framework for creating custom the Simulator 
 ## Interfaces
 ### ISimulator
 Main interface of simulator, which contains logic for managing rules and handle on message 
-### IAdapter
-Interface for connection's messages' source
 ### ISimulatorServer
 Interface for managing gRPC server
 ### ISimulatorPart
 Interface for gRPC services for creating Rules
 ## Settings
-Simulator using environment variables for settings
-#### GRPC_PORT
-Simulator's gRPC server's port \
-*Example:* 8080
-#### RABBITMQ_HOST
-RabbitMQ host \
-*Example:* localhost
-#### RABBITMQ_PORT
-RabbitMQ port \
-*Example:* 8888
-#### RABBITMQ_VHOST
-RabbitMQ virtual host \
-*Example:* vh
-#### RABBITMQ_USER
-RabbitMQ user \
-*Example:* guest
-#### RABBITMQ_PASS
-RabbitMQ password \
-*Example:* guest
-#### TH2_CONNECTIVITY_QUEUE_NAMES
-RabbitMQ queues of connectivity \
+Simulator using schema api for settings. \
+Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
+#### Pins in MessageRouter
+Simulators subscribe message batches from pins with attributes: ``first``, ``subscribe``, ``parsed`` \
+Simulator sends message bathes to pins with attributes ``second``, ``publish``, ``parsed`` and which name session alias \
 *Example:*
-```
+```json
 {
-  "fix_client": {
-    "exchangeName":"demo_exchange", 
-    "toSendQueueName":"client_to_send", 
-    "toSendRawQueueName":"client_to_send_raw", 
-    "inQueueName": "fix_codec_out_client", 
-    "inRawQueueName": "client_in_raw", 
-    "outQueueName": "client_out" , 
-    "outRawQueueName": "client_out_raw"  
-  }, 
-  "fix_server": {
-    "exchangeName":"demo_exchange", 
-    "toSendQueueName":"server_to_send", 
-    "toSendRawQueueName":"server_to_send_raw", 
-    "inQueueName": "fix_codec_out_server", 
-    "inRawQueueName": "server_in_raw", 
-    "outQueueName": "server_out" , 
-    "outRawQueueName": "server_out_raw"  
+  "queues": {
+    "subscribe1":{
+      "name": "subscribe1_name",
+      "queue": "subscribe1_queue",
+      "exchange": "subscribe1_exchange",
+      "attributes": ["first", "subscribe", "parsed"]
+    },
+    "send1": {
+      "name": "send1_name",
+      "queue": "send1_queue",
+      "exchange": "send1_exchange",
+      "attributes": ["second", "publish", "parsed", "send1_session_alias"]
+    },
+    "send2": {
+      "name": "send2_name",
+      "queue": "send2_queue",
+      "exchange": "send2_exchange",
+      "attributes": ["second", "publish", "parsed", "send2_session_alias"]
+    }
   }
 }
 ```
-#### SIMULATOR_DEFAULT_RULES
-Default rules which start with simulator \
+#### Custom configuration
+Have only settings for defaults rules \
 *Example:*
-```
-[{
-  "methodName": "createRuleFIX",
-  "enable": false
-  "settings": {
-    "fields": {
-      "ClOrdID": {
-        "simple_value":"order_id"
-      }
-    },
-    "connection_id": {
-      "session_alias": "fix-client"
-    }
-  }
-}]
+```json
+{ "defaultRules" : [
+        {
+          "methodName": "createRuleFIX",
+          "enable": false,
+          "settings": {
+            "fields": {
+              "ClOrdID": {
+                "simple_value":"order_id"
+              }
+            },
+            "connection_id": {
+              "session_alias": "fix-client"
+            }
+          }
+        }
+    ]
+}
 ```

@@ -12,10 +12,15 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.impl;
 
+import static java.util.Collections.emptyMap;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,7 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.exactpro.th2.sim.IAdapter;
+import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.ISimulatorPart;
 import com.exactpro.th2.sim.ISimulatorServer;
@@ -38,7 +43,6 @@ import com.google.protobuf.Message.Builder;
 import com.google.protobuf.util.JsonFormat;
 
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 
 /**
@@ -50,33 +54,19 @@ public class SimulatorServer implements ISimulatorServer {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private SimulatorConfiguration configuration;
+    private AbstractCommonFactory factory;
     private ISimulator simulator;
     private Server server;
 
-    public SimulatorServer() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (server != null && !server.isShutdown()) {
-                System.err.println("Stopping GRPC server in simulator");
-                server.shutdownNow();
-                System.err.println("GRPC server was stopped");
-            }
-        }));
-    }
-
     @Override
-    public void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorClass, @NotNull Class<? extends IAdapter> adapterClass) {
-        if (configuration.getTh2().getConnectivityQueueNames().size() < 1) {
-            throw new IllegalArgumentException("Connectivity queues must contain at least 1 element");
-        }
+    public void init(@NotNull AbstractCommonFactory commonFactory, @NotNull Class<? extends ISimulator> simulatorClass) {
 
-        this.configuration = configuration;
-
-        logger.info("Configuration {}", configuration);
+        this.factory = Objects.requireNonNull(commonFactory, "Common factory can not be null");
+        Objects.requireNonNull(simulatorClass, "Simulator class can not be null");
 
         try {
             simulator = simulatorClass.getConstructor().newInstance();
-            simulator.init(configuration, adapterClass);
+            simulator.init(factory);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {
@@ -94,36 +84,39 @@ public class SimulatorServer implements ISimulatorServer {
         }
 
         logger.debug("Try to get all defaults rules");
-        Map<String, DefaultRuleConfiguration> defaultRules = configuration
-                .getDefaultRules()
-                .stream()
-                .filter(DefaultRuleConfiguration::isEnable)
-                .filter(it -> it.getMethodName() != null)
-                .collect(
-                        Collectors.toMap(
-                                DefaultRuleConfiguration::getMethodName,
-                                it -> it));
+        SimulatorConfiguration customConfiguration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+        Map<String, DefaultRuleConfiguration> defaultRules = customConfiguration == null
+                ? emptyMap()
+                : customConfiguration.getDefaultRules()
+                    .stream()
+                    .filter(DefaultRuleConfiguration::isEnable)
+                    .filter(it -> it.getMethodName() != null)
+                    .collect(
+                            Collectors.toMap(
+                                    DefaultRuleConfiguration::getMethodName,
+                                    it -> it));
 
         logger.info("Count default rules = {}", defaultRules.size());
 
-        NettyServerBuilder builder = NettyServerBuilder.forPort(configuration.getPort()).addService(simulator);
+        List<ISimulatorPart> simulatorsParts = new ArrayList<>();
         for (ISimulatorPart tmp : ServiceLoader.load(ISimulatorPart.class)) {
             logger.info("Was loaded simulator part class with name: " + tmp.getClass());
             tmp.init(simulator);
 
             addDefaultRules(tmp, defaultRules);
 
-            builder.addService(tmp);
+            simulatorsParts.add(tmp);
             logger.debug("Was added to gRPC simulator part class with name: " + tmp.getClass());
         }
-        server = builder.build();
+        server = factory.getGrpcRouter().startServer(simulatorsParts.toArray(ISimulatorPart[]::new));
+
         try {
             logger.debug("Simulator server is starting.");
             server.start();
-            logger.info("Simulator server was started on port = {}", configuration.getPort());
+            logger.info("Simulator server was started.");
             return true;
         } catch (IOException e) {
-            logger.error("Can not start simulator server on port = {}", configuration.getPort(), e);
+            logger.error("Can not start simulator server.", e);
             return false;
         }
     }

@@ -13,37 +13,12 @@
 
 package com.exactpro.th2.sim.configuration;
 
-import static java.lang.System.getenv;
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
-
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.Collections;
 import java.util.List;
 
-import com.exactpro.th2.configuration.MicroserviceConfiguration;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.ImmutableList;
+public class SimulatorConfiguration {
 
-public class SimulatorConfiguration extends MicroserviceConfiguration {
-
-    public static final String ENV_SIMULATOR_DEFAULT_RULES = "SIMULATOR_DEFAULT_RULES";
-    public static final String DEFAULT_SIMULATOR_DEFAULT_RULES = "[]";
-
-    public static List<DefaultRuleConfiguration> getEnvSimulatorDefaultRules() {
-        String defaultRulesJson = defaultIfNull(getenv(ENV_SIMULATOR_DEFAULT_RULES), DEFAULT_SIMULATOR_DEFAULT_RULES);
-        try {
-            return ImmutableList.copyOf(JSON_READER.<List<DefaultRuleConfiguration>>readValue(defaultRulesJson, new TypeReference<>() {}));
-        } catch (IOException e) {
-            throw new IllegalArgumentException(ENV_SIMULATOR_DEFAULT_RULES + " environment variable value '" + defaultRulesJson + "' can't be read", e);
-        }
-    }
-
-
-    private List<DefaultRuleConfiguration> defaultRules = getEnvSimulatorDefaultRules();
-
-    public static SimulatorConfiguration load(InputStream inputStream) throws IOException {
-        return YAML_READER.readValue(inputStream, SimulatorConfiguration.class);
-    }
+    private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;

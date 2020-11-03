@@ -16,7 +16,7 @@ import java.io.Closeable;
 
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.impl.SimulatorServer;
 
@@ -26,7 +26,7 @@ import com.exactpro.th2.sim.impl.SimulatorServer;
  */
 public interface ISimulatorServer extends Closeable {
 
-    void init(@NotNull SimulatorConfiguration configuration, @NotNull Class<? extends ISimulator> simulatorServer, @NotNull Class<? extends IAdapter> adapterServer);
+    void init(@NotNull AbstractCommonFactory factory, @NotNull Class<? extends ISimulator> simulatorServer);
 
     /**
      * Start server

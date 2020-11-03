@@ -16,9 +16,9 @@ package com.exactpro.th2.sim.rule.test;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -35,16 +35,10 @@ import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
-import com.exactpro.th2.sim.IAdapter;
 import com.exactpro.th2.sim.ISimulator;
-import com.exactpro.th2.sim.adapter.SupplierAdapter;
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.rule.IRule;
-import com.google.protobuf.MessageLite;
-import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
-import com.rabbitmq.client.Delivery;
 
 /**
  * Class for test work {@link IRule} in {@link ISimulator}
@@ -52,44 +46,28 @@ import com.rabbitmq.client.Delivery;
 public abstract class AbstractRuleTest {
 
     private static final String DEFAULT_SESSION_ALIAS = "default_connectivity_for_test";
-    private static final String DEFAULT_CONSUMER_TAG = "default_consumer_tag";
     private static final String CSV_CHAR = ";";
 
     private Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
-    private SimulatorConfiguration configuration  = new SimulatorConfiguration();
     private Simulator simulator = new Simulator();
-
-    private SupplierAdapter supplierAdapter;
+    private final TestCommonFactory factory = new TestCommonFactory();
 
     @Before
     public void setUp() throws Exception {
 
         logger.debug("Simulator is initializing");
-        simulator.init(configuration, SupplierAdapter.class);
+        simulator.init(factory);
         logger.info("Simulator was init");
 
-        addRules(simulator, DEFAULT_SESSION_ALIAS);
+        addRules(simulator);
         logger.info("Rules was added to simulator");
-
-        try {
-            Field connectivityMap = simulator.getClass().getDeclaredField("connectivityAdapters");
-            connectivityMap.setAccessible(true);
-            IAdapter adapter = ((Map<String, IAdapter>) connectivityMap.get(simulator)).get(DEFAULT_SESSION_ALIAS);
-            if (adapter instanceof SupplierAdapter) {
-                this.supplierAdapter = (SupplierAdapter) adapter;
-            } else {
-                throw new IllegalStateException("Can not start test, because can not get supplier adapter");
-            }
-        } catch (NoSuchFieldException | ClassCastException | IllegalAccessException e) {
-            throw new IllegalStateException("Can not start test, because can get map field \"connectivityAdapters\"", e);
-        }
     }
 
     @Test
     public void testRule() {
         logger.debug("Start create messages and messages batches");
 
-        List<MessageLite> messages = createObjects();
+        List<MessageBatch> messages = createMessageBatches();
         logger.info("Messages and messages batches was created");
 
         String logFile = getPathLoggingFile();
@@ -124,45 +102,47 @@ public abstract class AbstractRuleTest {
             }
         }
 
-        List<Long> timeEachMessage = new ArrayList<>(getCountObjects());
+        List<Long> timeEachMessage = new ArrayList<>(getCountMessageBatches());
 
         logger.info("Start test");
         long timeStart = System.currentTimeMillis();
         AtomicInteger index = new AtomicInteger();
 
-        Map<Integer, List<MessageOrBuilder>> results = new HashMap<>();
+        Map<Integer, List<MessageBatch>> results = new HashMap<>();
 
 
-        supplierAdapter.addMessageListener(message -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(message));
-        supplierAdapter.addMessageBatchListener(batch -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(batch));
+        factory.addConsumer(batch -> results.computeIfAbsent(index.get(), key -> new ArrayList<>()).add(batch));
         logger.trace("Added listeners to adapter");
 
         for (; index.get() < messages.size(); index.incrementAndGet()) {
-
-            Delivery delivery = new Delivery(null, null, messages.get(index.get()).toByteArray());
             logger.trace("Created delivery for id = {}", index.get());
+            MessageBatch batch = messages.get(index.get());
+
+            Iterator<Message> iterator = batch.getMessagesList().iterator();
 
             long timeStartRule = System.nanoTime();
 
-            try {
-                simulator.handleDelivery(DEFAULT_SESSION_ALIAS, DEFAULT_CONSUMER_TAG, delivery);
-            } catch (Exception e) {
-                logger.error("Can not execute method with id = {}", index.get(), e);
-                continue;
+            while (iterator.hasNext()) {
+                try {
+                    simulator.handleMessage(DEFAULT_SESSION_ALIAS, iterator.next());
+                } catch (Exception e) {
+                    logger.error("Can not execute method with id = {}", index.get(), e);
+                    continue;
+                }
             }
 
             long timeEndRule = System.nanoTime();
             if (logWriter != null) {
                 try {
                     String inMessageString = (useShortMessageFormat()
-                            ? TextFormat.shortDebugString((MessageOrBuilder) messages.get(index.get()))
+                            ? TextFormat.shortDebugString(messages.get(index.get()))
                             : messages.get(index.get()).toString())
                             .replace("\n", "\n" + CSV_CHAR);
 
                     logWriter.append(index.get() + "\n").append(CSV_CHAR).append(inMessageString);
-                    List<MessageOrBuilder> indexResults = results.get(index.get());
+                    List<MessageBatch> indexResults = results.get(index.get());
                     if (indexResults != null && !indexResults.isEmpty()) {
-                        for (MessageOrBuilder tmp : indexResults) {
+                        for (MessageBatch tmp : indexResults) {
                             String resultString = (useShortMessageFormat()
                                     ? TextFormat.shortDebugString(tmp)
                                     : tmp.toString()).replace("\n", "\n" + CSV_CHAR + CSV_CHAR);
@@ -196,24 +176,12 @@ public abstract class AbstractRuleTest {
         boolean checkResultPassed = true;
 
         for (int i = 0; i < results.size(); i++) {
-            List<MessageOrBuilder> list = results.get(i);
-            List<Message> resultMessage = new ArrayList<>();
-            List<MessageBatch> resultBatches = new ArrayList<>();
+            List<MessageBatch> list = results.get(i);
 
-            if (list != null && !list.isEmpty()) {
-                for (MessageOrBuilder messageOrBuilder : list) {
-                    if (messageOrBuilder instanceof Message) {
-                        resultMessage.add((Message)messageOrBuilder);
-                    } else if (messageOrBuilder instanceof MessageBatch) {
-                        resultBatches.add((MessageBatch)messageOrBuilder);
-                    }
-                }
-            }
-
-            if (!checkResultMessages(i, resultMessage, resultBatches)) {
+            if (!checkResultMessages(i, list)) {
                 checkResultPassed = false;
                 logger.info("Check was failed on index {}", i);
-                logger.debug("Check was failed on index {} with single messages {} and batch messages {}", i, resultMessage, resultBatches);
+                logger.debug("Check was failed on index {} with batch messages {}", i, list);
             }
         }
 
@@ -227,7 +195,7 @@ public abstract class AbstractRuleTest {
             totalTime += time;
         }
 
-        logger.info("Average time with rules take {} {}", loggingTimeUnit.convert(totalTime / getCountObjects(), TimeUnit.NANOSECONDS), getShortNameForTimeUnit(loggingTimeUnit));
+        logger.info("Average time with rules take {} {}", loggingTimeUnit.convert(totalTime / getCountMessageBatches(), TimeUnit.NANOSECONDS), getShortNameForTimeUnit(loggingTimeUnit));
         logger.info("All rules time take {} ms", TimeUnit.NANOSECONDS.toMillis(totalTime));
         logger.info("All test spend {} ms", timeEnd - timeStart);
         if (logWriter != null) {
@@ -248,13 +216,6 @@ public abstract class AbstractRuleTest {
     }
 
     /**
-     * Create message for index.
-     * @param index object index convert to delivery bytes
-     * @return Message for this index, or null
-     */
-    protected abstract @Nullable Message createMessage(int index);
-
-    /**
      * Create message batch for index.
      * @param index object index convert to delivery bytes
      * @return Message batch for this index, or null
@@ -264,14 +225,13 @@ public abstract class AbstractRuleTest {
     /**
      * @return Max count for delivery objects
      */
-    protected abstract int getCountObjects();
-
+    protected abstract int getCountMessageBatches();
 
     /**
      * Create rule for {@link ISimulator}
      * @return all rules for test
      */
-    protected abstract void addRules(ISimulator simulator, String sessionAlias);
+    protected abstract void addRules(ISimulator simulator);
 
     protected @Nullable String getPathLoggingFile() {
         return null;
@@ -284,16 +244,17 @@ public abstract class AbstractRuleTest {
     /**
      * Check result's messages with index
      * @param index result's index
-     * @param messages
+     * @param messageBatches
      * @return True, if messages is right
      */
-    protected boolean checkResultMessages(int index, List<Message> messages, List<MessageBatch> messageBatches) {
+    protected boolean checkResultMessages(int index, List<MessageBatch> messageBatches) {
         return true;
     }
 
     protected boolean isNegativeTest() { return false; }
 
     protected TimeUnit getLoggingTimeUnit() { return TimeUnit.NANOSECONDS; }
+
 
     private String getShortNameForTimeUnit(TimeUnit loggingTimeUnit) {
         switch (loggingTimeUnit) {
@@ -313,22 +274,16 @@ public abstract class AbstractRuleTest {
      * Method for create all messages
      * @return all messages for test
      */
-    private @NotNull List<MessageLite> createObjects() {
-        List<MessageLite> result = new ArrayList<>(getCountObjects());
-        for (int i = 0; i < getCountObjects(); i++) {
-            Message message = createMessage(i);
+    private @NotNull List<MessageBatch> createMessageBatches() {
+        List<MessageBatch> result = new ArrayList<>(getCountMessageBatches());
+        for (int i = 0; i < getCountMessageBatches(); i++) {
             MessageBatch batch = createMessageBatch(i);
 
-            if (message != null && batch != null) {
-                throw new IllegalStateException("Created message and message batch for index = " + i);
-            }
-
-            if (message != null) {
-                result.add(message);
-            } else if (batch != null) {
-                result.add(batch);
-            } else {
+            if (batch == null) {
                 logger.warn("For index '{}' can not create object", i);
+                result.add(MessageBatch.newBuilder().build());
+            } else {
+                result.add(batch);
             }
         }
 
