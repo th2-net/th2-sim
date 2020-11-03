@@ -110,12 +110,12 @@ public class TestCommonFactory extends AbstractCommonFactory {
 
         @Override
         public void send(MessageBatch message, String... queueAttr) throws IOException {
-
+            send(message);
         }
 
         @Override
         public void sendAll(MessageBatch message, String... queueAttr) throws IOException {
-
+            send(message);
         }
 
         @Override

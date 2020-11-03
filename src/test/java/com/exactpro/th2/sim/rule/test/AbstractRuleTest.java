@@ -13,6 +13,8 @@
 
 package com.exactpro.th2.sim.rule.test;
 
+import static java.util.Collections.emptyList;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -178,7 +180,7 @@ public abstract class AbstractRuleTest {
         for (int i = 0; i < results.size(); i++) {
             List<MessageBatch> list = results.get(i);
 
-            if (!checkResultMessages(i, list)) {
+            if (!checkResultMessages(i, list == null ? emptyList() : list)) {
                 checkResultPassed = false;
                 logger.info("Check was failed on index {}", i);
                 logger.debug("Check was failed on index {} with batch messages {}", i, list);
