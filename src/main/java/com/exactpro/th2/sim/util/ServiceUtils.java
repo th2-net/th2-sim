@@ -13,7 +13,6 @@
 
 package com.exactpro.th2.sim.util;
 
-import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.rule.IRule;
@@ -22,33 +21,8 @@ import io.grpc.stub.StreamObserver;
 
 public class ServiceUtils {
 
-    @Deprecated(since = "1.5.0", forRemoval = true)
-    public static void addRule(IRule rule, ConnectionID connectionID, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        addRule(rule, connectionID.getSessionAlias(), simulator, responseObserver);
-    }
-
     public static void addRule(IRule rule, String sessionAlias, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
         responseObserver.onNext(simulator.addRule(rule, sessionAlias));
-        responseObserver.onCompleted();
-    }
-
-    @Deprecated(since = "1.5.0", forRemoval = true)
-    public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        addRule(rule, connectionID.getSessionAlias(), parseBatch, simulator, responseObserver);
-    }
-
-    public static void addRule(IRule rule, String sessionAlias, boolean parseBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, sessionAlias, parseBatch));
-        responseObserver.onCompleted();
-    }
-
-    @Deprecated(since = "1.5.0", forRemoval = true)
-    public static void addRule(IRule rule, ConnectionID connectionID, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        addRule(rule, connectionID.getSessionAlias(), parseBatch, sendBatch, simulator, responseObserver);
-    }
-
-    public static void addRule(IRule rule, String sessionAlias, boolean parseBatch, boolean sendBatch, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, sessionAlias, parseBatch, sendBatch));
         responseObserver.onCompleted();
     }
 

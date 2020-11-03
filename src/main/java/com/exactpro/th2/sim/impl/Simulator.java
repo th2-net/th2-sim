@@ -84,16 +84,6 @@ public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase imp
 
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
-        return addRule(rule, sessionAlias, false);
-    }
-
-    @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean parseBatch) {
-       return addRule(rule, sessionAlias, parseBatch, false);
-    }
-
-    @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias, boolean receiveBatch, boolean sendBatch) {
         if (logger.isDebugEnabled()) {
             logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), sessionAlias);
         }
