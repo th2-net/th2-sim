@@ -59,7 +59,7 @@ public abstract class AbstractRuleTest {
         simulator.init(factory);
         logger.info("Simulator was init");
 
-        addRules(simulator);
+        addRules(simulator, DEFAULT_SESSION_ALIAS);
         logger.info("Rules was added to simulator");
     }
 
@@ -231,7 +231,7 @@ public abstract class AbstractRuleTest {
      * Create rule for {@link ISimulator}
      * @return all rules for test
      */
-    protected abstract void addRules(ISimulator simulator);
+    protected abstract void addRules(ISimulator simulator, String sessionAlias);
 
     protected @Nullable String getPathLoggingFile() {
         return null;
