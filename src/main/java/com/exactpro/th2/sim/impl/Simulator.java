@@ -36,7 +36,7 @@ import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
-import com.exactpro.th2.sim.grpc.ServiceSimulatorGrpc;
+import com.exactpro.th2.sim.grpc.SimGrpc;
 import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
@@ -46,7 +46,7 @@ import io.grpc.stub.StreamObserver;
 /**
  * Default implementation of {@link ISimulator}.
  */
-public class Simulator extends ServiceSimulatorGrpc.ServiceSimulatorImplBase implements ISimulator {
+public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
