@@ -252,7 +252,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         answerMessagesBatches.forEach((session, builder) -> {
             MessageBatch batch = builder.build();
             try {
-                router.send(batch, "second", "send", "parsed", session);
+                router.send(batch, "second", "publish", "parsed", session);
             } catch (Exception e) {
                 logger.error("Can not send batch with session alias '{}' = {}", session, TextFormat.shortDebugString(batch), e);
             }
