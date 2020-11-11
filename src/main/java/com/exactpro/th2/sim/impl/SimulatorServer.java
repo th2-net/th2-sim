@@ -12,14 +12,13 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.impl;
 
-import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptyList;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
@@ -85,16 +84,13 @@ public class SimulatorServer implements ISimulatorServer {
 
         logger.debug("Try to get all defaults rules");
         SimulatorConfiguration customConfiguration = factory.getCustomConfiguration(SimulatorConfiguration.class);
-        Map<String, DefaultRuleConfiguration> defaultRules = customConfiguration == null
-                ? emptyMap()
+        List<DefaultRuleConfiguration> defaultRules = customConfiguration == null
+                ? emptyList()
                 : customConfiguration.getDefaultRules()
                     .stream()
                     .filter(DefaultRuleConfiguration::isEnable)
                     .filter(it -> it.getMethodName() != null)
-                    .collect(
-                            Collectors.toMap(
-                                    DefaultRuleConfiguration::getMethodName,
-                                    it -> it));
+                    .collect(Collectors.toList());
 
         logger.info("Count default rules = {}", defaultRules.size());
 
@@ -121,45 +117,48 @@ public class SimulatorServer implements ISimulatorServer {
         }
     }
 
-    private void addDefaultRules(ISimulatorPart tmp, Map<String, DefaultRuleConfiguration> defaultRules) {
+    private void addDefaultRules(ISimulatorPart tmp, List<DefaultRuleConfiguration> defaultRules) {
         Class<? extends ISimulatorPart> serviceClass = tmp.getClass();
         Method[] methods = serviceClass.getDeclaredMethods();
         for (Method method : methods) {
-            DefaultRuleConfiguration configuration = defaultRules.get(method.getName());
 
-            if (configuration != null && method.getParameterCount() == 2) {
+            if (method.getParameterCount() == 2) {
                 Class<?>[] parameterTypes = method.getParameterTypes();
 
-                DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
-                Object request = null;
-                JsonNode ruleRequest = configuration.getSettings();
+                defaultRules.stream().filter(it -> it.getMethodName().equals(method.getName())).forEach(it -> {
+                    DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
 
-                if (ruleRequest != null) {
-                    try {
-                        Builder builder = getBuilder(parameterTypes[0]);
-                        if (builder != null) {
-                            JsonFormat.parser().merge(ruleRequest.toString(), builder);
-                            request = builder.build();
-                        } else {
-                            logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
+                    Object request = null;
+                    JsonNode ruleRequest = it.getSettings();
+
+                    if (ruleRequest != null) {
+                        try {
+                            Builder builder = getBuilder(parameterTypes[0]);
+                            if (builder != null) {
+                                JsonFormat.parser().merge(ruleRequest.toString(), builder);
+                                request = builder.build();
+                            } else {
+                                logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
                         }
-                    } catch (Exception e) {
-                        logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
                     }
-                }
 
-                if (request == null) {
-                    logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
-                }
+                    if (request == null) {
+                        logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
+                    }
 
-                try {
-                    method.invoke(tmp, request, defaultSetterObserver);
-                } catch (Exception ex) {
-                    logger.error("Can not execute method: '{}' in class '{}'", method.getName(), serviceClass, ex);
-                    continue;
-                }
+                    try {
+                        method.invoke(tmp, request, defaultSetterObserver);
+                    } catch (Exception ex) {
+                        logger.error("Can not execute method: '{}' in class '{}'", method.getName(), serviceClass, ex);
+                        return;
+                    }
 
-                defaultSetterObserver.waitFinished();
+                    defaultSetterObserver.waitFinished();
+                });
+
             }
         }
     }
