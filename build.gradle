@@ -23,6 +23,7 @@ buildscript {
 
 plugins {
     id 'com.jfrog.artifactory' version '4.15.1'
+    id "com.jfrog.bintray" version '1.8.5'
     id 'org.jetbrains.kotlin.jvm' version '1.3.72'
 }
 
@@ -42,7 +43,7 @@ allprojects {
     sourceCompatibility = 11
     targetCompatibility = 11
 
-      repositories {
+    repositories {
         maven {
             name 'MavenLocal'
             url sharedDir
