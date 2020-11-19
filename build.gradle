@@ -42,19 +42,15 @@ allprojects {
     sourceCompatibility = 11
     targetCompatibility = 11
 
-    repositories {
+      {
         maven {
             name 'MavenLocal'
             url sharedDir
         }
         mavenCentral()
         maven {
-            name 'Artifactory snapshot'
-            url 'http://artifactory5.exp.exactpro.com/artifactory/libs-snapshot'
-        }
-        maven {
-            name 'Artifactory release local'
-            url 'http://artifactory5.exp.exactpro.com/artifactory/libs-release'
+            name 'Bintray'
+            url 'https://dl.bintray.com/exactpro/th2'
         }
         mavenLocal()
 
@@ -65,7 +61,7 @@ allprojects {
     }
 
     dependencies {
-        api platform('com.exactpro.th2:bom:2.1.+')
+        api platform('com.exactpro.th2:bom:2.3.+')
 
         implementation "com.exactpro.th2:grpc-common"
     }
@@ -99,25 +95,23 @@ allprojects {
         }
     }
 
-    artifactory {
-        publish {
-            contextUrl = "${artifactory_url}"
-            repository {
-                repoKey = "${artifactory_deploy_repo_key}" // The Artifactory repository key to publish to
-                username = "${artifactory_user}" // The publisher user name
-                password = "${artifactory_password}" // The publisher password
-            }
-            defaults {
-                // Reference to Gradle publications defined in the build script.
-                // This is how we tell the Artifactory Plugin which artifacts should be
-                // published to Artifactory.
-                publications('mavenJava')
-                publishArtifacts = true
-                publishBuildInfo = true
-                // Properties to be attached to the published artifacts.
-                publishPom = true
+    bintray {
+        user = "${bintray_user}"
+        key = "${bintray_key}"
+        publications = ['bintrayPublication']
+        pkg {
+            repo = 'th2'
+            name = rootProject.name
+            userOrg = 'exactpro'
+            licenses = ['Apache-2.0']
+            vcsUrl = project.vcs_url
+            version {
+                name = project.version
+                desc = project.version
+                released  = new Date()
             }
         }
+        publish = true
     }
 }
 
