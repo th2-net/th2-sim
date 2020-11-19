@@ -42,7 +42,7 @@ allprojects {
     sourceCompatibility = 11
     targetCompatibility = 11
 
-      {
+      repositories {
         maven {
             name 'MavenLocal'
             url sharedDir
@@ -62,7 +62,6 @@ allprojects {
 
     dependencies {
         api platform('com.exactpro.th2:bom:2.3.+')
-
         implementation "com.exactpro.th2:grpc-common"
     }
 
