@@ -85,6 +85,17 @@ allprojects {
             mavenJava(MavenPublication) {
                 from components.java
             }
+            bintrayPublication(MavenPublication) {
+                from components.java
+                groupId group
+                artifactId rootProject.name
+                version project.version
+                pom.withXml {
+                    def root = asNode()
+                    root.appendNode('name', rootProject.name)
+                    root.appendNode('url', project.vcs_url)
+                }
+            }
         }
 
         repositories {
