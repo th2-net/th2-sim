@@ -64,3 +64,41 @@ Have only settings for defaults rules \
     ]
 }
 ```
+### Custom Resources for infra-mgr
+```ymal
+apiVersion: th2.exactpro.com/v1
+kind: Th2GenericBox
+spec:
+  type: th2-sim
+  custom-config:
+    defaultRules:
+      - methodName: createDemoRule
+        enable: true
+        settings:
+          fields:
+            ClOrdID: 
+              simple_value: order_id
+          connection_id:
+            session_alias: fix-client
+  pins:
+    - name: subscribe1
+      connection-type: mq
+      attributes:
+        - first
+        - subscribe
+        - parsed
+    - name: send1
+      connection-type: mq
+      attributes:
+        - second
+        - publish
+        - parsed
+        - send1_session_alias
+    - name: send2
+      connection-type: mq
+      attributes:
+        - second
+        - publish
+        - parsed
+        - send2_session_alias
+```
