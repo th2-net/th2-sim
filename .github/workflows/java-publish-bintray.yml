@@ -3,7 +3,7 @@ name: Build and publish Java distributions to Bintray
 on:
   push:
     branches:
-#     - master
+    - master
 # #     paths:
 # #     - gradle.properties
 
