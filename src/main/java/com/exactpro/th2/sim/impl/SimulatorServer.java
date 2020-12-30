@@ -12,7 +12,23 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.impl;
 
-import static java.util.Collections.emptyList;
+import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
+import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.ISimulatorPart;
+import com.exactpro.th2.sim.ISimulatorServer;
+import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.grpc.RuleID;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.Message.Builder;
+import com.google.protobuf.util.JsonFormat;
+import io.grpc.BindableService;
+import io.grpc.Server;
+import io.grpc.stub.StreamObserver;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -25,24 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
-import com.exactpro.th2.sim.ISimulator;
-import com.exactpro.th2.sim.ISimulatorPart;
-import com.exactpro.th2.sim.ISimulatorServer;
-import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
-import com.exactpro.th2.sim.grpc.RuleID;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.Message.Builder;
-import com.google.protobuf.util.JsonFormat;
-
-import io.grpc.Server;
-import io.grpc.stub.StreamObserver;
+import static java.util.Collections.emptyList;
 
 /**
  * Default implementation {@link ISimulatorServer}.
@@ -104,7 +103,14 @@ public class SimulatorServer implements ISimulatorServer {
             simulatorsParts.add(tmp);
             logger.debug("Was added to gRPC simulator part class with name: " + tmp.getClass());
         }
-        server = factory.getGrpcRouter().startServer(simulatorsParts.toArray(ISimulatorPart[]::new));
+        BindableService[] services = new BindableService[simulatorsParts.size() + 1];
+        for (int i = 0; i < simulatorsParts.size(); i++) {
+            services[i] = simulatorsParts.get(i);
+        }
+
+        services[services.length - 1] = simulator;
+
+        server = factory.getGrpcRouter().startServer(services);
 
         try {
             logger.debug("Simulator server is starting.");
