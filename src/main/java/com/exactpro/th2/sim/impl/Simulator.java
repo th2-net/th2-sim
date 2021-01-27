@@ -37,11 +37,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 /**
  * Default implementation of {@link ISimulator}.
@@ -56,7 +59,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
 
-    private DefaultRulesTurnOffStrategy strategy = DefaultRulesTurnOffStrategy.ON_TRIGGER;
+    private DefaultRulesTurnOffStrategy strategy;
 
     private MessageRouter<MessageBatch> router;
 
@@ -64,9 +67,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void init(@NotNull AbstractCommonFactory factory) throws Exception {
         try {
             SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
-            strategy = configuration.getStrategyDefaultRules();
+            strategy = defaultIfNull(configuration.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
         } catch (IllegalStateException e) {
-            logger.warn("Can not find custom configuration. Will use ON_TRIGGER default rules strategy");
+            logger.info("Can not find custom configuration. Use '{}' for default rules starategy", this.strategy);
         }
 
         this.router = factory.getMessageRouterParsedBatch();
@@ -97,7 +100,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         int id = nextId.incrementAndGet();
 
         ruleIds.put(id, new SimulatorRule(id, rule, sessionAlias));
-        connectivityRules.computeIfAbsent(sessionAlias, key -> Collections.synchronizedSet(new HashSet<>())).add(id);
+        connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
 
         logger.info("Rule from class '{}' was added to simulator for session alias '{}' with id = {}",
                 rule.getClass().getName(),
@@ -131,6 +134,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             }
 
             if (rule.isDefault()) {
+                countDefaultRules.decrementAndGet();
                 logger.warn("Removed default rule with id = {}", id.getId());
             }
 
@@ -223,36 +227,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                     answerMessagesBatches.computeIfAbsent(responseSessionAlias, key -> MessageBatch.newBuilder()).addMessages(responseMessage);
                 }
 
-                if (logger.isTraceEnabled()) {
-                    StringBuilder builder = new StringBuilder();
-                    builder.append("[");
-                    for (int i = 0; i < messageListToResponse.size(); i++) {
-                        builder.append(TextFormat.shortDebugString(messageListToResponse.get(i)));
-                        if (i != messageListToResponse.size() - 1) {
-                            builder.append(";");
-                        }
-                    }
-                    builder.append("]");
-
-                    logger.trace("Rule with id '{}' generate messages '{}'", triggeredRule.getId(), builder.toString());
-                }
-
-                logger.debug("Rule with ID '{}' has returned '{}' message(s)", triggeredRule.getId(), messageListToResponse.size());
+                loggingGeneratedMessages(triggeredRule, messageListToResponse);
 
             } catch (Exception e) {
                 logger.error("Can not handle message in rule with id = {}", triggeredRule.getId(), e);
             }
         }
 
-        if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
-            String triggeredIdsString = triggeredRules.stream().map(it -> String.valueOf(it.id)).collect(Collectors.joining(";"));
-
-            logger.debug("Triggered on message rules with ids = [{}], count batches messages to respond = {}", triggeredIdsString, answerMessagesBatches.size());
-
-            if (triggeredRules.size() > 1) {
-                logger.info("Triggered on message more one rule. Rules ids = [{}]", triggeredIdsString);
-            }
-        }
+        loggingTriggeredRules(answerMessagesBatches, triggeredRules);
 
         answerMessagesBatches.forEach((session, builder) -> {
             MessageBatch batch = builder.build();
@@ -268,6 +250,31 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void close() {
         connectivityRules.clear();
         ruleIds.clear();
+    }
+
+    private void loggingGeneratedMessages(SimulatorRule triggeredRule, List<Message> messageListToResponse) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("Rule with id '{}' generate messages [{}]",
+                    triggeredRule.getId(),
+                    messageListToResponse
+                            .stream()
+                            .map(TextFormat::shortDebugString)
+                            .collect(Collectors.joining(";")));
+        }
+
+        logger.debug("Rule with ID '{}' has returned '{}' message(s)", triggeredRule.getId(), messageListToResponse.size());
+    }
+
+    private void loggingTriggeredRules(Map<String, MessageBatch.Builder> answerMessagesBatches, Set<SimulatorRule> triggeredRules) {
+        if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
+            String triggeredIdsString = triggeredRules.stream().map(it -> String.valueOf(it.id)).collect(Collectors.joining(";"));
+
+            logger.debug("Triggered on message rules with ids = [{}], count batches messages to respond = {}", triggeredIdsString, answerMessagesBatches.size());
+
+            if (triggeredRules.size() > 1) {
+                logger.info("Triggered on message more one rule. Rules ids = [{}]", triggeredIdsString);
+            }
+        }
     }
 
     private static class SimulatorRule {
