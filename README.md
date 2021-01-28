@@ -43,11 +43,11 @@ Simulator sends message bathes to pins with attributes ``second``, ``publish``, 
 }
 ```
 #### Custom configuration
-Contains settings for the Simulator \
-Field `strategyDefaultRules` can take values `ON_ADD`, `ON_TRIGGER`. 
-Default value is `ON_TRIGGER`.
-If you set value `ON_ADD`, the default rules will be disabled If user adds non-default rule.
-If you set value `ON_TRIGGER`, the default rules will be disabled If non-default rules trigger on the same message. \
+It contains the settings for Simulator \
+The field `strategyDefaultRules` can take the values `ON_ADD` or `ON_TRIGGER`. 
+The default value is set to `ON_TRIGGER`.
+If you set the value to `ON_ADD`, the default rules will be disabled if an user adds non-default rule.
+If you set the value to `ON_TRIGGER`, the default rules will be disabled if non-default rules will be triggered on the same message. \
 *Example:*
 
 ```json
