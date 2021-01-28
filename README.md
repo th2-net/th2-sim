@@ -1,22 +1,22 @@
 # Simulator
 ## Description
-The Simulator is service for simulate different logic.
-All logic contains in a Rule. 
-You can turn on/off rules for different connections or some rules for one connection.
-This project is java framework for creating custom the Simulator 
+The Simulator is a service used for simulate different logics.
+All the logic is contained inside Rule. 
+You can turn on/off rules for one connection or for different connections.
+This project is java framework, so it is possible to create a custom Simulator 
 ## Interfaces
 ### ISimulator
-Main interface of simulator, which contains logic for managing rules and handle on message 
+The main interface of simulator, which contains the logic for managing rules and handle messages 
 ### ISimulatorServer
-Interface for managing gRPC server
+The interface used for managing gRPC server
 ### ISimulatorPart
-Interface for gRPC services for creating Rules
+The interface used for gRPC services to create Rules
 ## Settings
-Simulator using schema api for settings. \
+The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
-Simulators subscribe message batches from pins with attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message bathes to pins with attributes ``second``, ``publish``, ``parsed`` and which name session alias \
+Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
+Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` and which name session alias \
 *Example:*
 ```json
 {
