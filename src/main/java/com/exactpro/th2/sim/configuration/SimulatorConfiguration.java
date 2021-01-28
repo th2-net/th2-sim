@@ -18,6 +18,8 @@ import java.util.List;
 
 public class SimulatorConfiguration {
 
+    private DefaultRulesTurnOffStrategy strategyDefaultRules = DefaultRulesTurnOffStrategy.ON_TRIGGER;
+
     private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
     public List<DefaultRuleConfiguration> getDefaultRules() {
@@ -26,5 +28,13 @@ public class SimulatorConfiguration {
 
     public void setDefaultRules(List<DefaultRuleConfiguration> defaultRules) {
         this.defaultRules = defaultRules;
+    }
+
+    public DefaultRulesTurnOffStrategy getStrategyDefaultRules() {
+        return strategyDefaultRules;
+    }
+
+    public void setStrategyDefaultRules(DefaultRulesTurnOffStrategy strategyDefaultRules) {
+        this.strategyDefaultRules = strategyDefaultRules;
     }
 }

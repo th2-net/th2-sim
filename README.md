@@ -1,22 +1,22 @@
 # Simulator
 ## Description
-The Simulator is service for simulate different logic.
-All logic contains in a Rule. 
-You can turn on/off rules for different connections or some rules for one connection.
-This project is java framework for creating custom the Simulator 
+The Simulator is a service used for simulate different logics.
+All the logic is contained inside Rule. 
+You can turn on/off rules for one connection or for different connections.
+This project is java framework, so it is possible to create a custom Simulator 
 ## Interfaces
 ### ISimulator
-Main interface of simulator, which contains logic for managing rules and handle on message 
+The main interface of simulator, which contains the logic for managing rules and handle messages 
 ### ISimulatorServer
-Interface for managing gRPC server
+The interface used for managing gRPC server
 ### ISimulatorPart
-Interface for gRPC services for creating Rules
+The interface used for gRPC services to create Rules
 ## Settings
-Simulator using schema api for settings. \
+The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
-Simulators subscribe message batches from pins with attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message bathes to pins with attributes ``second``, ``publish``, ``parsed`` and which name session alias \
+Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
+Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` and which name session alias \
 *Example:*
 ```json
 {
@@ -43,25 +43,32 @@ Simulator sends message bathes to pins with attributes ``second``, ``publish``, 
 }
 ```
 #### Custom configuration
-Have only settings for defaults rules \
+It contains the settings for Simulator \
+The field `strategyDefaultRules` can take the values `ON_ADD` or `ON_TRIGGER`. 
+The default value is set to `ON_TRIGGER`.
+If you set the value to `ON_ADD`, the default rules will be disabled if an user adds non-default rule.
+If you set the value to `ON_TRIGGER`, the default rules will be disabled if non-default rules will be triggered on the same message. \
 *Example:*
+
 ```json
-{ "defaultRules" : [
-        {
-          "methodName": "createRuleFIX",
-          "enable": false,
-          "settings": {
-            "fields": {
-              "ClOrdID": {
-                "simple_value":"order_id"
-              }
-            },
-            "connection_id": {
-              "session_alias": "fix-client"
-            }
+{
+  "strategyDefaultRules": "ON_ADD",
+  "defaultRules": [
+    {
+      "methodName": "createRuleFIX",
+      "enable": false,
+      "settings": {
+        "fields": {
+          "ClOrdID": {
+            "simple_value": "order_id"
           }
+        },
+        "connection_id": {
+          "session_alias": "fix-client"
         }
-    ]
+      }
+    }
+  ]
 }
 ```
 ### Custom Resources for infra-mgr
