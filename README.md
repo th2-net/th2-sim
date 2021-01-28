@@ -43,25 +43,32 @@ Simulator sends message bathes to pins with attributes ``second``, ``publish``, 
 }
 ```
 #### Custom configuration
-Have only settings for defaults rules \
+Contains settings for the Simulator \
+Field `strategyDefaultRules` can take values `ON_ADD`, `ON_TRIGGER`. 
+Default value is `ON_TRIGGER`.
+If you set value `ON_ADD`, the default rules will be disabled If user adds non-default rule.
+If you set value `ON_TRIGGER`, the default rules will be disabled If non-default rules trigger on the same message. \
 *Example:*
+
 ```json
-{ "defaultRules" : [
-        {
-          "methodName": "createRuleFIX",
-          "enable": false,
-          "settings": {
-            "fields": {
-              "ClOrdID": {
-                "simple_value":"order_id"
-              }
-            },
-            "connection_id": {
-              "session_alias": "fix-client"
-            }
+{
+  "strategyDefaultRules": "ON_ADD",
+  "defaultRules": [
+    {
+      "methodName": "createRuleFIX",
+      "enable": false,
+      "settings": {
+        "fields": {
+          "ClOrdID": {
+            "simple_value": "order_id"
           }
+        },
+        "connection_id": {
+          "session_alias": "fix-client"
         }
-    ]
+      }
+    }
+  ]
 }
 ```
 ### Custom Resources for infra-mgr
