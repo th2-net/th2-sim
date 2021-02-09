@@ -25,7 +25,6 @@ import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
 import com.exactpro.th2.sim.grpc.SimGrpc;
 import com.exactpro.th2.sim.rule.IRule;
-import com.exactpro.th2.sim.rule.IRuleContext;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
 import io.grpc.stub.StreamObserver;
@@ -56,7 +55,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
     private final Map<String, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
-    private final Map<Integer, SimulatorRule> ruleIds = new ConcurrentHashMap<>();
+    private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
@@ -107,7 +106,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-        ruleIds.put(id, new SimulatorRule(id, new RuleContext(scheduler, router, sessionAlias, id), rule, sessionAlias));
+        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, scheduler));
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
 
         logger.info("Rule from class '{}' was added to simulator for session alias '{}' with id = {}",
@@ -120,7 +119,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void addDefaultRule(RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRule(v.id, v.ruleContext, v.rule, v.sessionAlias, true)) == null) {
+        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), router, scheduler)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
@@ -133,7 +132,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void removeRule(RuleID id, StreamObserver<Empty> responseObserver) {
         logger.debug("Try to remove rule with id = {}", id.getId());
 
-        SimulatorRule rule = ruleIds.remove(id.getId());
+        SimulatorRuleInfo rule = ruleIds.remove(id.getId());
 
         if (rule != null) {
             Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
@@ -171,14 +170,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
 
-        Set<SimulatorRule> triggeredRules = new HashSet<>();
+        Set<SimulatorRuleInfo> triggeredRules = new HashSet<>();
 
         boolean useDefault = strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size();
 
         while (iterator.hasNext()) {
             Integer id = iterator.next();
 
-            SimulatorRule rule = ruleIds.get(id);
+            SimulatorRuleInfo rule = ruleIds.get(id);
 
             if (rule == null || rule.getRule() == null) {
                 logger.warn("Skip rule with id '{}', because it is already removed", id);
@@ -201,13 +200,13 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             }
         }
 
-        for (SimulatorRule triggeredRule : triggeredRules) {
+        for (SimulatorRuleInfo triggeredRule : triggeredRules) {
             if (!useDefault && triggeredRule.isDefault()) {
                 logger.debug("Skip rule with id '{}', because it is default rule", triggeredRule.getId());
                 continue;
             }
 
-            triggeredRule.getRule().handle(triggeredRule.ruleContext, message);
+            triggeredRule.handle(message);
         }
 
         loggingTriggeredRules(triggeredRules, useDefault);
@@ -220,7 +219,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private RuleInfo createRuleInfo(int ruleId) {
-        SimulatorRule rule = ruleIds.get(ruleId);
+        SimulatorRuleInfo rule = ruleIds.get(ruleId);
         if (rule == null) {
             return RuleInfo.newBuilder().setId(RuleID.newBuilder().setId(-1).build()).build();
         }
@@ -232,61 +231,21 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 .build();
     }
 
-    private void loggingTriggeredRules(Set<SimulatorRule> triggeredRules, boolean useDefault) {
+    private void loggingTriggeredRules(Set<SimulatorRuleInfo> triggeredRules, boolean useDefault) {
         if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
 
-            Stream<SimulatorRule> stream = triggeredRules.stream();
+            Stream<SimulatorRuleInfo> stream = triggeredRules.stream();
             if (!useDefault) {
                 stream = stream.filter(it -> !it.isDefault());
             }
 
-            String triggeredIdsString = stream.map(it -> String.valueOf(it.id)).collect(Collectors.joining(";"));
+            String triggeredIdsString = stream.map(it -> String.valueOf(it.getId())).collect(Collectors.joining(";"));
 
             logger.debug("Triggered on message rules with ids = [{}]", triggeredIdsString);
 
             if (triggeredRules.size() > 1) {
                 logger.info("Triggered on message more one rule. Rules ids = [{}]", triggeredIdsString);
             }
-        }
-    }
-
-    private static class SimulatorRule {
-        private final int id;
-        private final IRule rule;
-        private final boolean isDefault;
-        private final String sessionAlias;
-        private final IRuleContext ruleContext;
-
-        public SimulatorRule(int id, IRuleContext context, IRule rule, String sessionAlias, boolean isDefault) {
-            this.id = id;
-            this.rule = rule;
-            this.sessionAlias = sessionAlias;
-            this.isDefault = isDefault;
-            this.ruleContext = context;
-        }
-
-        public SimulatorRule(int id, IRuleContext context, IRule rule, String sessionAlias) {
-            this(id, context, rule, sessionAlias, false);
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        public IRuleContext getRuleContext() {
-            return ruleContext;
-        }
-
-        public IRule getRule() {
-            return rule;
-        }
-
-        public String getSessionAlias() {
-            return sessionAlias;
-        }
-
-        public boolean isDefault() {
-            return isDefault;
         }
     }
 }

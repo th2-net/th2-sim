@@ -16,6 +16,7 @@ package com.exactpro.th2.sim.impl;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.google.protobuf.TextFormat;
 import org.apache.commons.lang3.StringUtils;
@@ -26,20 +27,44 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class RuleContext implements IRuleContext {
+public class SimulatorRuleInfo implements IRuleContext {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RuleContext.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SimulatorRuleInfo.class);
 
-    private final ScheduledExecutorService scheduledExecutorService;
-    private final MessageRouter<MessageBatch> router;
-    private final String sessionAlias;
     private final int id;
+    private final IRule rule;
+    private final boolean isDefault;
+    private final String sessionAlias;
+    private final MessageRouter<MessageBatch> router;
+    private final ScheduledExecutorService scheduledExecutorService;
 
-    public RuleContext(ScheduledExecutorService scheduledExecutorService, MessageRouter<MessageBatch> router, String sessionAlias, int id) {
-        this.scheduledExecutorService = scheduledExecutorService;
-        this.router = router;
-        this.sessionAlias = sessionAlias;
+    public SimulatorRuleInfo(int id, IRule rule, boolean isDefault, String sessionAlias, MessageRouter<MessageBatch> router, ScheduledExecutorService scheduledExecutorService) {
         this.id = id;
+        this.rule = rule;
+        this.isDefault = isDefault;
+        this.sessionAlias = sessionAlias;
+        this.router = router;
+        this.scheduledExecutorService = scheduledExecutorService;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public IRule getRule() {
+        return rule;
+    }
+
+    public String getSessionAlias() {
+        return sessionAlias;
+    }
+
+    public boolean isDefault() {
+        return isDefault;
+    }
+
+    public void handle(Message message) {
+        rule.handle(this, message);
     }
 
     @Override
