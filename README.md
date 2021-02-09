@@ -11,6 +11,8 @@ The main interface of simulator, which contains the logic for managing rules and
 The interface used for managing gRPC server
 ### ISimulatorPart
 The interface used for gRPC services to create Rules
+### IRuleContext
+The interface used for sending rules from IRule
 ## Settings
 The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
