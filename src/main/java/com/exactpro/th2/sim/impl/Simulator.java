@@ -214,6 +214,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void close() {
+        scheduler.shutdown();
         connectivityRules.clear();
         ruleIds.clear();
     }
