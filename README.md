@@ -13,6 +13,10 @@ The interface used for managing gRPC server
 The interface used for gRPC services to create Rules
 ### IRuleContext
 The interface used for sending rules from IRule
+## Triggering rule without income message
+You can trigger a rule without an income message if you call the gRPC request ``touchRule``. 
+You can transfer arguments to rule with it.
+In a rule, you should override the method with the name ``touch``, which will call on triggering.
 ## Settings
 The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 

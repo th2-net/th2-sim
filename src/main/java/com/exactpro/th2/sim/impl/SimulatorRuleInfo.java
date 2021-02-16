@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2021-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -20,10 +20,13 @@ import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.google.protobuf.TextFormat;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -38,24 +41,24 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final MessageRouter<MessageBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
 
-    public SimulatorRuleInfo(int id, IRule rule, boolean isDefault, String sessionAlias, MessageRouter<MessageBatch> router, ScheduledExecutorService scheduledExecutorService) {
+    public SimulatorRuleInfo(int id, @NotNull IRule rule, boolean isDefault, @NotNull String sessionAlias, @NotNull MessageRouter<MessageBatch> router, @NotNull ScheduledExecutorService scheduledExecutorService) {
         this.id = id;
-        this.rule = rule;
         this.isDefault = isDefault;
-        this.sessionAlias = sessionAlias;
-        this.router = router;
-        this.scheduledExecutorService = scheduledExecutorService;
+        this.rule = Objects.requireNonNull(rule, "Rule can not be null");
+        this.sessionAlias = Objects.requireNonNull(sessionAlias, "Session alias can not be null");
+        this.router = Objects.requireNonNull(router, "Router can not be null");
+        this.scheduledExecutorService = Objects.requireNonNull(scheduledExecutorService, "Scheduler can not be null");
     }
 
     public int getId() {
         return id;
     }
 
-    public IRule getRule() {
+    public @NotNull IRule getRule() {
         return rule;
     }
 
-    public String getSessionAlias() {
+    public @NotNull String getSessionAlias() {
         return sessionAlias;
     }
 
@@ -63,12 +66,17 @@ public class SimulatorRuleInfo implements IRuleContext {
         return isDefault;
     }
 
-    public void handle(Message message) {
-        rule.handle(this, message);
+    public void handle(@NotNull Message message) {
+        rule.handle(this, Objects.requireNonNull(message, "Message can not be null"));
+    }
+
+    public void touch(@NotNull Map<String, String> args) {
+        rule.touch(this, Objects.requireNonNull(args, "Arguments can not be null"));
     }
 
     @Override
-    public void send(Message msg) {
+    public void send(@NotNull Message msg) {
+        Objects.requireNonNull(msg, "Message can not be null");
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
@@ -82,7 +90,8 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     @Override
-    public void send(Message msg, long delay, TimeUnit timeUnit) {
-        scheduledExecutorService.schedule(() -> send(msg), delay, timeUnit);
+    public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
+        Objects.requireNonNull(msg, "Message can not be null");
+        scheduledExecutorService.schedule(() -> send(msg), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 }
