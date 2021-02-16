@@ -24,10 +24,12 @@ import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
 import com.exactpro.th2.sim.grpc.SimGrpc;
+import com.exactpro.th2.sim.grpc.TouchRequest;
 import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -161,6 +163,22 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 )
                 .build());
         responseObserver.onCompleted();
+    }
+
+    @Override
+    public void touchRule(TouchRequest request, StreamObserver<Empty> responseObserver) {
+        SimulatorRuleInfo ruleInfo = ruleIds.get(request.getId().getId());
+        if (ruleInfo == null || ruleInfo.getRule() == null) {
+            responseObserver.onError(new IllegalArgumentException("Can not find rule with id = " + request.getId()));
+            return;
+        }
+
+        try {
+            ruleInfo.touch(ObjectUtils.defaultIfNull(request.getArgsMap(), Collections.emptyMap()));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            responseObserver.onError(new Exception("Can not execute touch method on rule with id = " + request.getId(), e));
+        }
     }
 
     public void handleMessage(String sessionAlias, Message message) {
