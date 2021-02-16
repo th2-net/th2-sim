@@ -68,7 +68,7 @@ public class SimulatorServer implements ISimulatorServer {
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {
-            throw new IllegalStateException("Can not init simulator from class" + simulatorClass, e);
+            throw new IllegalStateException("Can not init simulator from class " + simulatorClass.getTypeName(), e);
         }
     }
 

@@ -15,27 +15,35 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.rule;
 
-import java.util.List;
-
-import org.jetbrains.annotations.NotNull;
-
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.sim.ISimulator;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
 
 /**
  * Interface for {@link ISimulator} rules
  */
 public interface IRule {
     /**
-     * @param message
+     * @param message input message
      * @return True, if rule will triggered on this message
      */
     boolean checkTriggered(@NotNull Message message);
 
     /**
-     * @param message
+     * @param message input message
      * @return Messages which will send
+     * @see IRule#handle(IRuleContext, Message)
+     * @deprecated Please use {@link IRule#handle(IRuleContext, Message)}, because you can manage time for send message
      */
+    @Deprecated(since = "2.7.0", forRemoval = true)
     @NotNull List<Message> handle(@NotNull Message message);
+
+    /**
+     * @param ruleContext context
+     * @param message input message
+     */
+    void handle(@NotNull IRuleContext ruleContext, @NotNull Message message);
 
 }
