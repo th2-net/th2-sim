@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -102,6 +103,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
+        Objects.requireNonNull(rule, "Rule can not be null");
+        Objects.requireNonNull(sessionAlias, "Session alias can not be null");
+
         if (logger.isDebugEnabled()) {
             logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), sessionAlias);
         }
@@ -168,7 +172,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     @Override
     public void touchRule(TouchRequest request, StreamObserver<Empty> responseObserver) {
         SimulatorRuleInfo ruleInfo = ruleIds.get(request.getId().getId());
-        if (ruleInfo == null || ruleInfo.getRule() == null) {
+        if (ruleInfo == null) {
             responseObserver.onError(new IllegalArgumentException("Can not find rule with id = " + request.getId()));
             return;
         }
@@ -197,7 +201,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
             SimulatorRuleInfo rule = ruleIds.get(id);
 
-            if (rule == null || rule.getRule() == null) {
+            if (rule == null) {
                 logger.warn("Skip rule with id '{}', because it is already removed", id);
 
                 iterator.remove();
