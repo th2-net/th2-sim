@@ -12,53 +12,16 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.rule.impl;
 
-import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Abstract implement of {@link IRule}
  */
 public abstract class AbstractRule implements IRule {
-
-    @Override
-    public void handle(@NotNull IRuleContext ruleContext, @NotNull Message message) {
-        for (Message msg : handle(message)) {
-            ruleContext.send(msg);
-        }
-    }
-
-    /**
-     * Call {@link AbstractRule#handleTriggered(Message)} if rule will triggered on this message
-     * @param message input message
-     * @return Messages which will send
-     * @see IRule#handle(IRuleContext, Message)
-     * @deprecated Please use {@link IRule#handle(IRuleContext, Message)}, because you can manage time for send message
-     */
-    @Override
-    @Deprecated(since = "2.7.0", forRemoval = true)
-    public @NotNull List<Message> handle(@NotNull Message message) {
-        if (checkTriggered(message)) {
-            return handleTriggered(message);
-        } else {
-            return Collections.emptyList();
-        }
-    }
-
-    /**
-     * Call this method with messages which trigger this rule
-     * @param message
-     * @return Message which will send
-     * @see IRule#handle(IRuleContext, Message)
-     * @deprecated Because {@link AbstractRule#handle(Message)} is deprecated
-     */
-    @Deprecated(since = "2.7.0", forRemoval = true)
-    public abstract @NotNull List<Message> handleTriggered(@NotNull Message message);
 
     @Override
     public void touch(@NotNull IRuleContext ruleContext, @NotNull Map<String, String> args) {}

@@ -134,8 +134,8 @@ dependencies {
 
     implementation "com.google.guava:guava"
 
-    implementation 'com.exactpro.th2:common:2.9.0'
-    implementation 'com.exactpro.th2:grpc-common:2.3.2'
+    implementation 'com.exactpro.th2:common:3.0.3'
+    implementation 'com.exactpro.th2:grpc-common:3.0.1'
     implementation "com.exactpro.th2:grpc-sim:2.3.0"
 
     testImplementation 'junit:junit:4.12'
