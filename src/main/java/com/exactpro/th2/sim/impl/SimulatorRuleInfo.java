@@ -84,7 +84,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         MessageBatch batch = MessageBatch.newBuilder().addMessages(msg).build();
         try {
             router.send(batch, "second", "publish", "parsed", sessionAlias);
-        } catch (IOException e) {
+        } catch (IOException | IllegalStateException e) {
             LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(msg), e);
         }
     }
