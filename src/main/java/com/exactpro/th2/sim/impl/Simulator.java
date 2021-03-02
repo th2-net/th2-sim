@@ -177,8 +177,11 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             return;
         }
 
+        logger.debug("Call touch on rule with id = {}", ruleInfo.getId());
+
         try {
             ruleInfo.touch(ObjectUtils.defaultIfNull(request.getArgsMap(), Collections.emptyMap()));
+            responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
         } catch (Exception e) {
             responseObserver.onError(new Exception("Can not execute touch method on rule with id = " + request.getId(), e));
