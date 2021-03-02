@@ -24,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -84,8 +83,11 @@ public class SimulatorRuleInfo implements IRuleContext {
         MessageBatch batch = MessageBatch.newBuilder().addMessages(msg).build();
         try {
             router.send(batch, "second", "publish", "parsed", sessionAlias);
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(msg), e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 

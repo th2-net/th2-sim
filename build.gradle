@@ -134,7 +134,7 @@ dependencies {
 
     implementation "com.google.guava:guava"
 
-    implementation 'com.exactpro.th2:common:3.0.3'
+    implementation 'com.exactpro.th2:common:3.2.1'
     implementation 'com.exactpro.th2:grpc-common:3.0.1'
     implementation "com.exactpro.th2:grpc-sim:3.0.0"
 
