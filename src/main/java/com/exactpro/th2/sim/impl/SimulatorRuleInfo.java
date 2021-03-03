@@ -79,7 +79,17 @@ public class SimulatorRuleInfo implements IRuleContext {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
-        String sessionAlias = StringUtils.defaultIfEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias(), this.sessionAlias);
+
+        String sessionAlias = msg.getMetadata().getId().getConnectionId().getSessionAlias();
+
+        if (StringUtils.isEmpty(sessionAlias)) {
+            sessionAlias = this.sessionAlias;
+
+            Message.Builder builder = msg.toBuilder();
+            builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(this.sessionAlias);
+            msg = builder.build();
+        }
+
         MessageBatch batch = MessageBatch.newBuilder().addMessages(msg).build();
         try {
             router.send(batch, "second", "publish", "parsed", sessionAlias);
