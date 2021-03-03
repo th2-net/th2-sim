@@ -80,17 +80,10 @@ public class SimulatorRuleInfo implements IRuleContext {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
 
-        String sessionAlias = msg.getMetadata().getId().getConnectionId().getSessionAlias();
+        Message finalMessage = StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) ? addSessionAlias(msg) : msg;
+        String sessionAlias = finalMessage.getMetadata().getId().getConnectionId().getSessionAlias();
 
-        if (StringUtils.isEmpty(sessionAlias)) {
-            sessionAlias = this.sessionAlias;
-
-            Message.Builder builder = msg.toBuilder();
-            builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(this.sessionAlias);
-            msg = builder.build();
-        }
-
-        MessageBatch batch = MessageBatch.newBuilder().addMessages(msg).build();
+        MessageBatch batch = MessageBatch.newBuilder().addMessages(finalMessage).build();
         try {
             router.send(batch, "second", "publish", "parsed", sessionAlias);
         } catch (Exception e) {
@@ -105,5 +98,11 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, "Message can not be null");
         scheduledExecutorService.schedule(() -> send(msg), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+    }
+
+    private Message addSessionAlias(Message msg) {
+        Message.Builder builder = msg.toBuilder();
+        builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
+        return builder.build();
     }
 }
