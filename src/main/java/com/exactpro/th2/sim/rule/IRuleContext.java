@@ -14,11 +14,17 @@
 package com.exactpro.th2.sim.rule;
 
 import com.exactpro.th2.common.grpc.Message;
+import com.exactpro.th2.common.grpc.MessageBatch;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.TimeUnit;
 
 public interface IRuleContext {
-    void send(Message msg);
+    void send(@NotNull Message msg);
 
-    void send(Message msg, long delay, TimeUnit timeUnit);
+    void send(@NotNull MessageBatch batch);
+
+    void send(@NotNull Message msg, long delay, TimeUnit timeUnit);
+
+    void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit);
 }

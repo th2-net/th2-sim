@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -80,7 +81,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
 
-        Message finalMessage = StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) ? addSessionAlias(msg) : msg;
+        Message finalMessage = prepareMessage(msg);
         String sessionAlias = finalMessage.getMetadata().getId().getConnectionId().getSessionAlias();
 
         MessageBatch batch = MessageBatch.newBuilder().addMessages(finalMessage).build();
@@ -95,14 +96,45 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     @Override
+    public void send(@NotNull MessageBatch batch) {
+        Map<String, MessageBatch.Builder> batches = new HashMap<>();
+        for (Message msg : batch.getMessagesList()) {
+            Message finalMessage = prepareMessage(msg);
+            batches.computeIfAbsent(finalMessage.getMetadata().getId().getConnectionId().getSessionAlias(), key -> MessageBatch.newBuilder()).addMessages(finalMessage);
+        }
+
+        for (Map.Entry<String, MessageBatch.Builder> entry : batches.entrySet()) {
+            MessageBatch built = entry.getValue().build();
+            try {
+                router.send(built, "second", "publish", "parsed", entry.getKey());
+            } catch (Exception e) {
+                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(built), e);
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    @Override
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, "Message can not be null");
         scheduledExecutorService.schedule(() -> send(msg), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
-    private Message addSessionAlias(Message msg) {
-        Message.Builder builder = msg.toBuilder();
-        builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
-        return builder.build();
+    @Override
+    public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
+        Objects.requireNonNull(batch, "Message batch can not be null");
+        scheduledExecutorService.schedule(() -> send(batch), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+    }
+
+    private Message prepareMessage(Message msg) {
+        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias())) {
+            Message.Builder builder = msg.toBuilder();
+            builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
+            return builder.build();
+        } else {
+            return msg;
+        }
     }
 }
