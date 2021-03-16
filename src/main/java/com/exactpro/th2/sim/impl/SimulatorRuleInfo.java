@@ -16,6 +16,7 @@ package com.exactpro.th2.sim.impl;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.google.protobuf.TextFormat;
@@ -24,7 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -84,36 +84,21 @@ public class SimulatorRuleInfo implements IRuleContext {
         Message finalMessage = prepareMessage(msg);
         String sessionAlias = finalMessage.getMetadata().getId().getConnectionId().getSessionAlias();
 
-        MessageBatch batch = MessageBatch.newBuilder().addMessages(finalMessage).build();
-        try {
-            router.send(batch, "second", "publish", "parsed", sessionAlias);
-        } catch (Exception e) {
-            LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(msg), e);
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        sendBatch(MessageBatch.newBuilder().addMessages(finalMessage).build(), sessionAlias);
     }
 
     @Override
     public void send(@NotNull MessageBatch batch) {
-        Map<String, MessageBatch.Builder> batches = new HashMap<>();
-        for (Message msg : batch.getMessagesList()) {
-            Message finalMessage = prepareMessage(msg);
-            batches.computeIfAbsent(finalMessage.getMetadata().getId().getConnectionId().getSessionAlias(), key -> MessageBatch.newBuilder()).addMessages(finalMessage);
+        if (batch.getMessagesCount() < 1) {
+            return;
         }
 
-        for (Map.Entry<String, MessageBatch.Builder> entry : batches.entrySet()) {
-            MessageBatch built = entry.getValue().build();
-            try {
-                router.send(built, "second", "publish", "parsed", entry.getKey());
-            } catch (Exception e) {
-                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(built), e);
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-            }
+        String sessionAlias = checkBatch(batch);
+        if (sessionAlias == null) {
+            throw new IllegalArgumentException("Message has different session alias");
         }
+
+        sendBatch(batch, sessionAlias);
     }
 
     @Override
@@ -125,7 +110,15 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
         Objects.requireNonNull(batch, "Message batch can not be null");
-        scheduledExecutorService.schedule(() -> send(batch), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+        if (batch.getMessagesCount() < 1) {
+            return;
+        }
+
+        String sessionAlias = checkBatch(batch);
+        if (sessionAlias == null) {
+            throw new IllegalArgumentException("Message has different session alias");
+        }
+        scheduledExecutorService.schedule(() -> sendBatch(batch, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
     private Message prepareMessage(Message msg) {
@@ -135,6 +128,34 @@ public class SimulatorRuleInfo implements IRuleContext {
             return builder.build();
         } else {
             return msg;
+        }
+    }
+
+    private String checkBatch(MessageBatch batch) {
+        String sessionAlias = null;
+        for (Message msg : batch.getMessagesList()) {
+            Message message = prepareMessage(msg);
+            String msgAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
+            if (sessionAlias == null) {
+                sessionAlias = msgAlias;
+            }
+
+            if (!sessionAlias.equals(msgAlias)) {
+                return null;
+            }
+        }
+
+        return sessionAlias;
+    }
+
+    private void sendBatch(MessageBatch batch, String sessionAlias) {
+        try {
+            router.send(batch, QueueAttribute.SECOND.name(), QueueAttribute.PUBLISH.name(), sessionAlias);
+        } catch (Exception e) {
+            LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(batch), e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 }
