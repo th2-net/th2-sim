@@ -16,6 +16,7 @@ package com.exactpro.th2.sim.impl;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.common.schema.message.MessageRouterUtils;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
@@ -93,11 +94,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = checkBatch(batch);
-        if (sessionAlias == null) {
-            throw new IllegalArgumentException("Message has different session alias");
-        }
-
+        String sessionAlias = getSessionAliasFromBatch(batch);
         sendBatch(batch, sessionAlias);
     }
 
@@ -114,10 +111,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = checkBatch(batch);
-        if (sessionAlias == null) {
-            throw new IllegalArgumentException("Message has different session alias");
-        }
+        String sessionAlias = getSessionAliasFromBatch(batch);
         scheduledExecutorService.schedule(() -> sendBatch(batch, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
@@ -131,7 +125,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
     }
 
-    private String checkBatch(MessageBatch batch) {
+    private String getSessionAliasFromBatch(MessageBatch batch) {
         String sessionAlias = null;
         for (Message msg : batch.getMessagesList()) {
             Message message = prepareMessage(msg);
@@ -141,7 +135,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             }
 
             if (!sessionAlias.equals(msgAlias)) {
-                return null;
+                throw new IllegalArgumentException("Messages have different session alias = [" + sessionAlias + "," + msgAlias + "]" );
             }
         }
 
@@ -150,9 +144,9 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private void sendBatch(MessageBatch batch, String sessionAlias) {
         try {
-            router.send(batch, QueueAttribute.SECOND.name(), QueueAttribute.PUBLISH.name(), sessionAlias);
+            router.send(batch, QueueAttribute.SECOND.name(), sessionAlias);
         } catch (Exception e) {
-            LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, TextFormat.shortDebugString(batch), e);
+            LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageRouterUtils.toJson(batch), e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
