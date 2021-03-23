@@ -94,8 +94,10 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = getSessionAliasFromBatch(batch);
-        sendBatch(batch, sessionAlias);
+        MessageBatch batchForSend = prepareMessageBatch(batch);
+
+        String sessionAlias = getSessionAliasFromBatch(batchForSend);
+        sendBatch(batchForSend, sessionAlias);
     }
 
     @Override
@@ -111,8 +113,9 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = getSessionAliasFromBatch(batch);
-        scheduledExecutorService.schedule(() -> sendBatch(batch, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+        MessageBatch batchForSend = prepareMessageBatch(batch);
+        String sessionAlias = getSessionAliasFromBatch(batchForSend);
+        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
     private Message prepareMessage(Message msg) {
@@ -125,10 +128,17 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
     }
 
+    private MessageBatch prepareMessageBatch(MessageBatch batch) {
+        MessageBatch.Builder builder = MessageBatch.newBuilder();
+        for (Message message : batch.getMessagesList()) {
+            builder.addMessages(prepareMessage(message));
+        }
+        return builder.build();
+    }
+
     private String getSessionAliasFromBatch(MessageBatch batch) {
         String sessionAlias = null;
-        for (Message msg : batch.getMessagesList()) {
-            Message message = prepareMessage(msg);
+        for (Message message : batch.getMessagesList()) {
             String msgAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
             if (sessionAlias == null) {
                 sessionAlias = msgAlias;
