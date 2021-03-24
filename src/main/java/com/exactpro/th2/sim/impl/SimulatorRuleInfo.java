@@ -94,9 +94,8 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
+        String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-
-        String sessionAlias = getSessionAliasFromBatch(batchForSend);
         sendBatch(batchForSend, sessionAlias);
     }
 
@@ -113,8 +112,8 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
+        String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-        String sessionAlias = getSessionAliasFromBatch(batchForSend);
         scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
@@ -140,6 +139,10 @@ public class SimulatorRuleInfo implements IRuleContext {
         String sessionAlias = null;
         for (Message message : batch.getMessagesList()) {
             String msgAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
+            if (StringUtils.isEmpty(msgAlias)) {
+                msgAlias = this.sessionAlias;
+            }
+
             if (sessionAlias == null) {
                 sessionAlias = msgAlias;
             }
@@ -156,7 +159,9 @@ public class SimulatorRuleInfo implements IRuleContext {
         try {
             router.send(batch, QueueAttribute.SECOND.name(), sessionAlias);
         } catch (Exception e) {
-            LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageRouterUtils.toJson(batch), e);
+            if (LOGGER.isErrorEnabled()) {
+                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageRouterUtils.toJson(batch), e);
+            }
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
