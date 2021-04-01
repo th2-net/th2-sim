@@ -13,6 +13,8 @@
 
 package com.exactpro.th2.sim.impl;
 
+import com.exactpro.th2.common.event.Event;
+import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
@@ -26,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,12 +45,17 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final MessageRouter<MessageBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
 
-    public SimulatorRuleInfo(int id, @NotNull IRule rule, boolean isDefault, @NotNull String sessionAlias, @NotNull MessageRouter<MessageBatch> router, @NotNull ScheduledExecutorService scheduledExecutorService) {
+    private final MessageRouter<EventBatch> eventRouter;
+    private final String rootEventId;
+
+    public SimulatorRuleInfo(int id, @NotNull IRule rule, boolean isDefault, @NotNull String sessionAlias, @NotNull MessageRouter<MessageBatch> router, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService) {
         this.id = id;
         this.isDefault = isDefault;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.sessionAlias = Objects.requireNonNull(sessionAlias, "Session alias can not be null");
         this.router = Objects.requireNonNull(router, "Router can not be null");
+        this.eventRouter = Objects.requireNonNull(eventRouter, "Event router can not be null");
+        this.rootEventId = Objects.requireNonNull(rootEventId, "Root event id can not be null");
         this.scheduledExecutorService = Objects.requireNonNull(scheduledExecutorService, "Scheduler can not be null");
     }
 
@@ -115,6 +123,24 @@ public class SimulatorRuleInfo implements IRuleContext {
         String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
         scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+    }
+
+    @Override
+    public String getRootEventId() {
+        return rootEventId;
+    }
+
+    @Override
+    public void sendEvent(Event event) {
+        com.exactpro.th2.common.grpc.Event eventForSend = null;
+        try {
+            eventForSend = event.toProtoEvent(rootEventId);
+            eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
+        } catch (IOException e) {
+            String msg = String.format("Can not send event = %s",  eventForSend != null ? MessageRouterUtils.toJson(eventForSend) : "{null}");
+            LOGGER.error(msg, e);
+            throw new IllegalStateException(msg, e);
+        }
     }
 
     private Message prepareMessage(Message msg) {
