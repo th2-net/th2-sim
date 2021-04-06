@@ -13,6 +13,7 @@
 
 package com.exactpro.th2.sim.rule;
 
+import com.exactpro.th2.common.event.Event;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import org.jetbrains.annotations.NotNull;
@@ -27,4 +28,8 @@ public interface IRuleContext {
     void send(@NotNull Message msg, long delay, TimeUnit timeUnit);
 
     void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit);
+
+    String getRootEventId();
+
+    void sendEvent(Event event);
 }
