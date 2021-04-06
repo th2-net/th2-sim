@@ -122,17 +122,12 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-        String msg = String.format("Rule from class '%s' was added to simulator for session alias '%s' with id = %d", rule.getClass().getName(), sessionAlias, id);
-        Event event = createEvent("Add rule with id = " + id, msg);
+        Event event = sendEvent("Add rule with id = " + id,
+                String.format("Rule from class '%s' was added to simulator for session alias '%s' with id = %d", rule.getClass().getName(), sessionAlias, id),
+                rootEventId);
 
         ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler));
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
-
-        logger.info(msg);
-
-        sendEvent(event);
-
-
 
         return RuleID.newBuilder().setId(id).build();
     }
@@ -165,11 +160,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 logger.warn("Removed default rule with id = {}", id.getId());
             }
 
-            String msg = String.format("Rule with id = '%d' was removed", id.getId());
-
-            logger.info(msg);
-
-            sendEvent(createEvent(msg, null, rule.getRootEventId()));
+            sendEvent(String.format("Rule with id = '%d' was removed", id.getId()), null, rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.newBuilder().build());
@@ -318,19 +309,24 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
             return tmp.toProtoEvent(rootEventId);
         } catch (JsonProcessingException e) {
-            logger.error("Can not create event for router", e);
+            logger.error("Can not create event for router with name '{}', body '{}' and rootEventId = {}",name, body, rootEventId, e);
         }
 
         return null;
     }
 
-    private void sendEvent(Event event) {
+    private Event sendEvent(String name, String body, String rootEventId) {
+        logger.info(body == null ? name : body);
+
+        Event event = createEvent(name, body, rootEventId);
         if (event != null) {
             try {
                 eventRouter.send(EventBatch.newBuilder().addEvents(event).build());
             } catch (IOException e) {
                 logger.error("Can not send event = {}", MessageRouterUtils.toJson(event), e);
+                return null;
             }
         }
+        return event;
     }
 }
