@@ -108,6 +108,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             }
         }, "first", "subscribe", "parsed");
 
+        eventRouter = factory.getEventBatchRouter();
         rootEventId = factory.getRootEventId();
     }
 
