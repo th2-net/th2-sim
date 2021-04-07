@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -110,6 +111,16 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         eventRouter = factory.getEventBatchRouter();
         rootEventId = factory.getRootEventId();
+        if (rootEventId == null) {
+            Event event = createEvent("Simulator - RootEvent", null, null);
+            if (event != null) {
+                eventRouter.send(EventBatch.newBuilder()
+                        .addEvents(event)
+                        .build());
+
+                rootEventId = event.getId().getId();
+            }
+        }
     }
 
     @Override
@@ -123,8 +134,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-        Event event = sendEvent("Add rule with id = " + id,
-                String.format("Rule from class '%s' was added to simulator for session alias '%s' with id = %d", rule.getClass().getName(), sessionAlias, id),
+
+        Event event = sendEvent(String.format("Rule with class name '%s' for session alias '%s' with id '%s' was added to simulator", rule.getClass().getSimpleName(), sessionAlias, id),
+                String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
         ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler));
@@ -285,10 +297,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    private Event createEvent(String name, String body) {
-        return createEvent(name, body, rootEventId);
-    }
-
     @Nullable
     private Event createEvent(String name, String body, String rootEventId) {
         com.exactpro.th2.common.event.bean.Message bodyData = null;
@@ -301,6 +309,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         try {
             com.exactpro.th2.common.event.Event tmp = com.exactpro.th2.common.event.Event.start().endTimestamp()
                     .name(name)
+                    .description(Instant.now().toString())
                     .type("event")
                     .status(com.exactpro.th2.common.event.Event.Status.PASSED);
 
