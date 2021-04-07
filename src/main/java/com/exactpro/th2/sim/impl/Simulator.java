@@ -326,7 +326,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private Event sendEvent(String name, String body, String rootEventId) {
-        logger.info(body == null ? name : body);
+        logger.info(name);
 
         Event event = createEvent(name, body, rootEventId);
         if (event != null) {
