@@ -15,6 +15,7 @@ package com.exactpro.th2.sim.impl;
 
 import com.exactpro.th2.common.event.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
+import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
@@ -144,13 +145,21 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     private Message prepareMessage(Message msg) {
-        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias())) {
-            Message.Builder builder = msg.toBuilder();
-            builder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
-            return builder.build();
-        } else {
-            return msg;
+        Message.Builder resultBuilder = null;
+
+        if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
+            resultBuilder = msg.toBuilder();
+            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
         }
+
+        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias())) {
+            if (resultBuilder == null) {
+                resultBuilder = msg.toBuilder();
+            }
+            resultBuilder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
+        }
+
+        return resultBuilder == null ? msg : resultBuilder.build();
     }
 
     private MessageBatch prepareMessageBatch(MessageBatch batch) {
