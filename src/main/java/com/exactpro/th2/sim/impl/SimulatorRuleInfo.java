@@ -18,8 +18,8 @@ import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
+import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.common.schema.message.MessageRouterUtils;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
@@ -138,7 +138,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             eventForSend = event.toProtoEvent(rootEventId);
             eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
         } catch (IOException e) {
-            String msg = String.format("Can not send event = %s",  eventForSend != null ? MessageRouterUtils.toJson(eventForSend) : "{null}");
+            String msg = String.format("Can not send event = %s",  eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
             LOGGER.error(msg, e);
             throw new IllegalStateException(msg, e);
         }
@@ -195,7 +195,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             router.send(batch, QueueAttribute.SECOND.getValue(), sessionAlias);
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
-                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageRouterUtils.toJson(batch), e);
+                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageUtils.toJson(batch), e);
             }
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
