@@ -17,9 +17,9 @@ import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
+import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.common.schema.message.MessageRouterUtils;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
@@ -333,7 +333,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             try {
                 eventRouter.send(EventBatch.newBuilder().addEvents(event).build());
             } catch (IOException e) {
-                logger.error("Can not send event = {}", MessageRouterUtils.toJson(event), e);
+                logger.error("Can not send event = {}", MessageUtils.toJson(event), e);
                 return null;
             }
         }
