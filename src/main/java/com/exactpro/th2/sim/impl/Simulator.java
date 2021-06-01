@@ -12,6 +12,30 @@
  ******************************************************************************/
 package com.exactpro.th2.sim.impl;
 
+import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
@@ -32,30 +56,8 @@ import com.exactpro.th2.sim.rule.IRule;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
+
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 /**
  * Default implementation of {@link ISimulator}.
@@ -139,7 +141,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
-        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler));
+        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
 
         return RuleID.newBuilder().setId(id).build();
@@ -147,7 +149,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void addDefaultRule(RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), router, eventRouter, v.getRootEventId(), scheduler)) == null) {
+        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), router, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
@@ -163,21 +165,27 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         SimulatorRuleInfo rule = ruleIds.remove(id.getId());
 
         if (rule != null) {
-            Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
-            if (ids != null && !ids.isEmpty()) {
-                ids.remove(id.getId());
-            }
-
-            if (rule.isDefault()) {
-                countDefaultRules.decrementAndGet();
-                logger.warn("Removed default rule with id = {}", id.getId());
-            }
-
-            sendEvent(String.format("Rule with id = '%d' was removed", id.getId()), null, rule.getRootEventId());
+            removeRule(rule);
         }
 
         responseObserver.onNext(Empty.newBuilder().build());
         responseObserver.onCompleted();
+    }
+
+    private void removeRule(SimulatorRuleInfo rule) {
+        Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
+        int id = rule.getId();
+
+        if (ids != null && !ids.isEmpty()) {
+            ids.remove(id);
+        }
+
+        if (rule.isDefault()) {
+            countDefaultRules.decrementAndGet();
+            logger.warn("Removed default rule with id = {}", id);
+        }
+
+        sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
     }
 
     @Override

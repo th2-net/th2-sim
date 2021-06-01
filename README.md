@@ -1,4 +1,4 @@
-# Simulator
+# Simulator v3.6.0
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -115,3 +115,11 @@ spec:
         - parsed
         - send2_session_alias
 ```
+
+## Changelog
+
+### v3.6.0
+
+#### Added:
+
+* `IRuleContext.removeRule()` method which allows a rule to remove itself
