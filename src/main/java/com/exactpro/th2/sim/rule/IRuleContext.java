@@ -13,12 +13,13 @@
 
 package com.exactpro.th2.sim.rule;
 
+import java.util.concurrent.TimeUnit;
+
+import org.jetbrains.annotations.NotNull;
+
 import com.exactpro.th2.common.event.Event;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
-import org.jetbrains.annotations.NotNull;
-
-import java.util.concurrent.TimeUnit;
 
 public interface IRuleContext {
     void send(@NotNull Message msg);
@@ -32,4 +33,6 @@ public interface IRuleContext {
     String getRootEventId();
 
     void sendEvent(Event event);
+
+    void removeRule();
 }

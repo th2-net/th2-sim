@@ -13,6 +13,18 @@
 
 package com.exactpro.th2.sim.impl;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.exactpro.th2.common.event.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
@@ -24,16 +36,6 @@ import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.google.protobuf.TextFormat;
-import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class SimulatorRuleInfo implements IRuleContext {
 
@@ -45,11 +47,21 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final String sessionAlias;
     private final MessageRouter<MessageBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
-
     private final MessageRouter<EventBatch> eventRouter;
     private final String rootEventId;
+    private final Consumer<SimulatorRuleInfo> onRemove;
 
-    public SimulatorRuleInfo(int id, @NotNull IRule rule, boolean isDefault, @NotNull String sessionAlias, @NotNull MessageRouter<MessageBatch> router, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService) {
+    public SimulatorRuleInfo(
+            int id,
+            @NotNull IRule rule,
+            boolean isDefault,
+            @NotNull String sessionAlias,
+            @NotNull MessageRouter<MessageBatch> router,
+            @NotNull MessageRouter<EventBatch> eventRouter,
+            @NotNull String rootEventId,
+            @NotNull ScheduledExecutorService scheduledExecutorService,
+            @NotNull Consumer<SimulatorRuleInfo> onRemove
+    ) {
         this.id = id;
         this.isDefault = isDefault;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
@@ -58,6 +70,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         this.eventRouter = Objects.requireNonNull(eventRouter, "Event router can not be null");
         this.rootEventId = Objects.requireNonNull(rootEventId, "Root event id can not be null");
         this.scheduledExecutorService = Objects.requireNonNull(scheduledExecutorService, "Scheduler can not be null");
+        this.onRemove = Objects.requireNonNull(onRemove, "onRemove can not be null");
     }
 
     public int getId() {
@@ -138,10 +151,15 @@ public class SimulatorRuleInfo implements IRuleContext {
             eventForSend = event.toProtoEvent(rootEventId);
             eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
         } catch (IOException e) {
-            String msg = String.format("Can not send event = %s",  eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
+            String msg = String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
             LOGGER.error(msg, e);
             throw new IllegalStateException(msg, e);
         }
+    }
+
+    @Override
+    public void removeRule() {
+        onRemove.accept(this);
     }
 
     private Message prepareMessage(Message msg) {
