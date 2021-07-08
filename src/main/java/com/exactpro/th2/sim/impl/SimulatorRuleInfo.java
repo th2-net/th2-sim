@@ -129,10 +129,26 @@ public class SimulatorRuleInfo implements IRuleContext {
         sendBatch(batchForSend, sessionAlias);
     }
 
+    private long checkDelay(long delay) {
+        if(delay < 0) {
+            throw new IllegalStateException("Negative delay in rule " + rule + ": " + delay);
+        }
+
+        return delay
+    }
+
+    private long checkPeriod(long period) {
+        if(period <= 0) {
+            throw new IllegalStateException("Non-positive period in rule " + rule + ": " + period);
+        }
+
+        return period;
+    }
+
     @Override
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, "Message can not be null");
-        scheduledExecutorService.schedule(() -> send(msg), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
     @Override
@@ -144,7 +160,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
         String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), checkDelay(delay), Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
     private ICancellable registerCancellable(ICancellable cancellable) {
@@ -154,20 +170,20 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public ICancellable execute(@NotNull IAction action) {
-        Objects.requireNonNull(action, "Action can not be null");
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
         return registerCancellable(new ActionRunner(scheduledExecutorService, sender, action));
     }
 
     @Override
     public ICancellable execute(long delay, @NotNull IAction action) {
-        Objects.requireNonNull(action, "Action can not be null");
-        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, action));
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), action));
     }
 
     @Override
     public ICancellable execute(long delay, long period, @NotNull IAction action) {
-        Objects.requireNonNull(action, "Action can not be null");
-        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, period, action));
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), checkPeriod(period), action));
     }
 
     @Override
@@ -194,7 +210,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             try {
                 cancellable.cancel();
             } catch (RuntimeException e) {
-                LOGGER.error("Failed to cancel", e);
+                LOGGER.error("Failed to cancel sub-task of rule {}", id, e);
             }
         });
 
