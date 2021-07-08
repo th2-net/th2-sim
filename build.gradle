@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
     id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
     id 'signing'
-    id 'org.jetbrains.kotlin.jvm' version '1.5.20'
+    id 'org.jetbrains.kotlin.jvm' version '1.5.10'
 }
 
 ext {
@@ -168,10 +168,6 @@ dependencies {
     api "com.exactpro.th2:grpc-sim:3.1.1"
 
     testImplementation 'junit:junit:4.12'
-}
-
-jar {
-    from sourceSets.test.output+sourceSets.test.allSource
 }
 
 sourceSets {
