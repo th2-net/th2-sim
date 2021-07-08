@@ -165,7 +165,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         SimulatorRuleInfo rule = ruleIds.remove(id.getId());
 
         if (rule != null) {
-            removeRule(rule);
+            rule.removeRule();
         }
 
         responseObserver.onNext(Empty.newBuilder().build());

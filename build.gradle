@@ -3,11 +3,11 @@ plugins {
     id 'maven-publish'
     id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
     id 'signing'
-    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id 'org.jetbrains.kotlin.jvm' version '1.5.20'
 }
 
 ext {
-    sharedDir           = file("${project.rootDir}/shared")
+    sharedDir = file("${project.rootDir}/shared")
 }
 
 group = 'com.exactpro.th2'
@@ -16,15 +16,18 @@ version = release_version
 sourceCompatibility = 11
 targetCompatibility = 11
 
+compileKotlin.kotlinOptions.jvmTarget = '11'
+compileTestKotlin.kotlinOptions.jvmTarget = '11'
+
 repositories {
     mavenCentral()
     maven {
-            name 'Sonatype_snapshots'
-            url 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+        name 'Sonatype_snapshots'
+        url 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
     }
     maven {
-            name 'Sonatype_releases'
-            url 'https://s01.oss.sonatype.org/content/repositories/releases/'
+        name 'Sonatype_releases'
+        url 'https://s01.oss.sonatype.org/content/repositories/releases/'
     }
 
     configurations.all {
@@ -145,6 +148,9 @@ signing {
 
 dependencies {
     api platform('com.exactpro.th2:bom:3.0.0')
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "io.github.microutils:kotlin-logging:2.0.8"
 
     implementation "org.slf4j:slf4j-log4j12"
     implementation "org.slf4j:slf4j-api"

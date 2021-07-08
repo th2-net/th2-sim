@@ -118,6 +118,12 @@ spec:
 
 ## Changelog
 
+### v3.7.0
+
+#### Added:
+
+* Added ability to schedule execution of arbitrary actions via `IRuleContext.execute` methods
+
 ### v3.6.0
 
 #### Added:

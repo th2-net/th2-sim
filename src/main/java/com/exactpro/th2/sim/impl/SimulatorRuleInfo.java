@@ -14,8 +14,10 @@
 package com.exactpro.th2.sim.impl;
 
 import java.io.IOException;
+import java.util.Deque;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -35,6 +37,10 @@ import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
+import com.exactpro.th2.sim.rule.action.IAction;
+import com.exactpro.th2.sim.rule.action.ICancellable;
+import com.exactpro.th2.sim.rule.action.impl.ActionRunner;
+import com.exactpro.th2.sim.rule.action.impl.MessageSender;
 import com.google.protobuf.TextFormat;
 
 public class SimulatorRuleInfo implements IRuleContext {
@@ -50,6 +56,8 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final MessageRouter<EventBatch> eventRouter;
     private final String rootEventId;
     private final Consumer<SimulatorRuleInfo> onRemove;
+    private final Deque<ICancellable> cancellables = new ConcurrentLinkedDeque<>();
+    private final MessageSender sender = new MessageSender(this::send, this::send);
 
     public SimulatorRuleInfo(
             int id,
@@ -139,6 +147,29 @@ public class SimulatorRuleInfo implements IRuleContext {
         scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
     }
 
+    private ICancellable registerCancellable(ICancellable cancellable) {
+        cancellables.add(cancellable);
+        return cancellable;
+    }
+
+    @Override
+    public ICancellable execute(@NotNull IAction action) {
+        Objects.requireNonNull(action, "Action can not be null");
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, action));
+    }
+
+    @Override
+    public ICancellable execute(long delay, @NotNull IAction action) {
+        Objects.requireNonNull(action, "Action can not be null");
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, action));
+    }
+
+    @Override
+    public ICancellable execute(long delay, long period, @NotNull IAction action) {
+        Objects.requireNonNull(action, "Action can not be null");
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, period, action));
+    }
+
     @Override
     public String getRootEventId() {
         return rootEventId;
@@ -159,6 +190,14 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void removeRule() {
+        cancellables.forEach(cancellable -> {
+            try {
+                cancellable.cancel();
+            } catch (RuntimeException e) {
+                LOGGER.error("Failed to cancel", e);
+            }
+        });
+
         onRemove.accept(this);
     }
 
