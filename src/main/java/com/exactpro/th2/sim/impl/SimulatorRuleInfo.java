@@ -134,7 +134,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             throw new IllegalStateException("Negative delay in rule " + rule + ": " + delay);
         }
 
-        return delay
+        return delay;
     }
 
     private long checkPeriod(long period) {
