@@ -107,7 +107,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull Message msg) {
-        Objects.requireNonNull(msg, "Message can not be null");
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
+
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
@@ -120,6 +121,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull MessageBatch batch) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+
         if (batch.getMessagesCount() < 1) {
             return;
         }
@@ -147,20 +150,25 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
-        Objects.requireNonNull(msg, "Message can not be null");
-        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
+        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
+        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), timeUnit);
     }
 
     @Override
-    public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
-        Objects.requireNonNull(batch, "Message batch can not be null");
+    public void send(@NotNull MessageBatch batch, long delay, @NotNull TimeUnit timeUnit) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
+        checkDelay(delay);
+
         if (batch.getMessagesCount() < 1) {
             return;
         }
 
         String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), checkDelay(delay), Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+
+        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, timeUnit);
     }
 
     private ICancellable registerCancellable(ICancellable cancellable) {
