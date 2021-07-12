@@ -20,6 +20,8 @@ import org.jetbrains.annotations.NotNull;
 import com.exactpro.th2.common.event.Event;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
+import com.exactpro.th2.sim.rule.action.IAction;
+import com.exactpro.th2.sim.rule.action.ICancellable;
 
 public interface IRuleContext {
     void send(@NotNull Message msg);
@@ -29,6 +31,12 @@ public interface IRuleContext {
     void send(@NotNull Message msg, long delay, TimeUnit timeUnit);
 
     void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit);
+
+    ICancellable execute(@NotNull IAction action);
+
+    ICancellable execute(long delay, @NotNull IAction action);
+
+    ICancellable execute(long delay, long period, @NotNull IAction action);
 
     String getRootEventId();
 

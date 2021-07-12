@@ -1,4 +1,4 @@
-# Simulator v3.6.0
+# Simulator v3.7.0
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -117,6 +117,12 @@ spec:
 ```
 
 ## Changelog
+
+### v3.7.0
+
+#### Added:
+
+* Added ability to schedule execution of arbitrary actions via `IRuleContext.execute` methods
 
 ### v3.6.0
 

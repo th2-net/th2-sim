@@ -14,8 +14,10 @@
 package com.exactpro.th2.sim.impl;
 
 import java.io.IOException;
+import java.util.Deque;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -35,6 +37,10 @@ import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
+import com.exactpro.th2.sim.rule.action.IAction;
+import com.exactpro.th2.sim.rule.action.ICancellable;
+import com.exactpro.th2.sim.rule.action.impl.ActionRunner;
+import com.exactpro.th2.sim.rule.action.impl.MessageSender;
 import com.google.protobuf.TextFormat;
 
 public class SimulatorRuleInfo implements IRuleContext {
@@ -50,6 +56,8 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final MessageRouter<EventBatch> eventRouter;
     private final String rootEventId;
     private final Consumer<SimulatorRuleInfo> onRemove;
+    private final Deque<ICancellable> cancellables = new ConcurrentLinkedDeque<>();
+    private final MessageSender sender = new MessageSender(this::send, this::send);
 
     public SimulatorRuleInfo(
             int id,
@@ -99,7 +107,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull Message msg) {
-        Objects.requireNonNull(msg, "Message can not be null");
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
+
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
@@ -112,6 +121,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull MessageBatch batch) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+
         if (batch.getMessagesCount() < 1) {
             return;
         }
@@ -121,22 +132,66 @@ public class SimulatorRuleInfo implements IRuleContext {
         sendBatch(batchForSend, sessionAlias);
     }
 
-    @Override
-    public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
-        Objects.requireNonNull(msg, "Message can not be null");
-        scheduledExecutorService.schedule(() -> send(msg), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+    private long checkDelay(long delay) {
+        if(delay < 0) {
+            throw new IllegalStateException("Negative delay in rule " + id + ": " + delay);
+        }
+
+        return delay;
+    }
+
+    private long checkPeriod(long period) {
+        if(period <= 0) {
+            throw new IllegalStateException("Non-positive period in rule " + id + ": " + period);
+        }
+
+        return period;
     }
 
     @Override
-    public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
-        Objects.requireNonNull(batch, "Message batch can not be null");
+    public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
+        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
+        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), timeUnit);
+    }
+
+    @Override
+    public void send(@NotNull MessageBatch batch, long delay, @NotNull TimeUnit timeUnit) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
+        checkDelay(delay);
+
         if (batch.getMessagesCount() < 1) {
             return;
         }
 
         String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, Objects.requireNonNull(timeUnit, "Time unit can not be null"));
+
+        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, timeUnit);
+    }
+
+    private ICancellable registerCancellable(ICancellable cancellable) {
+        cancellables.add(cancellable);
+        return cancellable;
+    }
+
+    @Override
+    public ICancellable execute(@NotNull IAction action) {
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, action));
+    }
+
+    @Override
+    public ICancellable execute(long delay, @NotNull IAction action) {
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), action));
+    }
+
+    @Override
+    public ICancellable execute(long delay, long period, @NotNull IAction action) {
+        Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), checkPeriod(period), action));
     }
 
     @Override
@@ -159,6 +214,14 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void removeRule() {
+        cancellables.forEach(cancellable -> {
+            try {
+                cancellable.cancel();
+            } catch (RuntimeException e) {
+                LOGGER.error("Failed to cancel sub-task of rule {}", id, e);
+            }
+        });
+
         onRemove.accept(this);
     }
 

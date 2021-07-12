@@ -1,7 +1,7 @@
 .gradle
 
-#th2 connectivity
-evolution_all.log
+#logs
+*.log
 
 #elcipse files
 .metadata
@@ -24,18 +24,11 @@ provided
 .*.swp
 .~*.*#
 
-#test files
-derby.log
-
 #IntelliJ IDEA files
 *.iml
 *.iws
 .idea
 out
-
-#tomcat files
-apache-tomcat*
-PIDFILE.pid
 
 #build info file
 buildinfo.htm
@@ -43,8 +36,3 @@ buildinfo.htm
 #JMH files
 BenchmarkList
 CompilerHints
-
-#Sailfish
-shared_workspace
-tmp_workspace
-shared
