@@ -118,14 +118,11 @@ spec:
 
 ## Changelog
 
+### 3.8.0
++ Update `common-j` to 3.21.2
+
 ### v3.7.0
-
-#### Added:
-
-* Added ability to schedule execution of arbitrary actions via `IRuleContext.execute` methods
++ Added ability to schedule execution of arbitrary actions via `IRuleContext.execute` methods
 
 ### v3.6.0
-
-#### Added:
-
-* `IRuleContext.removeRule()` method which allows a rule to remove itself
++ Added `IRuleContext.removeRule()` method which allows a rule to remove itself
