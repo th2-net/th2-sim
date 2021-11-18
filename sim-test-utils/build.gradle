@@ -16,15 +16,6 @@ dependencies {
     implementation "org.slf4j:slf4j-log4j12"
     implementation "org.slf4j:slf4j-api"
 
-    implementation "com.fasterxml.jackson.core:jackson-core"
-    implementation "com.fasterxml.jackson.core:jackson-databind"
-
-    implementation "org.jetbrains:annotations"
-
-    implementation "org.apache.commons:commons-lang3"
-
-    implementation "com.google.guava:guava"
-
     implementation 'com.exactpro.th2:common:3.21.2'
 
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
