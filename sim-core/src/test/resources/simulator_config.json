@@ -1,0 +1,33 @@
+{
+  "defaultRules": [
+    {
+      "methodName": "createRuleFIX",
+      "settings": {
+        "fields": {
+          "ClOrdID": {
+            "simple_value":"order_1"
+          }
+        },
+        "connection_id": {
+          "session_alias": "example"
+        }
+      }
+    }
+  ],
+  "rabbitMQ": {
+    "host": "example",
+    "virtualHost": "example",
+    "port": 8888,
+    "username": "example",
+    "password": "example"
+  },
+  "th2": {
+    "connectivityQueueNames": {
+      "example": {
+        "exchangeName": "example",
+        "inQueueName": "example",
+        "toSendQueueName": "example"
+      }
+    }
+  }
+}
