@@ -25,6 +25,7 @@ import com.exactpro.th2.sim.rule.action.IAction
 import com.exactpro.th2.sim.rule.action.ICancellable
 import com.exactpro.th2.sim.rule.action.impl.ActionRunner
 import com.exactpro.th2.sim.rule.action.impl.MessageSender
+import com.google.protobuf.TextFormat
 import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.fail
@@ -37,6 +38,14 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
+/**
+ * Test class for rules
+ *
+ * This class has private constructor, please use testRule block for testing.
+ *
+ * @property speedUp the multiplier of rule delay execution. If the delay in the result is too short, it can lead to sequencing problems.
+ * @constructor Creates a rule context for tests.
+ */
 class TestRuleContext private constructor(private val speedUp: Int) : IRuleContext {
     private val messageSender = MessageSender(this::send, this::send)
 
@@ -47,24 +56,24 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
 
     override fun send(msg: Message) {
         results.add(msg)
-        logger.debug { "Message sent: $msg" }
+        logger.debug { "Message sent: ${TextFormat.shortDebugString(msg)}" }
     }
 
     override fun send(batch: MessageBatch) {
         results.add(batch)
-        logger.debug { "Batch sent: $batch" }
+        logger.debug { "Batch sent: ${TextFormat.shortDebugString(batch)}" }
     }
 
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
-        scheduledExecutorService.schedule({
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(msg)
-        }, delay / speedUp, timeUnit)
+        })
     }
 
     override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
-        scheduledExecutorService.schedule({
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(batch)
-        }, delay / speedUp, timeUnit)
+        })
     }
 
     override fun execute(action: IAction): ICancellable =
@@ -96,6 +105,12 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
 
     private fun registerCancellable(cancellable: ICancellable): ICancellable = cancellable.apply(cancellables::add)
 
+    /**
+     * method to test handling of rule
+     * @param testMessage incoming Message.
+     * @param failedMessage log message on fail.
+     * @return fail if rule was triggered
+     */
     fun IRule.assertNotTriggered(testMessage: Message, failedMessage: String? = null) {
         if (checkTriggered(testMessage)) {
             fail { "${buildPrefix(failedMessage)}Rule ${this.javaClass.simpleName} expected: <not triggered> but was: <triggered>" }
@@ -103,6 +118,13 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         logger.debug { "Rule ${this.javaClass.name} was not triggered" }
     }
 
+    /**
+     * method to test handling of rule
+     * @param testMessage incoming Message.
+     * @param failedMessage log message on fail.
+     * @param duration pause to wait result of rule handler.
+     * @return fail if rule was not triggered
+     */
     fun IRule.assertTriggered(testMessage: Message, failedMessage: String? = null, duration: Duration = Duration.ZERO) {
         if (!checkTriggered(testMessage)) {
             fail { "${buildPrefix(failedMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
@@ -113,6 +135,11 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         logger.debug { "Rule ${this.javaClass.name} was successfully triggered after $duration delay" }
     }
 
+    /**
+     * method to execute rule's touch method
+     * @param args incoming arguments
+     * @param duration pause to wait result of touch, after delay all execution tasks will be stopped.
+     */
     fun IRule.touch(args: Map<String, String>, duration: Duration = Duration.ZERO) {
         this.touch(this@TestRuleContext, args)
         Thread.sleep(duration.toMillis())
@@ -120,6 +147,10 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         logger.debug { "Rule ${this.javaClass.name} was successfully touched after $duration delay" }
     }
 
+    /**
+     * method to test handle results
+     * @return fail if rule had results
+     */
     fun assertNothingSent(failedMessage: String? = null) {
         results.peek()?.let { actual ->
             fail { "${buildPrefix(failedMessage)}Rule ${this.javaClass.simpleName} expected: <Nothing> but was: <${actual::class.simpleName}>" }
@@ -127,6 +158,12 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         logger.debug { "Rule ${this.javaClass.name}: nothing was sent" }
     }
 
+    /**
+     * method to test handle results
+     * @param expected value to assertEquals with result of rule handler
+     * @param failedMessage error message on fail
+     * @return fail if rule handle had different result
+     */
     fun assertSent(expected: Any, failedMessage: String? = null) {
         assertSent(expected::class.java) { actual: Any ->
             when (expected) {
@@ -137,6 +174,12 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         }
     }
 
+    /**
+     * method to test handle results
+     * @param expectedType class of expected result
+     * @param testCase block to execute after type assert
+     * @return fail if rule handle result had different type
+     */
     fun <T> assertSent(expectedType: Class<T>, testCase: (T) -> Unit) {
         val actual = results.peek()
         Assertions.assertNotNull(actual) { "Nothing was sent from rule" }
@@ -153,7 +196,9 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
 
     private fun test(shutdownTimeout: Long, block: TestRuleContext.() -> Unit) {
         scheduledExecutorService = Executors.newScheduledThreadPool(5)
-        this.block()
+        runCatching(block).onFailure {
+            logger.error(it) { "IRule threw error:" }
+        }
         scheduledExecutorService.shutdown()
         if (!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
             scheduledExecutorService.shutdownNow()
@@ -163,6 +208,14 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
 
     companion object {
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * method to test rule inside block: testRule {}
+         * all results of rule execution are persisted until end of block
+         * @param speedUp param to speed up delay and period of execution
+         * @param shutdownTimeout timeout of shutdown hook
+         * @param block test case
+         */
         fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
             TestRuleContext(speedUp).apply {
                 test(shutdownTimeout, block)
