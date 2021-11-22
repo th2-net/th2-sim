@@ -37,7 +37,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
-class TestRuleContext private constructor() : IRuleContext {
+class TestRuleContext private constructor(private val speedUp: Int) : IRuleContext {
     private val messageSender = MessageSender(this::send, this::send)
 
     private val cancellables: Deque<ICancellable> = ConcurrentLinkedDeque()
@@ -58,23 +58,23 @@ class TestRuleContext private constructor() : IRuleContext {
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
         scheduledExecutorService.schedule({
             send(msg)
-        }, delay, timeUnit)
+        }, delay / speedUp, timeUnit)
     }
 
     override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
         scheduledExecutorService.schedule({
             send(batch)
-        }, delay, timeUnit)
+        }, delay / speedUp, timeUnit)
     }
 
     override fun execute(action: IAction): ICancellable =
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, action))
 
     override fun execute(delay: Long, action: IAction): ICancellable =
-        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay, action))
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay / speedUp, action))
 
     override fun execute(delay: Long, period: Long, action: IAction): ICancellable =
-        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay, period, action))
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay / speedUp, period / speedUp, action))
 
     override fun getRootEventId(): String {
         return "testEventID"
@@ -153,7 +153,7 @@ class TestRuleContext private constructor() : IRuleContext {
 
     private fun test(shutdownTimeout: Long, block: TestRuleContext.() -> Unit) {
         scheduledExecutorService = Executors.newScheduledThreadPool(5)
-        block()
+        this.block()
         scheduledExecutorService.shutdown()
         if (!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
             scheduledExecutorService.shutdownNow()
@@ -163,8 +163,8 @@ class TestRuleContext private constructor() : IRuleContext {
 
     companion object {
         private val logger = KotlinLogging.logger {}
-        fun testRule(shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
-            TestRuleContext().apply {
+        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
+            TestRuleContext(speedUp).apply {
                 test(shutdownTimeout, block)
             }
     }

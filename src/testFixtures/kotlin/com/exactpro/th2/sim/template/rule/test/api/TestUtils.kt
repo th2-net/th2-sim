@@ -48,7 +48,6 @@ fun assertEqualsBatches(expected: MessageBatch, actual: MessageBatch, lazyMessag
                 e.cause
             )
         }
-
     }
 }
 
