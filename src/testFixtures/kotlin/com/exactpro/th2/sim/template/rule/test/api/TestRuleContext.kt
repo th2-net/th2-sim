@@ -131,6 +131,14 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
         logger.debug { "Rule ${this.javaClass.name} was triggered" }
     }
 
+    fun IRule.assertAndHandle(testMessage: Message, duration: Duration = Duration.ZERO, failedMessage: String? = null) {
+        if (!checkTriggered(testMessage)) {
+            fail { "${buildPrefix(failedMessage)}Rule ${this.javaClass.simpleName} expected: <triggered> but was: <not triggered>" }
+        }
+        logger.debug { "Rule ${this.javaClass.name} was triggered" }
+        this.handle(testMessage, duration)
+    }
+
     /**
      * method to test handling of rule
      * @param testMessage incoming Message.
