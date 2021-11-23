@@ -29,6 +29,7 @@ import com.exactpro.th2.common.message.getString
 import com.exactpro.th2.common.message.messageType
 
 import com.google.protobuf.TextFormat
+import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.fail
 import org.junit.platform.commons.util.StringUtils
@@ -52,11 +53,12 @@ fun assertEqualsBatches(expected: MessageBatch, actual: MessageBatch, lazyMessag
 }
 
 fun assertEqualsMessages(expected: Message, actual: Message, lazyMessage: () -> String? = {null}) {
+    val ts = Timestamp.getDefaultInstance()
     val assertExpected = expected.toBuilder().apply {
-        metadataBuilder.timestampBuilder.resetTimestamp()
+        metadataBuilder.timestamp = ts
     }.build()
     val assertActual = actual.toBuilder().apply {
-        metadataBuilder.timestampBuilder.resetTimestamp()
+        metadataBuilder.timestamp = ts
     }.build()
     try {
         Assertions.assertEquals(assertExpected, assertActual, lazyMessage)

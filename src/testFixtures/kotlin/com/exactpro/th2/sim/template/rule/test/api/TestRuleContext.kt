@@ -106,7 +106,7 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
     private fun registerCancellable(cancellable: ICancellable): ICancellable = cancellable.apply(cancellables::add)
 
     /**
-     * method to test handling of rule
+     * method to test trigger of rule
      * @param testMessage incoming Message.
      * @param failedMessage log message on fail.
      * @return fail if rule was triggered
@@ -119,20 +119,28 @@ class TestRuleContext private constructor(private val speedUp: Int) : IRuleConte
     }
 
     /**
-     * method to test handling of rule
+     * method to test trigger of rule
      * @param testMessage incoming Message.
      * @param failedMessage log message on fail.
-     * @param duration pause to wait result of rule handler.
      * @return fail if rule was not triggered
      */
-    fun IRule.assertTriggered(testMessage: Message, failedMessage: String? = null, duration: Duration = Duration.ZERO) {
+    fun IRule.assertTriggered(testMessage: Message, failedMessage: String? = null) {
         if (!checkTriggered(testMessage)) {
-            fail { "${buildPrefix(failedMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
+            fail { "${buildPrefix(failedMessage)}Rule ${this.javaClass.simpleName} expected: <triggered> but was: <not triggered>" }
         }
-        handle(this@TestRuleContext, testMessage)
+        logger.debug { "Rule ${this.javaClass.name} was triggered" }
+    }
+
+    /**
+     * method to test handling of rule
+     * @param testMessage incoming Message.
+     * @param duration pause to wait result of rule handler.
+     */
+    fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
+        this.handle(this@TestRuleContext, testMessage)
         Thread.sleep(duration.toMillis())
         removeRule()
-        logger.debug { "Rule ${this.javaClass.name} was successfully triggered after $duration delay" }
+        logger.debug { "Rule ${this.javaClass.name} was successfully handled after $duration delay" }
     }
 
     /**
