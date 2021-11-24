@@ -107,7 +107,7 @@ fun Message.assertInt(name: String, expected: Int? = null): Int {
     this.assertContains(name)
     val actual = this.getInt(name)!!
     expected?.let {
-        Assertions.assertEquals(expected, actual) {"Field value was different"}
+        Assertions.assertEquals(expected, actual) {"Unexpected $name field value"}
     }
     return actual
 }
@@ -125,7 +125,7 @@ fun Message.assertString(name: String, expected: String? = null): String {
     this.assertContains(name)
     val actual = this.getString(name)!!
     expected?.let {
-        Assertions.assertEquals(expected, actual) {"Field value was different"}
+        Assertions.assertEquals(expected, actual) {"Unexpected $name field value"}
     }
     return actual
 }
@@ -134,7 +134,7 @@ fun Message.assertDouble(name: String, expected: Double? = null): Double {
     this.assertContains(name)
     val actual = this.getDouble(name)!!
     expected?.let {
-        Assertions.assertEquals(expected, actual) {"Field value was different"}
+        Assertions.assertEquals(expected, actual) {"Unexpected $name field value"}
     }
     return actual
 }
@@ -152,7 +152,7 @@ fun <T> Message.assertValue(name: String, expected: T? = null): T {
         else -> error("Cannot assert $name field value. Expected value type is not supported: ${expected!!::class.simpleName}")
     }!!
     expected?.let {
-        Assertions.assertEquals(expected, actual) {"Field value was different"}
-    } ?: Assertions.assertNull(actual) {"Field value wasn't null"}
+        Assertions.assertEquals(expected, actual) {"Unexpected $name field value"}
+    } ?: Assertions.assertNull(actual) {"Unexpected $name field value"}
     return actual as T
 }

@@ -132,7 +132,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     }
 
     /**
-     * method to test handling of rule after checkTrigger assertion
+     * method to test rule message handling after checkTrigger assertion
      * @param testMessage incoming Message.
      * @param duration pause to wait result of rule handler.
      * @param failureMessage log message on fail.
