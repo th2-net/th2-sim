@@ -18,7 +18,7 @@ package com.exactpro.th2.sim.util
 
 fun findSubstring(charSequence: CharSequence, regex: String, fromIndex: Int): String {
     val pattern = regex.toRegex()
-    return pattern.find(charSequence)?.value ?: ""
+    return pattern.find(charSequence, fromIndex)?.value ?: ""
 }
 
 fun findSubstring(charSequence: CharSequence, regex: String): String {
