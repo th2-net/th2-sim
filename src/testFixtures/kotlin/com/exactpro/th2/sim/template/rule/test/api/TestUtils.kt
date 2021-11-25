@@ -80,7 +80,7 @@ fun buildPrefix(message: String?): String {
 fun Message.assertContains(vararg name: String) {
     name.forEach { fieldName ->
         if (!this.containsFields(fieldName)) {
-            fail { "$messageType must contain $fieldName" }
+            fail { "$messageType:$fieldName expected: not <null>" }
         }
     }
 }
@@ -88,7 +88,7 @@ fun Message.assertContains(vararg name: String) {
 fun Message.assertNotContains(vararg name: String) {
     name.forEach { fieldName ->
         if (this.containsFields(fieldName)) {
-            fail { "$messageType must not contain $fieldName" }
+            fail { "$messageType:$fieldName expected: <null>" }
         }
     }
 }

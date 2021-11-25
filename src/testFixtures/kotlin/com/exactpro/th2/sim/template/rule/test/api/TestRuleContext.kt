@@ -138,11 +138,8 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param failureMessage log message on fail.
      * @return fail if rule was not triggered
      */
-    fun IRule.assertAndHandle(testMessage: Message, duration: Duration = Duration.ZERO, failureMessage: String? = null) {
-        if (!checkTriggered(testMessage)) {
-            fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
-        }
-        logger.debug { "Rule ${this::class.simpleName} was triggered" }
+    fun IRule.assertHandle(testMessage: Message, duration: Duration = Duration.ZERO, failureMessage: String? = null) {
+        assertTriggered(testMessage, failureMessage)
         handle(testMessage, duration)
     }
 
@@ -151,7 +148,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param testMessage incoming Message.
      * @param duration max expected message handling time
      */
-    fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
+    private fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
         this.handle(this@TestRuleContext, testMessage)
         Thread.sleep(duration.toMillis())
         removeRule()
