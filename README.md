@@ -1,4 +1,4 @@
-# Simulator v3.7.0
+# Simulator v3.9.0
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -22,7 +22,9 @@ The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` and which name session alias \
+Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` \
+_From **3.9.0** there no session-alias attribute anymore, please use **filter** instead._
+
 *Example:*
 ```json
 {
@@ -37,13 +39,13 @@ Simulator sends message bathes to pins with the attributes ``second``, ``publish
       "name": "send1_name",
       "queue": "send1_queue",
       "exchange": "send1_exchange",
-      "attributes": ["second", "publish", "parsed", "send1_session_alias"]
+      "attributes": ["second", "publish", "parsed"]
     },
     "send2": {
       "name": "send2_name",
       "queue": "send2_queue",
       "exchange": "send2_exchange",
-      "attributes": ["second", "publish", "parsed", "send2_session_alias"]
+      "attributes": ["second", "publish", "parsed"]
     }
   }
 }
@@ -106,17 +108,32 @@ spec:
         - second
         - publish
         - parsed
-        - send1_session_alias
+      filters:
+        - metadata:
+            - field-name: session_alias
+              expected-value: some_alias_first
+              operation: EQUAL
+
     - name: send2
       connection-type: mq
       attributes:
         - second
         - publish
         - parsed
-        - send2_session_alias
+      filters:
+        - metadata:
+            - field-name: session_alias
+              expected-value: some_alias_second
+              operation: EQUAL
 ```
 
 ## Changelog
+
+
+### 3.9.0
++ Update `common-j` to 3.31.0
++ Removed session-alias as argument for publish pins. Please use filter instead
+
 
 ### 3.8.0
 + Update `common-j` to 3.21.2

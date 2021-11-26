@@ -114,9 +114,8 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
 
         Message finalMessage = prepareMessage(msg);
-        String sessionAlias = finalMessage.getMetadata().getId().getConnectionId().getSessionAlias();
 
-        sendBatch(MessageBatch.newBuilder().addMessages(finalMessage).build(), sessionAlias);
+        sendBatch(MessageBatch.newBuilder().addMessages(finalMessage).build());
     }
 
     @Override
@@ -127,9 +126,8 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
-        sendBatch(batchForSend, sessionAlias);
+        sendBatch(batchForSend);
     }
 
     private long checkDelay(long delay) {
@@ -165,10 +163,9 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        String sessionAlias = getSessionAliasFromBatch(batch);
         MessageBatch batchForSend = prepareMessageBatch(batch);
 
-        scheduledExecutorService.schedule(() -> sendBatch(batchForSend, sessionAlias), delay, timeUnit);
+        scheduledExecutorService.schedule(() -> sendBatch(batchForSend), delay, timeUnit);
     }
 
     private ICancellable registerCancellable(ICancellable cancellable) {
@@ -251,32 +248,12 @@ public class SimulatorRuleInfo implements IRuleContext {
         return builder.build();
     }
 
-    private String getSessionAliasFromBatch(MessageBatch batch) {
-        String sessionAlias = null;
-        for (Message message : batch.getMessagesList()) {
-            String msgAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
-            if (StringUtils.isEmpty(msgAlias)) {
-                msgAlias = this.sessionAlias;
-            }
-
-            if (sessionAlias == null) {
-                sessionAlias = msgAlias;
-            }
-
-            if (!sessionAlias.equals(msgAlias)) {
-                throw new IllegalArgumentException("Messages have different session alias = [" + sessionAlias + "," + msgAlias + "]" );
-            }
-        }
-
-        return sessionAlias;
-    }
-
-    private void sendBatch(MessageBatch batch, String sessionAlias) {
+    private void sendBatch(MessageBatch batch) {
         try {
-            router.send(batch, QueueAttribute.SECOND.getValue(), sessionAlias);
+            router.sendAll(batch, QueueAttribute.SECOND.getValue());
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
-                LOGGER.error("Can not send message with session alias '{}' = {}", sessionAlias, MessageUtils.toJson(batch), e);
+                LOGGER.error("Can not send message  {}", MessageUtils.toJson(batch), e);
             }
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
