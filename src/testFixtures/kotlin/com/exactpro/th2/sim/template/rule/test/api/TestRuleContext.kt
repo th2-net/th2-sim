@@ -16,6 +16,9 @@
 
 package com.exactpro.th2.sim.template.rule.test.api
 
+import com.exactpro.th2.common.assertEqualBatches
+import com.exactpro.th2.common.assertEqualMessages
+import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
