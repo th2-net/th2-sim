@@ -40,13 +40,13 @@ repositories {
 jar {
     manifest {
         attributes(
-                'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
-                'Specification-Title':      '',
-                'Specification-Vendor':     'Exactpro Systems LLC',
-                'Implementation-Title':     project.archivesBaseName,
-                'Implementation-Vendor':    'Exactpro Systems LLC',
+                'Created-By': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+                'Specification-Title': '',
+                'Specification-Vendor': 'Exactpro Systems LLC',
+                'Implementation-Title': project.archivesBaseName,
+                'Implementation-Vendor': 'Exactpro Systems LLC',
                 'Implementation-Vendor-Id': 'com.exactpro',
-                'Implementation-Version':   project.version
+                'Implementation-Version': project.version
         )
     }
 }
@@ -70,13 +70,14 @@ tasks.withType(PublishToMavenRepository) {
     }
 }
 tasks.withType(Sign) {
-    onlyIf { project.hasProperty('signingKey') &&
-            project.hasProperty('signingPassword')
+    onlyIf {
+        project.hasProperty('signingKey') &&
+                project.hasProperty('signingPassword')
     }
 }
 // disable running task 'initializeSonatypeStagingRepository' on a gitlab
-tasks.whenTaskAdded {task ->
-    if(task.name.equals('initializeSonatypeStagingRepository') &&
+tasks.whenTaskAdded { task ->
+    if (task.name.equals('initializeSonatypeStagingRepository') &&
             !(project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword'))
     ) {
         task.enabled = false
@@ -165,7 +166,7 @@ dependencies {
 
     implementation "com.google.guava:guava"
 
-    implementation 'com.exactpro.th2:common:3.31.6'
+    implementation "com.exactpro.th2:common:$common_version"
 
     api "com.exactpro.th2:grpc-sim:3.1.1"
 
@@ -173,10 +174,10 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
 
     testFixturesImplementation "io.github.microutils:kotlin-logging:2.0.8"
-    testFixturesImplementation 'com.exactpro.th2:common:3.31.6'
+    testFixturesImplementation "com.exactpro.th2:common:$common_version"
     testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
-    testFixturesImplementation testFixtures('com.exactpro.th2:common:3.31.6')
+    testFixturesImplementation testFixtures("com.exactpro.th2:common:$common_version")
 }
 
 sourceSets {
