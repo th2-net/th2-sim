@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.sim.configuration;
+package com.exactpro.th2.sim.util
 
-public enum DefaultRulesTurnOffStrategy {
+fun findSubstring(charSequence: CharSequence, regex: String, fromIndex: Int): String {
+    val pattern = regex.toRegex()
+    return pattern.find(charSequence, fromIndex)?.value ?: ""
+}
 
-    ON_ADD,
-    ON_TRIGGER;
-
+fun findSubstring(charSequence: CharSequence, regex: String): String {
+    return findSubstring(charSequence, regex, 0)
 }
