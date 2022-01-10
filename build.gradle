@@ -1,9 +1,10 @@
 plugins {
     id 'java'
+    id 'java-test-fixtures'
     id 'maven-publish'
     id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
     id 'signing'
-    id 'org.jetbrains.kotlin.jvm' version '1.5.31'
+    id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
 }
 
 ext {
@@ -59,24 +60,24 @@ java {
 tasks.withType(PublishToMavenRepository) {
     onlyIf {
         (repository == publishing.repositories.nexusRepository &&
-            project.hasProperty('nexus_user') &&
-            project.hasProperty('nexus_password') &&
-            project.hasProperty('nexus_url')) ||
-        (repository == publishing.repositories.sonatype &&
-            project.hasProperty('sonatypeUsername') &&
-            project.hasProperty('sonatypePassword')) ||
-        (repository == publishing.repositories.localRepo)
+                project.hasProperty('nexus_user') &&
+                project.hasProperty('nexus_password') &&
+                project.hasProperty('nexus_url')) ||
+                (repository == publishing.repositories.sonatype &&
+                        project.hasProperty('sonatypeUsername') &&
+                        project.hasProperty('sonatypePassword')) ||
+                (repository == publishing.repositories.localRepo)
     }
 }
 tasks.withType(Sign) {
     onlyIf { project.hasProperty('signingKey') &&
-        project.hasProperty('signingPassword')
+            project.hasProperty('signingPassword')
     }
 }
 // disable running task 'initializeSonatypeStagingRepository' on a gitlab
 tasks.whenTaskAdded {task ->
     if(task.name.equals('initializeSonatypeStagingRepository') &&
-        !(project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword'))
+            !(project.hasProperty('sonatypeUsername') && project.hasProperty('sonatypePassword'))
     ) {
         task.enabled = false
     }
@@ -87,29 +88,29 @@ publishing {
         mavenJava(MavenPublication) {
             from(components.java)
             pom {
-              name = rootProject.name
-              packaging = 'jar'
-              description = rootProject.description
-              url = vcs_url
-              scm {
+                name = rootProject.name
+                packaging = 'jar'
+                description = rootProject.description
                 url = vcs_url
-              }
-              licenses {
-                license {
-                  name = 'The Apache License, Version 2.0'
-                  url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                scm {
+                    url = vcs_url
                 }
-              }
-              developers {
-                developer {
-                  id = 'developer'
-                  name = 'developer'
-                  email = 'developer@exactpro.com'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
                 }
-              }
-              scm {
-                url = vcs_url
-              }
+                developers {
+                    developer {
+                        id = 'developer'
+                        name = 'developer'
+                        email = 'developer@exactpro.com'
+                    }
+                }
+                scm {
+                    url = vcs_url
+                }
             }
         }
     }
@@ -147,7 +148,7 @@ signing {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:3.0.0')
+    api platform('com.exactpro.th2:bom:3.1.0')
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "io.github.microutils:kotlin-logging:2.0.8"
@@ -164,10 +165,18 @@ dependencies {
 
     implementation "com.google.guava:guava"
 
-    implementation 'com.exactpro.th2:common:3.31.0'
+    implementation 'com.exactpro.th2:common:3.31.6'
+
     api "com.exactpro.th2:grpc-sim:3.1.1"
 
-    testImplementation 'junit:junit:4.12'
+    testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+
+    testFixturesImplementation "io.github.microutils:kotlin-logging:2.0.8"
+    testFixturesImplementation 'com.exactpro.th2:common:3.31.6'
+    testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
+    testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+    testFixturesImplementation testFixtures('com.exactpro.th2:common:3.31.6')
 }
 
 sourceSets {
