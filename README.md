@@ -1,4 +1,5 @@
-# Simulator v3.9.0
+# Simulator core
+![version](https://img.shields.io/badge/version-3.10.0-blue.svg)
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -23,7 +24,7 @@ Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``cus
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
 Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` \
-_From **3.9.0** there no session-alias attribute anymore, please use **filter** instead._
+_From **3.10.0** there no session-alias attribute anymore, please use **filter** instead._
 
 *Example:*
 ```json
@@ -130,10 +131,12 @@ spec:
 ## Changelog
 
 
-### 3.9.0
-+ Update `common-j` to 3.31.0
+### 3.10.0
++ Update `common-j` to 3.31.6
 + Removed session-alias as argument for publish pins. Please use filter instead
 
+### 3.9.0
++ Added testFixtures as test utils for rules
 
 ### 3.8.0
 + Update `common-j` to 3.21.2
