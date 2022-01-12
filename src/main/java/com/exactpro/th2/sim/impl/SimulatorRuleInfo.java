@@ -114,16 +114,21 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull Message msg) {
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         send(AnyMessage.newBuilder().setMessage(msg).build());
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
+        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         send(AnyMessage.newBuilder().setRawMessage(msg).build());
     }
 
     private void send(@NotNull AnyMessage msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
+        if (msg.getKindCase().equals(AnyMessage.KindCase.KIND_NOT_SET)) {
+            throw new UnsupportedOperationException("Unsupported kind of AnyMessage");
+        }
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
