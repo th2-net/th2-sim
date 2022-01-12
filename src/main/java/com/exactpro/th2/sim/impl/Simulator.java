@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
+import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.message.MessageUtils;
@@ -80,7 +81,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private DefaultRulesTurnOffStrategy strategy;
     private MessageRouter<MessageBatch> router;
     private MessageRouter<EventBatch> eventRouter;
-    private String rootEventId;
+    private EventID rootEventId;
 
     @Override
     public void init(@NotNull AbstractCommonFactory factory) throws Exception {
@@ -116,16 +117,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         eventRouter = factory.getEventBatchRouter();
         rootEventId = factory.getRootEventId();
-        if (rootEventId == null) {
-            Event event = createEvent("Simulator - RootEvent", null, null);
-            if (event != null) {
-                eventRouter.send(EventBatch.newBuilder()
-                        .addEvents(event)
-                        .build());
-
-                rootEventId = event.getId().getId();
-            }
-        }
     }
 
     @Override
@@ -144,7 +135,20 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
-        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
+        ruleIds.put(
+                id,
+                new SimulatorRuleInfo(
+                        id,
+                        rule,
+                        false,
+                        sessionAlias,
+                        router,
+                        eventRouter,
+                        event == null ? rootEventId : event.getId(),
+                        scheduler,
+                        this::removeRule
+                )
+        );
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
 
         return RuleID.newBuilder().setId(id).build();
@@ -309,7 +313,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Nullable
-    private Event createEvent(String name, String body, String rootEventId) {
+    private Event createEvent(String name, String body, EventID rootEventId) {
         com.exactpro.th2.common.event.bean.Message bodyData = null;
         if (body != null) {
             bodyData = new com.exactpro.th2.common.event.bean.Message();
@@ -328,15 +332,21 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 tmp.bodyData(bodyData);
             }
 
-            return tmp.toProtoEvent(rootEventId);
+            return tmp.toProto(rootEventId);
         } catch (JsonProcessingException e) {
-            logger.error("Can not create event for router with name '{}', body '{}' and rootEventId = {}",name, body, rootEventId, e);
+            logger.error(
+                    "Can not create event for router with name '{}', body '{}' and rootEventId = `{}`",
+                    name,
+                    body,
+                    TextFormat.shortDebugString(rootEventId),
+                    e
+            );
         }
 
         return null;
     }
 
-    private Event sendEvent(String name, String body, String rootEventId) {
+    private Event sendEvent(String name, String body, EventID rootEventId) {
         logger.info(name);
 
         Event event = createEvent(name, body, rootEventId);
