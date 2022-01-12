@@ -131,7 +131,7 @@ spec:
 ## Changelog
 
 ### 5.0.0
-+ Updated rule context, supports message groups as output of rule
++ Updated rule context, supports message groups and raw message as output of rule
 
 ### 4.0.0
 + Update `common-j` to 3.31.6
