@@ -17,11 +17,15 @@
 package com.exactpro.th2.sim.template.rule.test.api
 
 import com.exactpro.th2.common.assertEqualBatches
+import com.exactpro.th2.common.assertEqualGroups
 import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
+import com.exactpro.th2.common.grpc.MessageGroup
+import com.exactpro.th2.common.grpc.MessageGroupBatch
+import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
 import com.exactpro.th2.sim.rule.action.IAction
@@ -50,7 +54,7 @@ import java.util.concurrent.TimeUnit
  * @constructor Creates a rule context for tests.
  */
 class TestRuleContext private constructor(private val speedUp: Int, val shutdownTimeout: Long) : IRuleContext, AutoCloseable {
-    private val messageSender = MessageSender(this::send, this::send)
+    private val messageSender = MessageSender(this::send, this::send, this::send)
 
     private val cancellables: Deque<ICancellable> = ConcurrentLinkedDeque()
     private val scheduledExecutorService: ScheduledExecutorService =  Executors.newScheduledThreadPool(1)
@@ -62,9 +66,14 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         logger.debug { "Message sent: ${TextFormat.shortDebugString(msg)}" }
     }
 
-    override fun send(batch: MessageBatch) {
-        results.add(batch)
-        logger.debug { "Batch sent: ${TextFormat.shortDebugString(batch)}" }
+    override fun send(msg: RawMessage) {
+        results.add(msg)
+        logger.debug { "Message sent: ${TextFormat.shortDebugString(msg)}" }
+    }
+
+    override fun send(group: MessageGroup) {
+        results.add(group)
+        logger.debug { "Batch sent: ${TextFormat.shortDebugString(group)}" }
     }
 
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
@@ -73,9 +82,15 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         })
     }
 
-    override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
+    override fun send(msg: RawMessage, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
-            send(batch)
+            send(msg)
+        })
+    }
+
+    override fun send(group: MessageGroup, delay: Long, timeUnit: TimeUnit) {
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
+            send(group)
         })
     }
 
@@ -191,7 +206,8 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         assertSent(expected::class.java) { actual: Any ->
             when (expected) {
                 is Message -> assertEqualMessages(expected, actual as Message) { failureMessage }
-                is MessageBatch -> assertEqualBatches(expected, actual as MessageBatch) { failureMessage }
+                is RawMessage -> assertEqualMessages(expected, actual as RawMessage) { failureMessage }
+                is MessageGroup -> assertEqualGroups(expected, actual as MessageGroup) { failureMessage }
                 is Event -> Assertions.assertEquals(expected, actual as Event) { failureMessage }
             }
         }

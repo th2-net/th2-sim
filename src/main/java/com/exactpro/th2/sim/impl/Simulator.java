@@ -32,6 +32,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.exactpro.th2.common.grpc.AnyMessage;
+import com.exactpro.th2.common.grpc.MessageGroup;
+import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -78,7 +81,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     private DefaultRulesTurnOffStrategy strategy;
-    private MessageRouter<MessageBatch> router;
+    private MessageRouter<MessageGroupBatch> router;
     private MessageRouter<EventBatch> eventRouter;
     private String rootEventId;
 
@@ -96,22 +99,31 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             logger.info("Can not find custom configuration. Use '{}' for default rules starategy", this.strategy);
         }
 
-        this.router = factory.getMessageRouterParsedBatch();
+        this.router = factory.getMessageRouterMessageGroupBatch();
         router.subscribeAll((consumerTag, batch) -> {
-            for (Message message : batch.getMessagesList()) {
-                String sessionAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
-                if (StringUtils.isNotEmpty(sessionAlias)) {
-                    try {
-                        handleMessage(sessionAlias, message);
-                    } catch (Exception e) {
-                        logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
+            for (MessageGroup messageGroup: batch.getGroupsList()) {
+                for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
+
+                    if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
+                        logger.debug("Unsupported format of incoming message: {}", AnyMessage.KindCase.RAW_MESSAGE.name());
+                        continue;
                     }
-                } else {
-                    if (logger.isWarnEnabled()) {
-                        logger.warn("Skip message, because session alias is empty. Message = {}", TextFormat.shortDebugString(message));
+                    Message message = anyMessage.getMessage();
+                    String sessionAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
+                    if (StringUtils.isNotEmpty(sessionAlias)) {
+                        try {
+                            handleMessage(sessionAlias, message);
+                        } catch (Exception e) {
+                            logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
+                        }
+                    } else {
+                        if (logger.isWarnEnabled()) {
+                            logger.warn("Skip message, because session alias is empty. Message = {}", TextFormat.shortDebugString(message));
+                        }
                     }
                 }
             }
+
         }, "first", "subscribe", "parsed");
 
         eventRouter = factory.getEventBatchRouter();
