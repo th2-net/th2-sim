@@ -57,7 +57,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final MessageRouter<MessageBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
     private final MessageRouter<EventBatch> eventRouter;
-    private final String rootEventId;
+    private final EventID rootEventId;
     private final Consumer<SimulatorRuleInfo> onRemove;
     private final Deque<ICancellable> cancellables = new ConcurrentLinkedDeque<>();
     private final MessageSender sender = new MessageSender(this::send, this::send);
@@ -69,7 +69,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             @NotNull String sessionAlias,
             @NotNull MessageRouter<MessageBatch> router,
             @NotNull MessageRouter<EventBatch> eventRouter,
-            @NotNull String rootEventId,
+            @NotNull EventID rootEventId,
             @NotNull ScheduledExecutorService scheduledExecutorService,
             @NotNull Consumer<SimulatorRuleInfo> onRemove
     ) {
@@ -195,7 +195,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     @Override
-    public String getRootEventId() {
+    public EventID getRootEventId() {
         return rootEventId;
     }
 
@@ -203,7 +203,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void sendEvent(Event event) {
         com.exactpro.th2.common.grpc.Event eventForSend = null;
         try {
-            eventForSend = event.toProtoEvent(rootEventId);
+            eventForSend = event.toProto(rootEventId);
             eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
         } catch (IOException e) {
             String msg = String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
@@ -230,7 +230,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
         if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
             resultBuilder = msg.toBuilder();
-            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+            resultBuilder.setParentEventId(rootEventId);
         }
 
         if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias())) {

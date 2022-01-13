@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.common.event.Event;
+import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.sim.rule.action.IAction;
@@ -67,7 +68,7 @@ public interface IRuleContext {
      */
     ICancellable execute(long delay, long period, @NotNull IAction action);
 
-    String getRootEventId();
+    EventID getRootEventId();
 
     /**
      * Attempts to send an event immediately

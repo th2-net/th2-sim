@@ -20,8 +20,10 @@ import com.exactpro.th2.common.assertEqualBatches
 import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
+import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
+import com.exactpro.th2.common.schema.box.configuration.BoxConfiguration
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
 import com.exactpro.th2.sim.rule.action.IAction
@@ -33,6 +35,7 @@ import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.fail
 import java.time.Duration
+import java.time.Instant
 import java.util.Deque
 import java.util.LinkedList
 import java.util.Queue
@@ -88,9 +91,11 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     override fun execute(delay: Long, period: Long, action: IAction): ICancellable =
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay / speedUp, period / speedUp, action))
 
-    override fun getRootEventId(): String {
-        return "testEventID"
-    }
+    override fun getRootEventId() = toEventID(
+        Instant.now(),
+        BoxConfiguration.DEFAULT_BOOK_NAME,
+        "testEventID",
+    )
 
     override fun sendEvent(event: Event) {
         results.add(event)
