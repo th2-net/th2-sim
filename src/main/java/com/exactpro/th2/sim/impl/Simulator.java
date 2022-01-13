@@ -156,7 +156,23 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void addDefaultRule(RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), router, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
+        if (ruleIds.computeIfPresent(
+                ruleID.getId(),
+                (k, v) -> v.isDefault()
+                        ? v
+                        :
+                        new SimulatorRuleInfo(
+                                v.getId(),
+                                v.getRule(),
+                                true,
+                                v.getSessionAlias(),
+                                router,
+                                eventRouter,
+                                v.getRootEventId(),
+                                scheduler,
+                                this::removeRule
+                        )
+        ) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
