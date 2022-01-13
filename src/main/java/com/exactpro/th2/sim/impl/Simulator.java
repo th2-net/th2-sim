@@ -350,13 +350,15 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
             return tmp.toProto(rootEventId);
         } catch (JsonProcessingException e) {
-            logger.error(
-                    "Can not create event for router with name '{}', body '{}' and rootEventId = `{}`",
-                    name,
-                    body,
-                    TextFormat.shortDebugString(rootEventId),
-                    e
-            );
+            if (logger.isErrorEnabled()) {
+                logger.error(
+                        "Can not create event for router with name '{}', body '{}' and rootEventId = `{}`",
+                        name,
+                        body,
+                        TextFormat.shortDebugString(rootEventId),
+                        e
+                );
+            }
         }
 
         return null;
