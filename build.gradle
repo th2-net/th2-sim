@@ -188,3 +188,5 @@ sourceSets {
 clean {
     delete sharedDir
 }
+
+javadoc.enabled = false

@@ -18,6 +18,8 @@ package com.exactpro.th2.sim.rule.action
 
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
+import com.exactpro.th2.common.grpc.MessageGroup
+import com.exactpro.th2.common.grpc.RawMessage
 
 /**
  * Represents a scope on which an action is executed on.
@@ -44,23 +46,42 @@ interface IExecutionScope : ICancellable {
     fun send(message: Message, delay: Long, period: Long): ICancellable
 
     /**
-     * Attempts to send a message [batch] immediately
+     * Attempts to send a [message] immediately
      * @return an entity which can be used cancel this operation
      */
-    fun send(batch: MessageBatch): ICancellable
+    fun send(message: RawMessage): ICancellable
 
     /**
-     * Attempts to send a message [batch] after a specified [delay]
+     * Attempts to send a [message] after a specified [delay]
      * @return an entity which can be used cancel this operation
      */
-    fun send(batch: MessageBatch, delay: Long): ICancellable
+    fun send(message: RawMessage, delay: Long): ICancellable
 
     /**
-     * Attempts to send a message [batch] after a specified [delay] and
+     * Attempts to send a [message] after a specified [delay] and
      * then periodically using a specified [period]
      * @return an entity which can be used cancel this operation
      */
-    fun send(batch: MessageBatch, delay: Long, period: Long): ICancellable
+    fun send(message: RawMessage, delay: Long, period: Long): ICancellable
+
+    /**
+     * Attempts to send a message [group] immediately
+     * @return an entity which can be used cancel this operation
+     */
+    fun send(group: MessageGroup): ICancellable
+
+    /**
+     * Attempts to send a message [group] after a specified [delay]
+     * @return an entity which can be used cancel this operation
+     */
+    fun send(group: MessageGroup, delay: Long): ICancellable
+
+    /**
+     * Attempts to send a message [group] after a specified [delay] and
+     * then periodically using a specified [period]
+     * @return an entity which can be used cancel this operation
+     */
+    fun send(group: MessageGroup, delay: Long, period: Long): ICancellable
 
     /**
      * Attempts to execute an [action].

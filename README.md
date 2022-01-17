@@ -1,5 +1,5 @@
 # Simulator core
-![version](https://img.shields.io/badge/version-4.0.0-blue.svg)
+![version](https://img.shields.io/badge/version-4.1.0-blue.svg)
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -23,7 +23,7 @@ The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message bathes to pins with the attributes ``second``, ``publish``, ``parsed`` \
+Simulator sends message group to pins with the attributes ``second``, ``publish`` \
 _From **4.0.0** there no session-alias attribute anymore, please use **filter** instead._
 
 *Example:*
@@ -40,13 +40,13 @@ _From **4.0.0** there no session-alias attribute anymore, please use **filter** 
       "name": "send1_name",
       "queue": "send1_queue",
       "exchange": "send1_exchange",
-      "attributes": ["second", "publish", "parsed"]
+      "attributes": ["second", "publish"]
     },
     "send2": {
       "name": "send2_name",
       "queue": "send2_queue",
       "exchange": "send2_exchange",
-      "attributes": ["second", "publish", "parsed"]
+      "attributes": ["second", "publish"]
     }
   }
 }
@@ -108,7 +108,6 @@ spec:
       attributes:
         - second
         - publish
-        - parsed
       filters:
         - metadata:
             - field-name: session_alias
@@ -120,7 +119,6 @@ spec:
       attributes:
         - second
         - publish
-        - parsed
       filters:
         - metadata:
             - field-name: session_alias
@@ -130,6 +128,8 @@ spec:
 
 ## Changelog
 
+### 4.1.0
++ Updated rule context, supports message groups and raw message as output of rule
 
 ### 4.0.0
 + Update `common-j` to 3.31.6
