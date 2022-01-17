@@ -40,13 +40,13 @@ _From **4.0.0** there no session-alias attribute anymore, please use **filter** 
       "name": "send1_name",
       "queue": "send1_queue",
       "exchange": "send1_exchange",
-      "attributes": ["second", "publish", "parsed"]
+      "attributes": ["second", "publish"]
     },
     "send2": {
       "name": "send2_name",
       "queue": "send2_queue",
       "exchange": "send2_exchange",
-      "attributes": ["second", "publish", "parsed"]
+      "attributes": ["second", "publish"]
     }
   }
 }
@@ -108,7 +108,6 @@ spec:
       attributes:
         - second
         - publish
-        - parsed
       filters:
         - metadata:
             - field-name: session_alias
@@ -120,7 +119,6 @@ spec:
       attributes:
         - second
         - publish
-        - parsed
       filters:
         - metadata:
             - field-name: session_alias
