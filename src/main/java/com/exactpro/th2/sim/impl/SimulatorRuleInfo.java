@@ -331,7 +331,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
     }
 
-    private MessageGroup batchToGroup(MessageBatch batch) {
+    private MessageGroup batchToGroup(@NotNull MessageBatch batch) {
         MessageGroup.Builder group = MessageGroup.newBuilder();
         batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
         return group.build();
