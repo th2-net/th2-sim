@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,12 @@ public interface IRuleContext {
     void send(@NotNull MessageGroup group);
 
     /**
+     * Attempts to send a batch immediately
+     */
+    @Deprecated
+    void send(@NotNull MessageBatch batch);
+
+    /**
      * Attempts to send a raw msg after a specified delay
      */
     void send(@NotNull RawMessage msg, long delay, TimeUnit timeUnit);
@@ -59,6 +65,12 @@ public interface IRuleContext {
      * Attempts to send a group after a specified delay
      */
     void send(@NotNull MessageGroup group, long delay, TimeUnit timeUnit);
+
+    /**
+     * Attempts to send a batch after a specified delay
+     */
+    @Deprecated
+    void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit);
 
     /**
      * Attempts to execute action immediately

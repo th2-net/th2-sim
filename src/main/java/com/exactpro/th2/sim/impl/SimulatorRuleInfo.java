@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull MessageGroup group) {
-        Objects.requireNonNull(group, () -> "Null batch supplied from rule " + id);
+        Objects.requireNonNull(group, () -> "Null group supplied from rule " + id);
 
         if (group.getMessagesCount() < 1) {
             return;
@@ -147,6 +147,13 @@ public class SimulatorRuleInfo implements IRuleContext {
 
         MessageGroup groupForSend = prepareMessageGroup(group);
         sendGroup(groupForSend);
+    }
+
+    @Override
+    @Deprecated
+    public void send(@NotNull MessageBatch batch) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+        send(batchToGroup(batch));
     }
 
     private long checkDelay(long delay) {
@@ -190,7 +197,24 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
 
         MessageGroup groupForSend = prepareMessageGroup(group);
+        scheduledExecutorService.schedule(() -> sendGroup(groupForSend), delay, timeUnit);
+    }
 
+    /**
+     * @deprecated Will be removed in future releases. Please use send(MessageGroup) to improve performance.
+     */
+    @Override
+    @Deprecated
+    public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
+        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
+        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
+        checkDelay(delay);
+
+        if (batch.getMessagesCount() < 1) {
+            return;
+        }
+
+        MessageGroup groupForSend = prepareMessageGroup(batchToGroup(batch));
         scheduledExecutorService.schedule(() -> sendGroup(groupForSend), delay, timeUnit);
     }
 
@@ -305,5 +329,11 @@ public class SimulatorRuleInfo implements IRuleContext {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private MessageGroup batchToGroup(MessageBatch batch) {
+        MessageGroup.Builder group = MessageGroup.newBuilder();
+        batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
+        return group.build();
     }
 }
