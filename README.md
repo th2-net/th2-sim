@@ -23,7 +23,7 @@ The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message group bathes to pins with the attributes ``second``, ``publish``, ``parsed`` \
+Simulator sends message group to pins with the attributes ``second``, ``publish`` \
 _From **4.0.0** there no session-alias attribute anymore, please use **filter** instead._
 
 *Example:*
