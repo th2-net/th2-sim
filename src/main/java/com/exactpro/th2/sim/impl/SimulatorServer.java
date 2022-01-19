@@ -51,8 +51,6 @@ import static java.util.Collections.emptyList;
  */
 public class SimulatorServer implements ISimulatorServer {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
     private AbstractCommonFactory factory;

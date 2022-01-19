@@ -19,6 +19,7 @@ import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,11 +33,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.exactpro.th2.common.event.EventUtils;
+
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -46,7 +50,6 @@ import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.Message;
-import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.common.schema.message.MessageRouter;
@@ -103,7 +106,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         router.subscribeAll((consumerTag, batch) -> {
             for (MessageGroup messageGroup: batch.getGroupsList()) {
                 for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
-
                     if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
                         logger.debug("Unsupported format of incoming message: {}", AnyMessage.KindCase.RAW_MESSAGE.name());
                         continue;
@@ -129,7 +131,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         eventRouter = factory.getEventBatchRouter();
         rootEventId = factory.getRootEventId();
         if (rootEventId == null) {
-            Event event = createEvent("Simulator - RootEvent", null, null);
+            Event event = createEvent("Simulator - RootEvent", (String) null, null);
             if (event != null) {
                 eventRouter.send(EventBatch.newBuilder()
                         .addEvents(event)
@@ -152,7 +154,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         int id = nextId.incrementAndGet();
 
 
-        Event event = sendEvent(String.format("Rule with class name '%s' for session alias '%s' with id '%s' was added to simulator", rule.getClass().getSimpleName(), sessionAlias, id),
+        Event event = sendEvent(String.format("%s.%s [%s] [%s] rule was added to simulator", id, rule.getClass().getSimpleName(), sessionAlias, LocalDateTime.now()),
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
@@ -181,9 +183,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         if (rule != null) {
             rule.removeRule();
+            sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
         }
 
-        responseObserver.onNext(Empty.newBuilder().build());
+        responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
@@ -191,16 +194,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
         int id = rule.getId();
 
-        if (ids != null && !ids.isEmpty()) {
-            ids.remove(id);
-        }
+        if (ids != null && !ids.isEmpty() && ids.remove(id)) {
+            if (rule.isDefault()) {
+                countDefaultRules.decrementAndGet();
+                logger.warn("Removed default rule with id = {}", id);
+            }
 
-        if (rule.isDefault()) {
-            countDefaultRules.decrementAndGet();
-            logger.warn("Removed default rule with id = {}", id);
+            sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
         }
-
-        sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
     }
 
     @Override
@@ -236,6 +237,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void handleMessage(String sessionAlias, Message message) {
         if (logger.isDebugEnabled()) {
             logger.debug("Handle message from session alias '{}' = {}", sessionAlias, message.getMetadata().getMessageType());
+        }
+
+        if (ruleIds.isEmpty()) {
+            loggingTriggeredRules(Collections.emptySet(), false);
         }
 
         Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
@@ -275,8 +280,12 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 logger.debug("Skip rule with id '{}', because it is default rule", triggeredRule.getId());
                 continue;
             }
+            try {
+                triggeredRule.handle(message);
+            } catch (Exception e) {
+                sendErrorEvent("Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
+            }
 
-            triggeredRule.handle(message);
         }
 
         loggingTriggeredRules(triggeredRules, useDefault);
@@ -305,6 +314,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private void loggingTriggeredRules(Set<SimulatorRuleInfo> triggeredRules, boolean useDefault) {
         if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
 
+            if (triggeredRules.isEmpty()) {
+                logger.debug("No rules was triggered");
+            }
+
             Stream<SimulatorRuleInfo> stream = triggeredRules.stream();
             if (!useDefault) {
                 stream = stream.filter(it -> !it.isDefault());
@@ -320,27 +333,47 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    @Nullable
-    private Event createEvent(String name, String body, String rootEventId) {
-        com.exactpro.th2.common.event.bean.Message bodyData = null;
-        if (body != null) {
-            bodyData = new com.exactpro.th2.common.event.bean.Message();
-            bodyData.setType("message");
-            bodyData.setData(body);
+    private Event sendErrorEvent(String name, String rootEventId, Throwable throwable) {
+        var errorMessages = new HashSet<String>();
+
+        var error = throwable;
+        while (error != null) {
+            errorMessages.add(ExceptionUtils.getMessage(error));
+            error = error.getCause();
         }
 
+        Event event = createEvent(name, errorMessages, rootEventId);
+        if (event != null) {
+            try {
+                eventRouter.send(EventBatch.newBuilder().addEvents(event).build());
+            } catch (IOException e) {
+                logger.error("Can not send event = {}", MessageUtils.toJson(event), e);
+                return null;
+            }
+        }
+        return event;
+    }
+
+    @Nullable
+    private Event createEvent(String name, String body, String rootEventId) {
+        if (body != null) {
+            return createEvent(name, Collections.singleton(body), rootEventId);
+        }
+        return createEvent(name, Collections.emptySet(), rootEventId);
+    }
+
+    @Nullable
+    private Event createEvent(String name, @NotNull Set<String> body, String rootEventId) {
         try {
-            com.exactpro.th2.common.event.Event tmp = com.exactpro.th2.common.event.Event.start().endTimestamp()
+            var result = com.exactpro.th2.common.event.Event.start().endTimestamp()
                     .name(name)
                     .description(Instant.now().toString())
                     .type("event")
                     .status(com.exactpro.th2.common.event.Event.Status.PASSED);
 
-            if (bodyData != null) {
-                tmp.bodyData(bodyData);
-            }
+            body.forEach(bodyText -> result.bodyData(EventUtils.createMessageBean(bodyText)));
 
-            return tmp.toProtoEvent(rootEventId);
+            return result.toProtoEvent(rootEventId);
         } catch (JsonProcessingException e) {
             logger.error("Can not create event for router with name '{}', body '{}' and rootEventId = {}",name, body, rootEventId, e);
         }
