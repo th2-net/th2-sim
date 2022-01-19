@@ -41,9 +41,12 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -142,49 +145,54 @@ public class SimulatorServer implements ISimulatorServer {
 
     private void addDefaultRules(ISimulatorPart tmp, List<DefaultRuleConfiguration> defaultRules) {
         Class<? extends ISimulatorPart> serviceClass = tmp.getClass();
-        Method[] methods = serviceClass.getDeclaredMethods();
-        for (Method method : methods) {
+        Map<String, Method> methods = Arrays.stream(serviceClass.getDeclaredMethods()).collect(Collectors.toMap(Method::getName, method -> method));
 
-            if (method.getParameterCount() == 2) {
-                Class<?>[] parameterTypes = method.getParameterTypes();
+        for (DefaultRuleConfiguration configuration : defaultRules) {
+            var method = methods.get(configuration.getMethodName());
 
-                defaultRules.stream().filter(it -> it.getMethodName().equals(method.getName())).forEach(it -> {
-                    DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
-
-                    Object request = null;
-                    JsonNode ruleRequest = it.getSettings();
-
-                    if (ruleRequest != null) {
-                        try {
-                            Builder builder = getBuilder(parameterTypes[0]);
-                            if (builder != null) {
-                                JsonFormat.parser().merge(ruleRequest.toString(), builder);
-                                request = builder.build();
-                            } else {
-                                logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
-                            }
-                        } catch (Exception e) {
-                            logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
-                        }
-                    }
-
-                    if (request == null) {
-                        logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
-                    }
-
-                    try {
-                        method.invoke(tmp, request, defaultSetterObserver);
-                    } catch (Exception ex) {
-                        var message = String.format("Can't execute (default rule creation) method: '%s' in class '%s'", method.getName(), serviceClass);
-                        EventUtils.sendErrorEvent(eventRouter, message, rootEventId, ex);
-                        logger.error(message, ex);
-                        return;
-                    }
-
-                    defaultSetterObserver.waitFinished();
-                });
-
+            if (method == null || method.getParameterCount() != 2) {
+                var message = String.format("Can't find method from configuration: '%s' in class '%s'", configuration.getMethodName(), serviceClass);
+                EventUtils.sendErrorEvent(eventRouter, message, rootEventId, null);
+                logger.error(message);
+                continue;
             }
+
+            Class<?>[] parameterTypes = method.getParameterTypes();
+
+            DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
+
+            Object request = null;
+            JsonNode ruleRequest = configuration.getSettings();
+
+            if (ruleRequest != null) {
+                try {
+                    Builder builder = getBuilder(parameterTypes[0]);
+                    if (builder != null) {
+                        JsonFormat.parser().merge(ruleRequest.toString(), builder);
+                        request = builder.build();
+                    } else {
+                        logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
+                }
+            }
+
+            if (request == null) {
+                logger.warn("Trying to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
+            }
+
+            try {
+                method.invoke(tmp, request, defaultSetterObserver);
+            } catch (Exception ex) {
+                var message = String.format("Can't execute (default rule creation) method: '%s' in class '%s'", method.getName(), serviceClass);
+                EventUtils.sendErrorEvent(eventRouter, message, rootEventId, ex);
+                logger.error(message, ex);
+                return;
+            }
+
+            defaultSetterObserver.waitFinished();
+
         }
     }
 
