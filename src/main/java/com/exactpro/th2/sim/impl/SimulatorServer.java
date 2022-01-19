@@ -15,15 +15,19 @@
  */
 package com.exactpro.th2.sim.impl;
 
+import com.exactpro.th2.common.grpc.Event;
+import com.exactpro.th2.common.grpc.EventBatch;
+import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
+import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.ISimulatorPart;
 import com.exactpro.th2.sim.ISimulatorServer;
 import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
+import com.exactpro.th2.sim.util.EventUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Message.Builder;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.BindableService;
@@ -37,9 +41,12 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -51,13 +58,13 @@ import static java.util.Collections.emptyList;
  */
 public class SimulatorServer implements ISimulatorServer {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
     private AbstractCommonFactory factory;
     private ISimulator simulator;
     private Server server;
+    private String rootEventId;
+    private MessageRouter<EventBatch> eventRouter;
 
     @Override
     public void init(@NotNull AbstractCommonFactory commonFactory, @NotNull Class<? extends ISimulator> simulatorClass) {
@@ -66,8 +73,21 @@ public class SimulatorServer implements ISimulatorServer {
         Objects.requireNonNull(simulatorClass, "Simulator class can not be null");
 
         try {
+            MessageRouter<MessageGroupBatch> batchRouter = factory.getMessageRouterMessageGroupBatch();
+            SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+
+            eventRouter = factory.getEventBatchRouter();
+            rootEventId = factory.getRootEventId();
+
+            if (rootEventId == null) {
+                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null, null);
+                if (event != null) {
+                    rootEventId = event.getId().getId();
+                }
+            }
+
             simulator = simulatorClass.getConstructor().newInstance();
-            simulator.init(factory);
+            simulator.init(batchRouter, eventRouter, configuration, rootEventId);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {
@@ -76,12 +96,11 @@ public class SimulatorServer implements ISimulatorServer {
     }
 
     @Override
-    public boolean start() {
+    public void start() {
         logger.debug("Try to start simulator server");
 
         if (server != null) {
             logger.debug("Simulator server have already started");
-            return false;
         }
 
         logger.debug("Try to get all defaults rules");
@@ -119,56 +138,61 @@ public class SimulatorServer implements ISimulatorServer {
             logger.debug("Simulator server is starting.");
             server.start();
             logger.info("Simulator server was started.");
-            return true;
         } catch (IOException e) {
-            logger.error("Can not start simulator server.", e);
-            return false;
+            logger.error("Can not start simulator server", e);
         }
     }
 
     private void addDefaultRules(ISimulatorPart tmp, List<DefaultRuleConfiguration> defaultRules) {
         Class<? extends ISimulatorPart> serviceClass = tmp.getClass();
-        Method[] methods = serviceClass.getDeclaredMethods();
-        for (Method method : methods) {
+        Map<String, Method> methods = Arrays.stream(serviceClass.getDeclaredMethods()).collect(Collectors.toMap(Method::getName, method -> method));
 
-            if (method.getParameterCount() == 2) {
-                Class<?>[] parameterTypes = method.getParameterTypes();
+        for (DefaultRuleConfiguration configuration : defaultRules) {
+            var method = methods.get(configuration.getMethodName());
 
-                defaultRules.stream().filter(it -> it.getMethodName().equals(method.getName())).forEach(it -> {
-                    DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
-
-                    Object request = null;
-                    JsonNode ruleRequest = it.getSettings();
-
-                    if (ruleRequest != null) {
-                        try {
-                            Builder builder = getBuilder(parameterTypes[0]);
-                            if (builder != null) {
-                                JsonFormat.parser().merge(ruleRequest.toString(), builder);
-                                request = builder.build();
-                            } else {
-                                logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
-                            }
-                        } catch (Exception e) {
-                            logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
-                        }
-                    }
-
-                    if (request == null) {
-                        logger.warn("Try to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
-                    }
-
-                    try {
-                        method.invoke(tmp, request, defaultSetterObserver);
-                    } catch (Exception ex) {
-                        logger.error("Can not execute method: '{}' in class '{}'", method.getName(), serviceClass, ex);
-                        return;
-                    }
-
-                    defaultSetterObserver.waitFinished();
-                });
-
+            if (method == null || method.getParameterCount() != 2) {
+                var message = String.format("Can't find method from configuration: '%s' in class '%s'", configuration.getMethodName(), serviceClass);
+                EventUtils.sendErrorEvent(eventRouter, message, rootEventId, null);
+                logger.error(message);
+                continue;
             }
+
+            Class<?>[] parameterTypes = method.getParameterTypes();
+
+            DefaultSetterObserver defaultSetterObserver = new DefaultSetterObserver(simulator, logger, method.getName(), serviceClass);
+
+            Object request = null;
+            JsonNode ruleRequest = configuration.getSettings();
+
+            if (ruleRequest != null) {
+                try {
+                    Builder builder = getBuilder(parameterTypes[0]);
+                    if (builder != null) {
+                        JsonFormat.parser().merge(ruleRequest.toString(), builder);
+                        request = builder.build();
+                    } else {
+                        logger.warn("Can not build request for class: '{}'", parameterTypes[0]);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Can not parse rule request to class: '{}'", parameterTypes[0], e);
+                }
+            }
+
+            if (request == null) {
+                logger.warn("Trying to send null request in method '{}' in class '{}'", method.getName(), serviceClass);
+            }
+
+            try {
+                method.invoke(tmp, request, defaultSetterObserver);
+            } catch (Exception ex) {
+                var message = String.format("Can't execute (default rule creation) method: '%s' in class '%s'", method.getName(), serviceClass);
+                EventUtils.sendErrorEvent(eventRouter, message, rootEventId, ex);
+                logger.error(message, ex);
+                return;
+            }
+
+            defaultSetterObserver.waitFinished();
+
         }
     }
 
