@@ -132,9 +132,15 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-        Event event = EventUtils.sendEvent(eventRouter, String.format("%s [id:%s] [%s] [%s] rule was added to simulator", rule.getClass().getSimpleName(), id, sessionAlias, LocalDateTime.now()),
+        String infoMsg = String.format("%s [id:%s] [%s] [%s] rule was added to simulator", rule.getClass().getSimpleName(), id, sessionAlias, LocalDateTime.now());
+
+        logger.info(infoMsg);
+        Event event = EventUtils.sendEvent(
+                eventRouter,
+                infoMsg,
                 String.format("Rule class = %s", rule.getClass().getName()),
-                rootEventId);
+                rootEventId
+        );
 
         ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
