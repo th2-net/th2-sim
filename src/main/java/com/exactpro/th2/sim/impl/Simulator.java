@@ -132,7 +132,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-        Event event = EventUtils.sendEvent(eventRouter, String.format("%s.%s [%s] [%s] rule was added to simulator", id, rule.getClass().getSimpleName(), sessionAlias, LocalDateTime.now()),
+        Event event = EventUtils.sendEvent(eventRouter, String.format("%s [id:%s] [%s] [%s] rule was added to simulator", rule.getClass().getSimpleName(), id, sessionAlias, LocalDateTime.now()),
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
