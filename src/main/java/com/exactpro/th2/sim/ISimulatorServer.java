@@ -33,9 +33,8 @@ public interface ISimulatorServer extends Closeable {
 
     /**
      * Start server
-     * @return server was start
      */
-    boolean start();
+    void start();
 
     /**
      * Wait while server is running

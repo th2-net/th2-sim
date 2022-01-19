@@ -15,15 +15,19 @@
  */
 package com.exactpro.th2.sim.impl;
 
+import com.exactpro.th2.common.grpc.Event;
+import com.exactpro.th2.common.grpc.EventBatch;
+import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
+import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.ISimulatorPart;
 import com.exactpro.th2.sim.ISimulatorServer;
 import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
+import com.exactpro.th2.sim.util.EventUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Message.Builder;
 import com.google.protobuf.util.JsonFormat;
 import io.grpc.BindableService;
@@ -56,6 +60,8 @@ public class SimulatorServer implements ISimulatorServer {
     private AbstractCommonFactory factory;
     private ISimulator simulator;
     private Server server;
+    private String rootEventId;
+    private MessageRouter<EventBatch> eventRouter;
 
     @Override
     public void init(@NotNull AbstractCommonFactory commonFactory, @NotNull Class<? extends ISimulator> simulatorClass) {
@@ -64,8 +70,21 @@ public class SimulatorServer implements ISimulatorServer {
         Objects.requireNonNull(simulatorClass, "Simulator class can not be null");
 
         try {
+            MessageRouter<MessageGroupBatch> batchRouter = factory.getMessageRouterMessageGroupBatch();
+            SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+
+            eventRouter = factory.getEventBatchRouter();
+            rootEventId = factory.getRootEventId();
+
+            if (rootEventId == null) {
+                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null, null);
+                if (event != null) {
+                    rootEventId = event.getId().getId();
+                }
+            }
+
             simulator = simulatorClass.getConstructor().newInstance();
-            simulator.init(factory);
+            simulator.init(batchRouter, eventRouter, configuration, rootEventId);
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {
@@ -74,12 +93,11 @@ public class SimulatorServer implements ISimulatorServer {
     }
 
     @Override
-    public boolean start() {
+    public void start() {
         logger.debug("Try to start simulator server");
 
         if (server != null) {
             logger.debug("Simulator server have already started");
-            return false;
         }
 
         logger.debug("Try to get all defaults rules");
@@ -117,10 +135,8 @@ public class SimulatorServer implements ISimulatorServer {
             logger.debug("Simulator server is starting.");
             server.start();
             logger.info("Simulator server was started.");
-            return true;
         } catch (IOException e) {
-            logger.error("Can not start simulator server.", e);
-            return false;
+            logger.error("Can not start simulator server", e);
         }
     }
 
@@ -159,7 +175,9 @@ public class SimulatorServer implements ISimulatorServer {
                     try {
                         method.invoke(tmp, request, defaultSetterObserver);
                     } catch (Exception ex) {
-                        logger.error("Can not execute method: '{}' in class '{}'", method.getName(), serviceClass, ex);
+                        var message = String.format("Can't execute (default rule creation) method: '%s' in class '%s'", method.getName(), serviceClass);
+                        EventUtils.sendErrorEvent(eventRouter, message, rootEventId, ex);
+                        logger.error(message, ex);
                         return;
                     }
 

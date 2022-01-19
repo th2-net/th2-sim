@@ -131,6 +131,7 @@ spec:
 ### 4.1.0
 + Event on error of message handle from rule
 + Updated text of event on rule creation
++ Event on error from default rule creation
 
 ### 4.1.0
 + Updated rule context, supports message groups and raw message as output of rule

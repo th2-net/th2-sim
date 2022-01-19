@@ -17,8 +17,6 @@ package com.exactpro.th2.sim.impl;
 
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-import java.io.IOException;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,26 +30,19 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.exactpro.th2.common.event.EventUtils;
-
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.sim.util.EventUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.Message;
-import com.exactpro.th2.common.message.MessageUtils;
-import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
@@ -62,7 +53,6 @@ import com.exactpro.th2.sim.grpc.RulesInfo;
 import com.exactpro.th2.sim.grpc.SimGrpc;
 import com.exactpro.th2.sim.grpc.TouchRequest;
 import com.exactpro.th2.sim.rule.IRule;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
 
@@ -84,26 +74,25 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     private DefaultRulesTurnOffStrategy strategy;
-    private MessageRouter<MessageGroupBatch> router;
+    private MessageRouter<MessageGroupBatch> batchRouter;
     private MessageRouter<EventBatch> eventRouter;
     private String rootEventId;
 
     @Override
-    public void init(@NotNull AbstractCommonFactory factory) throws Exception {
+    public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) {
 
-        if (this.router != null) {
+        if (this.batchRouter != null) {
             throw new IllegalStateException("Simulator already init");
         }
 
         try {
-            SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
             strategy = defaultIfNull(configuration.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
         } catch (IllegalStateException e) {
             logger.info("Can not find custom configuration. Use '{}' for default rules starategy", this.strategy);
         }
 
-        this.router = factory.getMessageRouterMessageGroupBatch();
-        router.subscribeAll((consumerTag, batch) -> {
+        this.batchRouter = batchRouter;
+        this.batchRouter.subscribeAll((consumerTag, batch) -> {
             for (MessageGroup messageGroup: batch.getGroupsList()) {
                 for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
                     if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
@@ -128,18 +117,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         }, "first", "subscribe", "parsed");
 
-        eventRouter = factory.getEventBatchRouter();
-        rootEventId = factory.getRootEventId();
-        if (rootEventId == null) {
-            Event event = createEvent("Simulator - RootEvent", (String) null, null);
-            if (event != null) {
-                eventRouter.send(EventBatch.newBuilder()
-                        .addEvents(event)
-                        .build());
-
-                rootEventId = event.getId().getId();
-            }
-        }
+        this.eventRouter = eventRouter;
+        this.rootEventId = rootEventId;
     }
 
     @Override
@@ -153,12 +132,11 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         int id = nextId.incrementAndGet();
 
-
-        Event event = sendEvent(String.format("%s.%s [%s] [%s] rule was added to simulator", id, rule.getClass().getSimpleName(), sessionAlias, LocalDateTime.now()),
+        Event event = EventUtils.sendEvent(eventRouter, String.format("%s.%s [%s] [%s] rule was added to simulator", id, rule.getClass().getSimpleName(), sessionAlias, LocalDateTime.now()),
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId);
 
-        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, router, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
+        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
         connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
 
         return RuleID.newBuilder().setId(id).build();
@@ -166,7 +144,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void addDefaultRule(RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), router, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
+        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), batchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
@@ -183,7 +161,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         if (rule != null) {
             rule.removeRule();
-            sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), null, rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -200,7 +178,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 logger.warn("Removed default rule with id = {}", id);
             }
 
-            sendEvent(String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
         }
     }
 
@@ -283,7 +261,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             try {
                 triggeredRule.handle(message);
             } catch (Exception e) {
-                sendErrorEvent("Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
+                EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
             }
 
         }
@@ -331,68 +309,5 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 logger.info("Triggered on message more one rule. Rules ids = [{}]", triggeredIdsString);
             }
         }
-    }
-
-    private Event sendErrorEvent(String name, String rootEventId, Throwable throwable) {
-        var errorMessages = new HashSet<String>();
-
-        var error = throwable;
-        while (error != null) {
-            errorMessages.add(ExceptionUtils.getMessage(error));
-            error = error.getCause();
-        }
-
-        Event event = createEvent(name, errorMessages, rootEventId);
-        if (event != null) {
-            try {
-                eventRouter.send(EventBatch.newBuilder().addEvents(event).build());
-            } catch (IOException e) {
-                logger.error("Can not send event = {}", MessageUtils.toJson(event), e);
-                return null;
-            }
-        }
-        return event;
-    }
-
-    @Nullable
-    private Event createEvent(String name, String body, String rootEventId) {
-        if (body != null) {
-            return createEvent(name, Collections.singleton(body), rootEventId);
-        }
-        return createEvent(name, Collections.emptySet(), rootEventId);
-    }
-
-    @Nullable
-    private Event createEvent(String name, @NotNull Set<String> body, String rootEventId) {
-        try {
-            var result = com.exactpro.th2.common.event.Event.start().endTimestamp()
-                    .name(name)
-                    .description(Instant.now().toString())
-                    .type("event")
-                    .status(com.exactpro.th2.common.event.Event.Status.PASSED);
-
-            body.forEach(bodyText -> result.bodyData(EventUtils.createMessageBean(bodyText)));
-
-            return result.toProtoEvent(rootEventId);
-        } catch (JsonProcessingException e) {
-            logger.error("Can not create event for router with name '{}', body '{}' and rootEventId = {}",name, body, rootEventId, e);
-        }
-
-        return null;
-    }
-
-    private Event sendEvent(String name, String body, String rootEventId) {
-        logger.info(name);
-
-        Event event = createEvent(name, body, rootEventId);
-        if (event != null) {
-            try {
-                eventRouter.send(EventBatch.newBuilder().addEvents(event).build());
-            } catch (IOException e) {
-                logger.error("Can not send event = {}", MessageUtils.toJson(event), e);
-                return null;
-            }
-        }
-        return event;
     }
 }

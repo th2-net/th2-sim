@@ -17,9 +17,12 @@ package com.exactpro.th2.sim;
 
 import java.io.Closeable;
 
+import com.exactpro.th2.common.grpc.EventBatch;
+import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import org.jetbrains.annotations.NotNull;
 
-import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.rule.IRule;
@@ -32,7 +35,7 @@ import io.grpc.BindableService;
  */
 public interface ISimulator extends BindableService, Closeable {
 
-    void init(@NotNull AbstractCommonFactory factory) throws Exception;
+    void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) throws Exception;
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
