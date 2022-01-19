@@ -1,5 +1,5 @@
 # Simulator core
-![version](https://img.shields.io/badge/version-4.2.0-blue.svg)
+![version](https://img.shields.io/badge/version-5.0.0-blue.svg)
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -128,10 +128,10 @@ spec:
 
 ## Changelog
 
-### 4.1.0
-+ Event on error of message handle from rule
-+ Updated text of event on rule creation
-+ Event on error from default rule creation
+### 5.0.0
++ Send event on rule message handling error
++ Updated text of rule creation event
++ Send event on default rule creation error
 
 ### 4.1.0
 + Updated rule context, supports message groups and raw message as output of rule

@@ -223,10 +223,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             logger.debug("Handle message from session alias '{}' = {}", sessionAlias, message.getMetadata().getMessageType());
         }
 
-        if (ruleIds.isEmpty()) {
-            loggingTriggeredRules(Collections.emptySet(), false);
-        }
-
         Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
 
         Set<SimulatorRuleInfo> triggeredRules = new HashSet<>();
@@ -299,7 +295,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
 
             if (triggeredRules.isEmpty()) {
-                logger.debug("No rules was triggered");
+                logger.debug("No rules were triggered");
+                return;
             }
 
             Stream<SimulatorRuleInfo> stream = triggeredRules.stream();
