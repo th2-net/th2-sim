@@ -297,7 +297,7 @@ public class SimulatorRuleInfo implements IRuleContext {
                         resultBuilder = msg.toBuilder();
                     }
                     if (configuration.getSessionAlias() != null) {
-                        resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                        resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
                     }
                 }
                 break;
