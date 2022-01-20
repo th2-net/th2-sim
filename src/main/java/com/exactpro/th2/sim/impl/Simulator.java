@@ -272,6 +272,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private boolean checkAgainstMetadata(@NotNull Message message, @NotNull RuleConfiguration configuration) {
+        if (configuration.getSessionAlias() == null) {
+            return true;
+        }
         return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
     }
 
