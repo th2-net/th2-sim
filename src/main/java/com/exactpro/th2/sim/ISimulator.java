@@ -38,15 +38,18 @@ public interface ISimulator extends BindableService, Closeable {
 
     void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) throws Exception;
 
+    @Deprecated
+    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
+
     /**
      * Add rule to simulator which listen connectivity with connectionID
      * Parse input to single message
      * Parse output to single message
      * @param rule
-     * @param sessionAlias
+     * @param configuration
      * @return Rule's id
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration sessionAlias);
+    RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration);
 
     /**
      * Add default rule to simulator

@@ -114,6 +114,13 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
+    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
+        var configuration = new RuleConfiguration();
+        configuration.setSessionAlias(sessionAlias);
+        return this.addRule(rule, configuration);
+    }
+
+    @Override
     public RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration) {
         Objects.requireNonNull(rule, "Rule can not be null");
         Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
