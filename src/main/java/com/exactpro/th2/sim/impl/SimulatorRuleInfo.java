@@ -141,13 +141,10 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public void send(@NotNull MessageGroup group) {
         Objects.requireNonNull(group, () -> "Null group supplied from rule " + id);
-
         if (group.getMessagesCount() < 1) {
             return;
         }
-
-        MessageGroup groupForSend = prepareMessageGroup(group);
-        sendGroup(groupForSend);
+        sendGroup(group);
     }
 
     @Override
@@ -197,8 +194,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        MessageGroup groupForSend = prepareMessageGroup(group);
-        scheduledExecutorService.schedule(() -> sendGroup(groupForSend), delay, timeUnit);
+        scheduledExecutorService.schedule(() -> sendGroup(group), delay, timeUnit);
     }
 
     /**
@@ -215,8 +211,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        MessageGroup groupForSend = prepareMessageGroup(batchToGroup(batch));
-        scheduledExecutorService.schedule(() -> sendGroup(groupForSend), delay, timeUnit);
+        scheduledExecutorService.schedule(() -> sendGroup(batchToGroup(batch)), delay, timeUnit);
     }
 
     private ICancellable registerCancellable(ICancellable cancellable) {
@@ -325,7 +320,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private void sendGroup(MessageGroup group) {
         try {
-            router.sendAll(MessageGroupBatch.newBuilder().addGroups(group).build(), QueueAttribute.SECOND.getValue());
+            var preparedGroup = prepareMessageGroup(group);
+            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue());
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
                 LOGGER.error("Can not send message  {}", TextFormat.shortDebugString(group), e);
