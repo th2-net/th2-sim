@@ -29,6 +29,7 @@ import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.grpc.RawMessage;
+import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -57,7 +58,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final int id;
     private final IRule rule;
     private final boolean isDefault;
-    private final String sessionAlias;
+    private final RuleConfiguration configuration;
     private final MessageRouter<MessageGroupBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
     private final MessageRouter<EventBatch> eventRouter;
@@ -70,7 +71,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             int id,
             @NotNull IRule rule,
             boolean isDefault,
-            @NotNull String sessionAlias,
+            @NotNull RuleConfiguration configuration,
             @NotNull MessageRouter<MessageGroupBatch> router,
             @NotNull MessageRouter<EventBatch> eventRouter,
             @NotNull String rootEventId,
@@ -80,7 +81,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         this.id = id;
         this.isDefault = isDefault;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
-        this.sessionAlias = Objects.requireNonNull(sessionAlias, "Session alias can not be null");
+        this.configuration = Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
         this.router = Objects.requireNonNull(router, "Router can not be null");
         this.eventRouter = Objects.requireNonNull(eventRouter, "Event router can not be null");
         this.rootEventId = Objects.requireNonNull(rootEventId, "Root event id can not be null");
@@ -96,8 +97,8 @@ public class SimulatorRuleInfo implements IRuleContext {
         return rule;
     }
 
-    public @NotNull String getSessionAlias() {
-        return sessionAlias;
+    public @NotNull RuleConfiguration getConfiguration() {
+        return configuration;
     }
 
     public boolean isDefault() {
@@ -285,7 +286,9 @@ public class SimulatorRuleInfo implements IRuleContext {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
+                    if (configuration.getSessionAlias() != null) {
+                        resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                    }
                 }
                 break;
             }
@@ -298,7 +301,9 @@ public class SimulatorRuleInfo implements IRuleContext {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
+                    if (configuration.getSessionAlias() != null) {
+                        resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                    }
                 }
                 break;
             }

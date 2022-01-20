@@ -71,8 +71,15 @@ public class EventUtils {
 
     public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String body, String rootEventId) {
         logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, body, rootEventId));
+    }
 
-        Event event = createEvent(name, body, rootEventId);
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, @NotNull Set<String> body, String rootEventId) {
+        logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, body, rootEventId));
+    }
+
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, Event event) {
         if (event != null) {
             try {
                 eventRouter.send(EventBatch.newBuilder().addEvents(event).build());

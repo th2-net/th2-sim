@@ -17,6 +17,7 @@
 package com.exactpro.th2.sim.util;
 
 import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.rule.IRule;
 
@@ -25,10 +26,15 @@ import io.grpc.stub.StreamObserver;
 public class ServiceUtils {
 
     public static void addRule(IRule rule, String sessionAlias, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
-        responseObserver.onNext(simulator.addRule(rule, sessionAlias));
+        var configuration = new RuleConfiguration();
+        configuration.setSessionAlias(sessionAlias);
+        responseObserver.onNext(simulator.addRule(rule, configuration));
         responseObserver.onCompleted();
     }
 
-
+    public static void addRule(IRule rule, RuleConfiguration configuration, ISimulator simulator, StreamObserver<RuleID> responseObserver) {
+        responseObserver.onNext(simulator.addRule(rule, configuration));
+        responseObserver.onCompleted();
+    }
 
 }

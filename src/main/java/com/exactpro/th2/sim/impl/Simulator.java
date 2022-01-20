@@ -20,22 +20,22 @@ import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.util.EventUtils;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +65,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
-    private final Map<String, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
@@ -88,7 +87,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         try {
             strategy = defaultIfNull(configuration.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
         } catch (IllegalStateException e) {
-            logger.info("Can not find custom configuration. Use '{}' for default rules starategy", this.strategy);
+            logger.info("Can not find custom configuration. Use '{}' for default rules strategy", this.strategy);
         }
 
         this.batchRouter = batchRouter;
@@ -100,17 +99,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                         continue;
                     }
                     Message message = anyMessage.getMessage();
-                    String sessionAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
-                    if (StringUtils.isNotEmpty(sessionAlias)) {
-                        try {
-                            handleMessage(sessionAlias, message);
-                        } catch (Exception e) {
-                            logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
-                        }
-                    } else {
-                        if (logger.isWarnEnabled()) {
-                            logger.warn("Skip message, because session alias is empty. Message = {}", TextFormat.shortDebugString(message));
-                        }
+                    try {
+                        handleMessage(message);
+                    } catch (Exception e) {
+                        logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
                     }
                 }
             }
@@ -122,35 +114,34 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
+    public RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration) {
         Objects.requireNonNull(rule, "Rule can not be null");
-        Objects.requireNonNull(sessionAlias, "Session alias can not be null");
+        Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), sessionAlias);
+            logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), configuration.getSessionAlias());
         }
 
         int id = nextId.incrementAndGet();
 
-        String infoMsg = String.format("%s [id:%s] [%s] [%s] rule was added to simulator", rule.getClass().getSimpleName(), id, sessionAlias, LocalDateTime.now());
+        String infoMsg = String.format("%s [id:%s] [%s] rule was added to simulator", rule.getClass().getSimpleName(), id, LocalDateTime.now());
 
-        logger.info(infoMsg);
         Event event = EventUtils.sendEvent(
                 eventRouter,
                 infoMsg,
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId
         );
+        logger.info(infoMsg);
 
-        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, sessionAlias, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
-        connectivityRules.computeIfAbsent(sessionAlias, key -> ConcurrentHashMap.newKeySet()).add(id);
+        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, configuration, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
 
         return RuleID.newBuilder().setId(id).build();
     }
 
     @Override
     public void addDefaultRule(RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getSessionAlias(), batchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
+        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getConfiguration(), batchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
@@ -167,7 +158,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         if (rule != null) {
             rule.removeRule();
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), (String) null, rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -175,16 +166,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private void removeRule(SimulatorRuleInfo rule) {
-        Set<Integer> ids = connectivityRules.get(rule.getSessionAlias());
-        int id = rule.getId();
-
-        if (ids != null && !ids.isEmpty() && ids.remove(id)) {
+        var id = rule.getId();
+        if (ruleIds.remove(id) != null) {
             if (rule.isDefault()) {
                 countDefaultRules.decrementAndGet();
                 logger.warn("Removed default rule with id = {}", id);
             }
 
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), (String) null, rule.getRootEventId());
         }
     }
 
@@ -218,34 +207,26 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    public void handleMessage(String sessionAlias, Message message) {
+    public void handleMessage(Message message) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Handle message from session alias '{}' = {}", sessionAlias, message.getMetadata().getMessageType());
+            logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
         }
-
-        Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
 
         Set<SimulatorRuleInfo> triggeredRules = new HashSet<>();
 
-        boolean useDefault = strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size();
+        AtomicBoolean useDefault = new AtomicBoolean(strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size());
 
-        while (iterator.hasNext()) {
-            Integer id = iterator.next();
-
-            SimulatorRuleInfo rule = ruleIds.get(id);
-
-            if (rule == null) {
-                logger.warn("Skip rule with id '{}', because it is already removed", id);
-
-                iterator.remove();
-                continue;
+        ruleIds.forEach((id, rule) -> {
+            if (!checkAgainstMetadata(message, rule.getConfiguration())) {
+                logger.trace("Skip rule with id = '{}' due configuration '{}'", id, rule.getConfiguration());
+                return;
             }
 
             if (rule.getRule().checkTriggered(message)) {
-                if (useDefault || !rule.isDefault()) {
+                if (useDefault.get() || !rule.isDefault()) {
                     triggeredRules.add(rule);
                     if (!rule.isDefault()) {
-                        useDefault = false;
+                        useDefault.set(false);
                     }
                 } else {
                     logger.debug("Skip rule with id '{}', because it is default rule", rule.getId());
@@ -253,10 +234,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             } else {
                 logger.trace("Skip rule with id = '{}', because not triggered", id);
             }
-        }
+        });
 
         for (SimulatorRuleInfo triggeredRule : triggeredRules) {
-            if (!useDefault && triggeredRule.isDefault()) {
+            if (!useDefault.get() && triggeredRule.isDefault()) {
                 logger.debug("Skip rule with id '{}', because it is default rule", triggeredRule.getId());
                 continue;
             }
@@ -268,13 +249,12 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         }
 
-        loggingTriggeredRules(triggeredRules, useDefault);
+        loggingTriggeredRules(triggeredRules, useDefault.get());
     }
 
     @Override
     public void close() {
         scheduler.shutdown();
-        connectivityRules.clear();
         ruleIds.clear();
     }
 
@@ -287,8 +267,12 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setConnectionId(ConnectionID.newBuilder().setSessionAlias(rule.getSessionAlias()).build())
+                .setConnectionId(ConnectionID.newBuilder().setSessionAlias(rule.getConfiguration().getSessionAlias()).build())
                 .build();
+    }
+
+    private boolean checkAgainstMetadata(@NotNull Message message, @NotNull RuleConfiguration configuration) {
+        return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
     }
 
     private void loggingTriggeredRules(Set<SimulatorRuleInfo> triggeredRules, boolean useDefault) {

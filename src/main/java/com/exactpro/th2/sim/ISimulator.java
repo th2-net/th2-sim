@@ -20,6 +20,7 @@ import java.io.Closeable;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import org.jetbrains.annotations.NotNull;
 
@@ -45,7 +46,7 @@ public interface ISimulator extends BindableService, Closeable {
      * @param sessionAlias
      * @return Rule's id
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
+    RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration sessionAlias);
 
     /**
      * Add default rule to simulator
