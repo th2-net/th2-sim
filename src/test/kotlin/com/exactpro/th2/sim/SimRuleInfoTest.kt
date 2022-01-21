@@ -23,8 +23,10 @@ import com.exactpro.th2.sim.rule.IRuleContext
 import com.google.protobuf.ByteString
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito
 import org.mockito.kotlin.check
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
@@ -66,6 +68,8 @@ class SimRuleInfoTest {
             simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setMessage(testParsedMessage).build()).build())
             verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) })
         }
+
+        verify(eventRouter, never()).sendAll(Mockito.any())
     }
 
     @Test
@@ -97,6 +101,8 @@ class SimRuleInfoTest {
             simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setRawMessage(testRawMessage).build()).build())
             verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) })
         }
+
+        verify(eventRouter, never()).sendAll(Mockito.any())
     }
 
     @Test
@@ -128,6 +134,13 @@ class SimRuleInfoTest {
             Assertions.assertEquals(testRawMessage.body, raw.body)
         }
 
+        fun MessageGroupBatch.checkEmptyAlias() {
+            val parsed = this.getGroups(0).getMessages(0).message
+            Assertions.assertEquals("", parsed.sessionAlias)
+            val raw = this.getGroups(0).getMessages(1).rawMessage
+            Assertions.assertEquals("", raw.sessionAlias)
+        }
+
         SimulatorRuleInfo(0, EmptyTestRule, false, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
@@ -137,6 +150,20 @@ class SimRuleInfoTest {
             simulatorRuleInfo.send(group.build())
             verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) })
         }
+
+        reset(batchRouter)
+
+        SimulatorRuleInfo(0, EmptyTestRule, false, RuleConfiguration(), batchRouter, eventRouter, rootEventId, scheduler) {
+            LOGGER.debug("Rule removed")
+        }.let { simulatorRuleInfo ->
+            val group = MessageGroup.newBuilder()
+            group += testParsedMessage
+            group += testRawMessage
+            simulatorRuleInfo.send(group.build())
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::checkEmptyAlias), check { Assertions.assertEquals("second", it) })
+        }
+
+        verify(eventRouter, never()).sendAll(Mockito.any())
     }
 
     @Test
@@ -167,6 +194,8 @@ class SimRuleInfoTest {
             simulatorRuleInfo.sendEvent(resultEvent)
             verify(eventRouter, times(1)).send(check(EventBatch::check))
         }
+
+        verify(batchRouter, never()).sendAll(Mockito.any())
     }
 
     companion object {

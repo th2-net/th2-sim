@@ -147,7 +147,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void addDefaultRule(RuleID ruleID) {
+    public void addDefaultRule(@NotNull RuleID ruleID) {
         if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getConfiguration(), batchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
@@ -158,7 +158,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void removeRule(RuleID id, StreamObserver<Empty> responseObserver) {
+    public void removeRule(@NotNull RuleID id, StreamObserver<Empty> responseObserver) {
         logger.debug("Try to remove rule with id = {}", id.getId());
 
         SimulatorRuleInfo rule = ruleIds.remove(id.getId());
@@ -172,7 +172,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         responseObserver.onCompleted();
     }
 
-    private void removeRule(SimulatorRuleInfo rule) {
+    private void removeRule(@NotNull SimulatorRuleInfo rule) {
         var id = rule.getId();
         if (ruleIds.remove(id) != null) {
             if (rule.isDefault()) {
@@ -185,7 +185,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void getRulesInfo(Empty request, StreamObserver<RulesInfo> responseObserver) {
+    public void getRulesInfo(Empty request, @NotNull StreamObserver<RulesInfo> responseObserver) {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
                 .addAllInfo(ruleIds.keySet().stream().map(this::createRuleInfo)
@@ -196,7 +196,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void touchRule(TouchRequest request, StreamObserver<Empty> responseObserver) {
+    public void touchRule(@NotNull TouchRequest request, StreamObserver<Empty> responseObserver) {
         SimulatorRuleInfo ruleInfo = ruleIds.get(request.getId().getId());
         if (ruleInfo == null) {
             responseObserver.onError(new IllegalArgumentException("Can not find rule with id = " + request.getId()));
