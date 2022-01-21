@@ -80,6 +80,7 @@ If you set the value to `ON_TRIGGER`, the default rules will be disabled if non-
   ]
 }
 ```
+
 ### Custom Resources for infra-mgr
 ```ymal
 apiVersion: th2.exactpro.com/v1
@@ -126,11 +127,73 @@ spec:
               operation: EQUAL
 ```
 
+# Test toolkit 
+**This information is valid for simulator core version 3.9.0 and newer!**
+
+![schema](radmeImages/schema1.png)
+
+First, sim is working with external orders. All orders that coming from outside processing by rule’s logic have or don't 
+have answered that comes out of them as result. Each rule can define is it target order or not. 
+Tests are directed to check result of those rules not to check behavior inside them. 
+For each test rule is black box.
+
+![schema](radmeImages/schema2.png)
+
+For assertion of rule’s trigger test api have methods assertTriggered(Message) and 
+assertNotTriggered(Message). Both methods will check rule’s result of checkTrigger() method. 
+After assertion those methods will call handle to continue testing.
+
+![schema](radmeImages/schema3.png)
+
+Result of handle can be Message, MessageBatch and Event. 
+Those result will be tested in order one by one. 
+You can check those by method assertSent (Type) {…}.
+
+* assertTriggered(Message) / assertNotTriggered(Message) - method to check result of rule’s trigger
+* handle(Message)  - method to check result of rule’s handle method
+* assertAndHandle(Message) - method to check result of rule’s trigger and calls handle after it
+* touch(Map<String, String>) - method to check result of rule’s touch method
+* assertSent(Message) - method to check last message sent
+* assertSent(RawMessage) - method to check last raw message sent
+* assertSent(MessageBatch) - method to check last message batch sent
+* assertSent(MessageGroup) - method to check last message group sent
+* assertSent(Event) - method to check last event sent
+* assertNothingSent() - method to assert nothing was sent from rule
+
+#### Example of usage:
+
+```
+testRule {
+    val rule = SomeRule(args)
+
+    rule.assertTriggered(test_message)
+    rule.handle(test_message)
+    // Can be just assertHandle instad of those two methods
+    
+    assertSent(Message::class) { output_message ->
+        Assertions.assertEquals( “expected message type”, output_message.messageType)
+    }
+
+    assertSent(MessageBath::class / Message::class / Event::class / MessageGroup::class / RawMessage::class) { … }
+
+    assertNothingSent()
+}
+```
+
+**Line 1 - 15**: block of test. After this block all results will be cleared to unmistakably handle new block;
+
+**Line 2**: example of rule that need to be tested;
+
+**Line 8** - 10: method with type argument Message, this means type of expected output result must be Message and only Message. After assertations inside of block result message will be cleared and next assert method will get next result by order. If there no results assertation will fail. If there instead of Message another type of result, assertation will fail;
+
+**Line 12**: example of method after first test, there can be more until end of result queue;
+
+**Line 14**: method to check is there no result in queue;
+
 ## Changelog
 
 ### 6.0.0
 + Updated alias logic. Session-alias is not necessary anymore. Rule can be triggered for each incoming message.
-
 
 ### 5.0.0
 + Send event on rule message handling error
