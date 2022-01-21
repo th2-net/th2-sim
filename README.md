@@ -129,7 +129,7 @@ spec:
 ## Changelog
 
 ### 5.1.0
-+ Fixed bug of not throwing assertion fail
++ Fixed bug of not throwing assertion error
 
 ### 5.0.0
 + Send event on rule message handling error
