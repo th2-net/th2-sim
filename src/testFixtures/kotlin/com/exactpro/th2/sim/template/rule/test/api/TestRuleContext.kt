@@ -266,10 +266,12 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
          * @param shutdownTimeout timeout of shutdown hook
          * @param block test case
          */
-        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
+        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) {
             TestRuleContext(speedUp, shutdownTimeout).use {
                 it.test(block)
             }
+        }
+
     }
 
 
