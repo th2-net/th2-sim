@@ -251,6 +251,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             try {
                 triggeredRule.handle(message);
             } catch (Exception e) {
+                logger.error("Can not handle message " + message.getMetadata().getMessageType(), e);
                 EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
             }
 
