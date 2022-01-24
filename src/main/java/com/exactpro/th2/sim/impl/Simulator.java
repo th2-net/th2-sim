@@ -18,8 +18,10 @@ package com.exactpro.th2.sim.impl;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,7 +35,9 @@ import java.util.stream.Stream;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.common.schema.message.SubscriberMonitor;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
+import com.exactpro.th2.sim.grpc.RuleRelation;
 import com.exactpro.th2.sim.util.EventUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
@@ -65,7 +69,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
+    private final Map<String, SubscriberMonitor> subscribes = new ConcurrentHashMap<>();
+
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
+    private final Map<String, List<SimulatorRuleInfo>> relationToRules = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
@@ -73,14 +80,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     private DefaultRulesTurnOffStrategy strategy;
-    private MessageRouter<MessageGroupBatch> batchRouter;
+    private MessageRouter<MessageGroupBatch> defaultBatchRouter;
     private MessageRouter<EventBatch> eventRouter;
     private String rootEventId;
 
     @Override
     public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) {
 
-        if (this.batchRouter != null) {
+        if (this.defaultBatchRouter != null) {
             throw new IllegalStateException("Simulator already init");
         }
 
@@ -90,27 +97,11 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             logger.info("Can not find custom configuration. Use '{}' for default rules strategy", this.strategy);
         }
 
-        this.batchRouter = batchRouter;
-        this.batchRouter.subscribeAll((consumerTag, batch) -> {
-            for (MessageGroup messageGroup: batch.getGroupsList()) {
-                for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
-                    if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
-                        logger.debug("Unsupported format of incoming message: {}", AnyMessage.KindCase.RAW_MESSAGE.name());
-                        continue;
-                    }
-                    Message message = anyMessage.getMessage();
-                    try {
-                        handleMessage(message);
-                    } catch (Exception e) {
-                        logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
-                    }
-                }
-            }
-
-        }, "first", "subscribe", "parsed");
+        this.defaultBatchRouter = batchRouter;
 
         this.eventRouter = eventRouter;
         this.rootEventId = rootEventId;
+
     }
 
     @Override
@@ -141,14 +132,49 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         );
         logger.info(infoMsg);
 
-        ruleIds.put(id, new SimulatorRuleInfo(id, rule, false, configuration, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule));
+        var ruleInfo = new SimulatorRuleInfo(id, rule, false, configuration, defaultBatchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule);
+
+        String relation = configuration.getRelation();
+
+        ruleIds.put(id, ruleInfo);
+        if (!relationToRules.containsKey(relation)) {
+            relationToRules.put(relation, new ArrayList<>());
+        }
+        relationToRules.get(relation).add(ruleInfo);
+
+        if (!subscribes.containsKey(relation)) {
+            var subscribe = this.defaultBatchRouter.subscribeAll((consumerTag, batch) -> {
+                for (MessageGroup messageGroup: batch.getGroupsList()) {
+                    for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
+                        if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
+                            logger.debug("Unsupported format of incoming message: {}", AnyMessage.KindCase.RAW_MESSAGE.name());
+                            continue;
+                        }
+                        Message message = anyMessage.getMessage();
+                        try {
+                            handleMessage(message, relation);
+                        } catch (Exception e) {
+                            logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
+                        }
+                    }
+                }
+
+            }, "first", "subscribe", "parsed", relation);
+
+            if (subscribe==null) {
+                logger.error("Cannot listen to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", relation);
+            } else {
+                subscribes.put(relation, subscribe);
+                logger.debug("Subscribed to attribute '{}'", relation);
+            }
+        }
 
         return RuleID.newBuilder().setId(id).build();
     }
 
     @Override
     public void addDefaultRule(@NotNull RuleID ruleID) {
-        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getConfiguration(), batchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
+        if (ruleIds.computeIfPresent(ruleID.getId(), (k, v) -> v.isDefault() ? v : new SimulatorRuleInfo(v.getId(), v.getRule(), true, v.getConfiguration(), defaultBatchRouter, eventRouter, v.getRootEventId(), scheduler, this::removeRule)) == null) {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
@@ -214,7 +240,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    public void handleMessage(Message message) {
+    public void handleMessage(Message message, String relation) {
         if (logger.isDebugEnabled()) {
             logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
         }
@@ -223,9 +249,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         AtomicBoolean useDefault = new AtomicBoolean(strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size());
 
-        ruleIds.forEach((id, rule) -> {
-            if (!checkAgainstMetadata(message, rule.getConfiguration())) {
-                logger.trace("Skip rule with id = '{}' due configuration '{}'", id, rule.getConfiguration());
+        relationToRules.get(relation).forEach(rule -> {
+            if (!rule.checkAlias(message)) {
+                logger.trace("Skip rule with id = '{}' due configuration '{}'", rule.getId(), rule.getConfiguration());
                 return;
             }
 
@@ -239,7 +265,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                     logger.debug("Skip rule with id '{}', because it is default rule", rule.getId());
                 }
             } else {
-                logger.trace("Skip rule with id = '{}', because not triggered", id);
+                logger.trace("Skip rule with id = '{}', because not triggered", rule.getId());
             }
         });
 
@@ -275,15 +301,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setConnectionId(ConnectionID.newBuilder().setSessionAlias(rule.getConfiguration().getSessionAlias()).build())
+                .setAlias(rule.getConfiguration().getSessionAlias())
+                .setRelation(RuleRelation.newBuilder().setRelation(rule.getConfiguration().getRelation()))
                 .build();
-    }
-
-    private boolean checkAgainstMetadata(@NotNull Message message, @NotNull RuleConfiguration configuration) {
-        if (configuration.getSessionAlias() == null) {
-            return true;
-        }
-        return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
     }
 
     private void loggingTriggeredRules(Set<SimulatorRuleInfo> triggeredRules, boolean useDefault) {

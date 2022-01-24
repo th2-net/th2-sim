@@ -244,7 +244,11 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
 
     private fun test(block: TestRuleContext.() -> Unit) {
         runCatching(block).onFailure {
-            logger.error(it) { "IRule threw error:" }
+            if (it is AssertionError) {
+                throw it
+            } else {
+                logger.error(it) { "IRule threw error:" }
+            }
         }
 
     }

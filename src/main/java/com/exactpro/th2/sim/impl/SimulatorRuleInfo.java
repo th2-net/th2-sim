@@ -321,7 +321,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     private void sendGroup(MessageGroup group) {
         try {
             var preparedGroup = prepareMessageGroup(group);
-            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue());
+            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
                 LOGGER.error("Can not send message  {}", TextFormat.shortDebugString(group), e);
@@ -336,5 +336,12 @@ public class SimulatorRuleInfo implements IRuleContext {
         MessageGroup.Builder group = MessageGroup.newBuilder();
         batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
         return group.build();
+    }
+
+    public boolean checkAlias(@NotNull Message message) {
+        if (configuration.getSessionAlias() == null) {
+            return true;
+        }
+        return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
     }
 }

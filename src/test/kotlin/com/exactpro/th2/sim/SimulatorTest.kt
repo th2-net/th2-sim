@@ -54,13 +54,13 @@ class SimulatorTest {
         }.build()
 
         reset(batchRouter)
-        sim.handleMessage(handlingMsg)
+        sim.handleMessage(handlingMsg, RuleConfiguration.DEFAULT_RELATION)
 
         verify(rule).handle(Mockito.any(), check { Assertions.assertEquals(handlingMsg, it) })
         verify(batchRouter, times(1)).sendAll(check {
             val message = it.getGroups(0).getMessages(0).message
             Assertions.assertEquals(message.sessionAlias, alias)
-        }, check { Assertions.assertEquals("second", it) })
+        }, check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals("default", it) })
     }
 
     companion object {

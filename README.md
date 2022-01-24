@@ -25,6 +25,7 @@ Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``cus
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
 Simulator sends message group to pins with the attributes ``second``, ``publish`` \
 _From **4.0.0** there no session-alias attribute anymore, please use **filter** instead._
+_From **6.0.0** need to define relation attribute, "default" as default, all rules will be filtered to those relations
 
 *Example:*
 ```json
@@ -34,19 +35,19 @@ _From **4.0.0** there no session-alias attribute anymore, please use **filter** 
       "name": "subscribe1_name",
       "queue": "subscribe1_queue",
       "exchange": "subscribe1_exchange",
-      "attributes": ["first", "subscribe", "parsed"]
+      "attributes": ["first", "subscribe", "parsed", "default"]
     },
     "send1": {
       "name": "send1_name",
       "queue": "send1_queue",
       "exchange": "send1_exchange",
-      "attributes": ["second", "publish"]
+      "attributes": ["second", "publish", "default"]
     },
     "send2": {
       "name": "send2_name",
       "queue": "send2_queue",
       "exchange": "send2_exchange",
-      "attributes": ["second", "publish"]
+      "attributes": ["second", "publish", "nondefault"]
     }
   }
 }
@@ -104,22 +105,24 @@ spec:
         - first
         - subscribe
         - parsed
+        - default
     - name: send1
       connection-type: mq
       attributes:
         - second
         - publish
+        - default
       filters:
         - metadata:
             - field-name: session_alias
               expected-value: some_alias_first
               operation: EQUAL
-
     - name: send2
       connection-type: mq
       attributes:
         - second
         - publish
+        - nondefault
       filters:
         - metadata:
             - field-name: session_alias
@@ -194,6 +197,9 @@ testRule {
 
 ### 6.0.0
 + Updated alias logic. Session-alias is not necessary anymore. Rule can be triggered for each incoming message.
+
+### 5.1.0
+Fixed bug of not throwing assertion error
 
 ### 5.0.0
 + Send event on rule message handling error
