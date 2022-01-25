@@ -186,11 +186,11 @@ testRule {
     rule.handle(test_message)
     // Can be just assertHandle instad of those two methods
     
-    assertSent(Message::class) { output_message ->
+    assertSent(Message::class.java) { output_message ->
         Assertions.assertEquals( “expected message type”, output_message.messageType)
     }
 
-    assertSent(MessageBath::class / Message::class / Event::class / MessageGroup::class / RawMessage::class) { … }
+    assertSent(MessageBath::class.java / Message::class.java / Event::class.java / MessageGroup::class.java / RawMessage::class.java) { … }
 
     assertNothingSent()
 }
