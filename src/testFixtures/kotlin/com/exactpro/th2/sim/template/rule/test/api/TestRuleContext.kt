@@ -176,7 +176,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param duration max expected message handling time
      */
     private fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
-        this.handle(this@TestRuleContext, testMessage)
+        handle(this@TestRuleContext, testMessage)
         Thread.sleep(duration.toMillis())
         removeRule()
         logger.debug { "Rule ${this::class.simpleName} was successfully handled after $duration delay" }
@@ -218,6 +218,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
                 is RawMessage -> assertEqualMessages(expected, actual as RawMessage) { failureMessage }
                 is MessageGroup -> assertEqualGroups(expected, actual as MessageGroup) { failureMessage }
                 is Event -> Assertions.assertEquals(expected, actual as Event) { failureMessage }
+                else -> fail {"Unsupported format of expecting sent data: $expected"}
             }
         }
     }
@@ -232,7 +233,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         val actual = results.peek()
         Assertions.assertNotNull(actual) { "Nothing was sent from rule" }
 
-        if (expectedType::class.isInstance(actual)) {
+        if (!expectedType.isInstance(actual)) {
             fail { "Rule ${this::class.simpleName} expected: <${expectedType.simpleName}> but was: <${actual::class.simpleName}>" }
         }
 
@@ -269,10 +270,12 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
          * @param shutdownTimeout timeout of shutdown hook
          * @param block test case
          */
-        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
+        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) {
             TestRuleContext(speedUp, shutdownTimeout).use {
-                it.test(block)
+                it.block()
             }
+        }
+
     }
 
 
