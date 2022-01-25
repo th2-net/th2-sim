@@ -43,7 +43,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.exactpro.th2.common.grpc.ConnectionID;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.Message;
@@ -91,11 +90,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             throw new IllegalStateException("Simulator already init");
         }
 
-        try {
-            strategy = defaultIfNull(configuration.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
-        } catch (IllegalStateException e) {
-            logger.info("Can not find custom configuration. Use '{}' for default rules strategy", this.strategy);
-        }
+        this.strategy = configuration.getStrategyDefaultRules();
 
         this.defaultBatchRouter = batchRouter;
 
@@ -178,7 +173,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             logger.warn("Can not toggle rule to default. Can not find rule with id = {}", ruleID.getId());
         } else {
             logger.debug("Added default rule with id = {}", ruleID.getId());
-
             countDefaultRules.incrementAndGet();
         }
     }
@@ -247,19 +241,24 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         Set<SimulatorRuleInfo> triggeredRules = new HashSet<>();
 
-        AtomicBoolean useDefault = new AtomicBoolean(strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size());
+        boolean useDefault = strategy != DefaultRulesTurnOffStrategy.ON_ADD || countDefaultRules.get() == ruleIds.size();
 
-        relationToRules.get(relation).forEach(rule -> {
+        var relations = relationToRules.get(relation);
+        if (relations == null) {
+            relations = Collections.emptyList();
+        }
+
+        for (SimulatorRuleInfo rule : relations) {
             if (!rule.checkAlias(message)) {
                 logger.trace("Skip rule with id = '{}' due configuration '{}'", rule.getId(), rule.getConfiguration());
                 return;
             }
 
             if (rule.getRule().checkTriggered(message)) {
-                if (useDefault.get() || !rule.isDefault()) {
+                if (useDefault || !rule.isDefault()) {
                     triggeredRules.add(rule);
                     if (!rule.isDefault()) {
-                        useDefault.set(false);
+                        useDefault = false;
                     }
                 } else {
                     logger.debug("Skip rule with id '{}', because it is default rule", rule.getId());
@@ -267,10 +266,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             } else {
                 logger.trace("Skip rule with id = '{}', because not triggered", rule.getId());
             }
-        });
+        }
 
         for (SimulatorRuleInfo triggeredRule : triggeredRules) {
-            if (!useDefault.get() && triggeredRule.isDefault()) {
+            if (!useDefault && triggeredRule.isDefault()) {
                 logger.debug("Skip rule with id '{}', because it is default rule", triggeredRule.getId());
                 continue;
             }
@@ -283,7 +282,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         }
 
-        loggingTriggeredRules(triggeredRules, useDefault.get());
+        loggingTriggeredRules(triggeredRules, useDefault);
     }
 
     @Override
@@ -307,8 +306,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private void loggingTriggeredRules(Set<SimulatorRuleInfo> triggeredRules, boolean useDefault) {
-        if (logger.isDebugEnabled() || logger.isInfoEnabled() && triggeredRules.size() > 1) {
-
+        if (logger.isDebugEnabled()) {
             if (triggeredRules.isEmpty()) {
                 logger.debug("No rules were triggered");
                 return;
@@ -321,10 +319,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
             String triggeredIdsString = stream.map(it -> String.valueOf(it.getId())).collect(Collectors.joining(";"));
 
-            logger.debug("Triggered on message rules with ids = [{}]", triggeredIdsString);
-
             if (triggeredRules.size() > 1) {
-                logger.info("Triggered on message more one rule. Rules ids = [{}]", triggeredIdsString);
+                logger.debug("Triggered on message rules with ids = [{}]", triggeredIdsString);
             }
         }
     }

@@ -268,7 +268,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         onRemove.accept(this);
     }
 
-    private AnyMessage prepareMessage(AnyMessage msg) {
+    private AnyMessage prepareMessage(@NotNull AnyMessage msg) {
         AnyMessage.Builder resultBuilder = null;
 
         switch (msg.getKindCase()) {
@@ -318,16 +318,13 @@ public class SimulatorRuleInfo implements IRuleContext {
         return builder.build();
     }
 
-    private void sendGroup(MessageGroup group) {
+    private void sendGroup(@NotNull MessageGroup group) {
         try {
             var preparedGroup = prepareMessageGroup(group);
             router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
         } catch (Exception e) {
             if (LOGGER.isErrorEnabled()) {
                 LOGGER.error("Can not send message  {}", TextFormat.shortDebugString(group), e);
-            }
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
             }
         }
     }

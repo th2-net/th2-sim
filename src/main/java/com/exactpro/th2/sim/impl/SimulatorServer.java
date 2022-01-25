@@ -74,7 +74,14 @@ public class SimulatorServer implements ISimulatorServer {
 
         try {
             MessageRouter<MessageGroupBatch> batchRouter = factory.getMessageRouterMessageGroupBatch();
-            SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+            SimulatorConfiguration configuration;
+
+            try {
+                configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+            } catch (IllegalStateException e) {
+                logger.info("Can not find custom configuration, default is used");
+                configuration = new SimulatorConfiguration();
+            }
 
             eventRouter = factory.getEventBatchRouter();
             rootEventId = factory.getRootEventId();
@@ -93,6 +100,7 @@ public class SimulatorServer implements ISimulatorServer {
         } catch (Exception e) {
             throw new IllegalStateException("Can not init simulator from class " + simulatorClass.getTypeName(), e);
         }
+
     }
 
     @Override
