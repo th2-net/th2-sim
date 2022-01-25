@@ -111,9 +111,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         Objects.requireNonNull(rule, "Rule can not be null");
         Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), configuration.getSessionAlias());
-        }
+        logger.debug("Try to add rule '{}' for session alias '{}'", rule.getClass().getName(), configuration.getSessionAlias());
 
         int id = nextId.incrementAndGet();
 
@@ -125,6 +123,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 String.format("Rule class = %s", rule.getClass().getName()),
                 rootEventId
         );
+
         logger.info(infoMsg);
 
         var ruleInfo = new SimulatorRuleInfo(id, rule, false, configuration, defaultBatchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule);
@@ -225,6 +224,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         logger.debug("Call touch on rule with id = {}", ruleInfo.getId());
 
+
         try {
             ruleInfo.touch(ObjectUtils.defaultIfNull(request.getArgsMap(), Collections.emptyMap()));
             responseObserver.onNext(Empty.getDefaultInstance());
@@ -235,9 +235,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     public void handleMessage(Message message, String relation) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
-        }
+        logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
 
         Set<SimulatorRuleInfo> triggeredRules = new HashSet<>();
 
