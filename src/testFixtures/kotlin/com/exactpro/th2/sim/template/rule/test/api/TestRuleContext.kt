@@ -243,16 +243,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         results.poll()
     }
 
-    private fun test(block: TestRuleContext.() -> Unit) {
-        runCatching(block).onFailure {
-            if (it is AssertionError) {
-                throw it
-            } else {
-                logger.error(it) { "IRule threw error:" }
-            }
-        }
-    }
-
     override fun close() {
         scheduledExecutorService.shutdown()
         if (!scheduledExecutorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
