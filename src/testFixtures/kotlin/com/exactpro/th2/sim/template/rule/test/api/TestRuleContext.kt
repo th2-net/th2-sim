@@ -250,7 +250,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
                 logger.error(it) { "IRule threw error:" }
             }
         }
-
     }
 
     override fun close() {
