@@ -190,10 +190,6 @@ sourceSets {
     main.java.srcDirs += "src/main/java"
 }
 
-test {
-    useJUnitPlatform()
-}
-
 clean {
     delete sharedDir
 }
