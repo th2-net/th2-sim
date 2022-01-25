@@ -1,5 +1,6 @@
 package com.exactpro.th2.sim
 
+import com.exactpro.th2.common.grpc.Event
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroupBatch
 import com.exactpro.th2.sim.rule.IRule
@@ -64,13 +65,13 @@ class TestRuleToolkit {
             Assertions.assertThrows(AssertionFailedError::class.java) {
                 assertSent(MessageGroupBatch::class.java) { }
             }
-        }
 
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(MessageGroupBatch::class.java) { }
+            }
 
-        Assertions.assertDoesNotThrow {
-            testRule {
-                TestRule.assertHandle(Message.getDefaultInstance())
-                assertSent(Message::class.java) { }
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(Event::class.java) { }
             }
         }
 
