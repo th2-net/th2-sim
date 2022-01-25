@@ -181,6 +181,10 @@ dependencies {
     testFixturesImplementation testFixtures("com.exactpro.th2:common:$common_version")
 }
 
+test {
+    useJUnitPlatform()
+}
+
 sourceSets {
     main.kotlin.srcDirs += "src/main/kotlin"
     main.java.srcDirs += "src/main/java"

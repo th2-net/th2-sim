@@ -1,5 +1,6 @@
 # Simulator core
 ![version](https://img.shields.io/badge/version-6.0.0-blue.svg)
+
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -210,6 +211,9 @@ testRule {
 ### 6.0.0
 + Aliases removed from attributes for common filtering support
 + Alias attribute switched to relation attribute
+
+### 5.2.0
++ Toolkit logic updated: all errors will be thrown as unexpected
 
 ### 5.1.0
 Fixed bug of not throwing assertion error
