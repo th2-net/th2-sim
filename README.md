@@ -24,8 +24,7 @@ Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``cus
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
 Simulator sends message group to pins with the attributes ``second``, ``publish`` \
-_From **4.0.0** there no session-alias attribute anymore, please use **filter** instead._
-_From **6.0.0** need to define relation attribute, "default" as default, all rules will be filtered to those relations
+_From **6.0.0** need to define relation attribute, "default" as default, all incoming messages will be filtered to those relations
 
 *Example:*
 ```json
@@ -36,6 +35,12 @@ _From **6.0.0** need to define relation attribute, "default" as default, all rul
       "queue": "subscribe1_queue",
       "exchange": "subscribe1_exchange",
       "attributes": ["first", "subscribe", "parsed", "default"]
+    },
+    "subscribe2":{
+      "name": "subscribe2_name",
+      "queue": "subscribe1_queue",
+      "exchange": "subscribe1_exchange",
+      "attributes": ["first", "subscribe", "parsed", "nondefault"]
     },
     "send1": {
       "name": "send1_name",
@@ -106,6 +111,13 @@ spec:
         - subscribe
         - parsed
         - default
+    - name: subscribe2
+      connection-type: mq
+      attributes:
+        - first
+        - subscribe
+        - parsed
+        - nondefault
     - name: send1
       connection-type: mq
       attributes:
@@ -196,7 +208,8 @@ testRule {
 ## Changelog
 
 ### 6.0.0
-+ Updated alias logic. Session-alias is not necessary anymore. Rule can be triggered for each incoming message.
++ Aliases removed from attributes for common filtering support
++ Alias attribute switched to relation attribute
 
 ### 5.1.0
 Fixed bug of not throwing assertion error
