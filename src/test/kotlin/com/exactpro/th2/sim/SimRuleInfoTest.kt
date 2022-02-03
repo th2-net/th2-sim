@@ -56,7 +56,7 @@ class SimRuleInfoTest {
             Assertions.assertEquals("SomeValue", message.getString("SomeField"))
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, false, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
 
@@ -89,7 +89,7 @@ class SimRuleInfoTest {
             Assertions.assertEquals(testRawMessage.body, message.body)
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, false, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
 
@@ -141,7 +141,7 @@ class SimRuleInfoTest {
             Assertions.assertEquals("", raw.sessionAlias)
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, false, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             val group = MessageGroup.newBuilder()
@@ -153,7 +153,7 @@ class SimRuleInfoTest {
 
         reset(batchRouter)
 
-        SimulatorRuleInfo(0, EmptyTestRule, false, RuleConfiguration(), batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, RuleConfiguration(), batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             val group = MessageGroup.newBuilder()
@@ -188,7 +188,7 @@ class SimRuleInfoTest {
             Assertions.assertEquals(rootEventId, event.parentId.id)
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, false, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             simulatorRuleInfo.sendEvent(resultEvent)

@@ -57,7 +57,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private final int id;
     private final IRule rule;
-    private final boolean isDefault;
+    private boolean isDefault = false;
     private final RuleConfiguration configuration;
     private final MessageRouter<MessageGroupBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
@@ -70,7 +70,6 @@ public class SimulatorRuleInfo implements IRuleContext {
     public SimulatorRuleInfo(
             int id,
             @NotNull IRule rule,
-            boolean isDefault,
             @NotNull RuleConfiguration configuration,
             @NotNull MessageRouter<MessageGroupBatch> router,
             @NotNull MessageRouter<EventBatch> eventRouter,
@@ -79,7 +78,6 @@ public class SimulatorRuleInfo implements IRuleContext {
             @NotNull Consumer<SimulatorRuleInfo> onRemove
     ) {
         this.id = id;
-        this.isDefault = isDefault;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.configuration = Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
         this.router = Objects.requireNonNull(router, "Router can not be null");
@@ -103,6 +101,10 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     public boolean isDefault() {
         return isDefault;
+    }
+
+    public void setDefault(Boolean isDefault) {
+        this.isDefault = isDefault;
     }
 
     public void handle(@NotNull Message message) {
