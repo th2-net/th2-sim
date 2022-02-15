@@ -55,17 +55,24 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimulatorRuleInfo.class);
 
-    private final int id;
     private final IRule rule;
-    private boolean isDefault = false;
-    private final RuleConfiguration configuration;
-    private final MessageRouter<MessageGroupBatch> router;
-    private final ScheduledExecutorService scheduledExecutorService;
-    private final MessageRouter<EventBatch> eventRouter;
+
+    private final int id;
     private final String rootEventId;
-    private final Consumer<SimulatorRuleInfo> onRemove;
+
+    private final RuleConfiguration configuration;
+
+    private final MessageRouter<EventBatch> eventRouter;
+    private final MessageRouter<MessageGroupBatch> router;
+
+    private final ScheduledExecutorService scheduledExecutorService;
     private final Deque<ICancellable> cancellables = new ConcurrentLinkedDeque<>();
+
+    private final Consumer<SimulatorRuleInfo> onRemove;
+
     private final MessageSender sender = new MessageSender(this::send, this::send, this::send);
+
+    private boolean isDefault = false;
 
     public SimulatorRuleInfo(
             int id,
@@ -91,11 +98,18 @@ public class SimulatorRuleInfo implements IRuleContext {
         return id;
     }
 
-    public @NotNull IRule getRule() {
+    @NotNull
+    public IRule getRule() {
         return rule;
     }
 
-    public @NotNull RuleConfiguration getConfiguration() {
+    @Override
+    public String getRootEventId() {
+        return rootEventId;
+    }
+
+    @NotNull
+    public RuleConfiguration getConfiguration() {
         return configuration;
     }
 
@@ -156,22 +170,6 @@ public class SimulatorRuleInfo implements IRuleContext {
         send(batchToGroup(batch));
     }
 
-    private long checkDelay(long delay) {
-        if(delay < 0) {
-            throw new IllegalStateException("Negative delay in rule " + id + ": " + delay);
-        }
-
-        return delay;
-    }
-
-    private long checkPeriod(long period) {
-        if(period <= 0) {
-            throw new IllegalStateException("Non-positive period in rule " + id + ": " + period);
-        }
-
-        return period;
-    }
-
     @Override
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
@@ -216,9 +214,15 @@ public class SimulatorRuleInfo implements IRuleContext {
         scheduledExecutorService.schedule(() -> sendGroup(batchToGroup(batch)), delay, timeUnit);
     }
 
-    private ICancellable registerCancellable(ICancellable cancellable) {
-        cancellables.add(cancellable);
-        return cancellable;
+    @Override
+    public void sendEvent(Event event) {
+        com.exactpro.th2.common.grpc.Event eventForSend = null;
+        try {
+            eventForSend = event.toProtoEvent(rootEventId);
+            eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
+        } catch (IOException e) {
+            throw new IllegalStateException(String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}"), e);
+        }
     }
 
     @Override
@@ -240,24 +244,6 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     @Override
-    public String getRootEventId() {
-        return rootEventId;
-    }
-
-    @Override
-    public void sendEvent(Event event) {
-        com.exactpro.th2.common.grpc.Event eventForSend = null;
-        try {
-            eventForSend = event.toProtoEvent(rootEventId);
-            eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
-        } catch (IOException e) {
-            String msg = String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
-            LOGGER.error(msg, e);
-            throw new IllegalStateException(msg, e);
-        }
-    }
-
-    @Override
     public void removeRule() {
         cancellables.forEach(cancellable -> {
             try {
@@ -268,6 +254,29 @@ public class SimulatorRuleInfo implements IRuleContext {
         });
 
         onRemove.accept(this);
+    }
+
+    private void sendGroup(@NotNull MessageGroup group) {
+        try {
+            var preparedGroup = prepareMessageGroup(group);
+            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
+        } catch (IOException e) {
+            throw new IllegalStateException(String.format("Can not send message %s", TextFormat.shortDebugString(group)), e);
+        }
+    }
+
+    private MessageGroup batchToGroup(@NotNull MessageBatch batch) {
+        MessageGroup.Builder group = MessageGroup.newBuilder();
+        batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
+        return group.build();
+    }
+
+    private MessageGroup prepareMessageGroup(MessageGroup batch) {
+        MessageGroup.Builder builder = MessageGroup.newBuilder();
+        for (AnyMessage message : batch.getMessagesList()) {
+            builder.addMessages(prepareMessage(message));
+        }
+        return builder.build();
     }
 
     private AnyMessage prepareMessage(@NotNull AnyMessage msg) {
@@ -312,35 +321,31 @@ public class SimulatorRuleInfo implements IRuleContext {
         return resultBuilder == null ? msg : resultBuilder.build();
     }
 
-    private MessageGroup prepareMessageGroup(MessageGroup batch) {
-        MessageGroup.Builder builder = MessageGroup.newBuilder();
-        for (AnyMessage message : batch.getMessagesList()) {
-            builder.addMessages(prepareMessage(message));
-        }
-        return builder.build();
-    }
-
-    private void sendGroup(@NotNull MessageGroup group) {
-        try {
-            var preparedGroup = prepareMessageGroup(group);
-            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
-        } catch (Exception e) {
-            if (LOGGER.isErrorEnabled()) {
-                LOGGER.error("Can not send message  {}", TextFormat.shortDebugString(group), e);
-            }
-        }
-    }
-
-    private MessageGroup batchToGroup(@NotNull MessageBatch batch) {
-        MessageGroup.Builder group = MessageGroup.newBuilder();
-        batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
-        return group.build();
-    }
-
     public boolean checkAlias(@NotNull Message message) {
         if (configuration.getSessionAlias() == null) {
             return true;
         }
         return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
+    }
+
+    private long checkDelay(long delay) {
+        if(delay < 0) {
+            throw new IllegalStateException("Negative delay in rule " + id + ": " + delay);
+        }
+
+        return delay;
+    }
+
+    private long checkPeriod(long period) {
+        if(period <= 0) {
+            throw new IllegalStateException("Non-positive period in rule " + id + ": " + period);
+        }
+
+        return period;
+    }
+
+    private ICancellable registerCancellable(ICancellable cancellable) {
+        cancellables.add(cancellable);
+        return cancellable;
     }
 }

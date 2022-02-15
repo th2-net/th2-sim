@@ -73,9 +73,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     private DefaultRulesTurnOffStrategy strategy;
+    private String rootEventId;
+
     private MessageRouter<MessageGroupBatch> defaultBatchRouter;
     private MessageRouter<EventBatch> eventRouter;
-    private String rootEventId;
 
     @Override
     public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) {
@@ -201,9 +202,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void getRulesInfo(Empty request, @NotNull StreamObserver<RulesInfo> responseObserver) {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
-                .addAllInfo(ruleIds.keySet().stream().map(this::createRuleInfo)
-                        .collect(Collectors.toList())
-                )
+                .addAllInfo(ruleIds.keySet().stream()
+                        .map(this::createRuleInfo)
+                        .collect(Collectors.toList()))
                 .build());
         responseObserver.onCompleted();
     }
@@ -223,7 +224,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
         } catch (Exception e) {
-            responseObserver.onError(new Exception("Can not execute touch method on rule with id = " + request.getId(), e));
+            String msg = "Can not execute touch method on rule [" + ruleInfo.getRule().getClass().getSimpleName() + "] with id = " + request.getId();
+            logger.warn(msg);
+            responseObserver.onError(new Exception(msg, e));
         }
     }
 
@@ -255,7 +258,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             try {
                 triggeredRule.handle(message);
             } catch (Exception e) {
-                logger.error("Can not handle message " + message.getMetadata().getMessageType(), e);
+                logger.error("Rule id: " + triggeredRule.getId() + " can not handle message " + message.getMetadata().getMessageType(), e);
                 EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
             }
         }
