@@ -20,6 +20,7 @@ public class RuleConfiguration {
     public final static String DEFAULT_RELATION = "default";
 
     private String sessionAlias = null;
+
     private String relation = DEFAULT_RELATION;
 
     public String getSessionAlias() {
@@ -40,6 +41,10 @@ public class RuleConfiguration {
 
     @Override
     public String toString() {
-        return String.format("Configuration: \n\tsession-alias: %s", sessionAlias);
+        return "RuleConfiguration {" +
+                "sessionAlias='" + sessionAlias + '\'' +
+                ", relation='" + relation + '\'' +
+                '}';
     }
+
 }

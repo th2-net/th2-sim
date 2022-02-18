@@ -19,9 +19,11 @@ package com.exactpro.th2.sim.impl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -66,7 +68,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final Map<String, SubscriberMonitor> subscribes = new ConcurrentHashMap<>();
 
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
-    private final Map<String, List<SimulatorRuleInfo>> relationToRules = new ConcurrentHashMap<>();
+    private final Map<String, Set<Integer>> relationToRuleId = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
@@ -127,10 +129,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         String relation = configuration.getRelation();
 
         ruleIds.put(id, ruleInfo);
-        if (!relationToRules.containsKey(relation)) {
-            relationToRules.put(relation, new ArrayList<>());
-        }
-        relationToRules.get(relation).add(ruleInfo);
+        relationToRuleId.computeIfAbsent(relation, (key) -> new HashSet<>());
+        relationToRuleId.get(relation).add(ruleInfo.getId());
 
         if (!subscribes.containsKey(relation)) {
             var subscribe = this.defaultBatchRouter.subscribeAll((consumerTag, batch) -> {
@@ -197,6 +197,11 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
             EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), (String) null, rule.getRootEventId());
         }
+        relationToRuleId.forEach((relation, ids) -> {
+            if (ids.remove(id)) {
+                logger.warn("Removed rule with id = {} from relation {}", id, relation);
+            }
+        });
     }
 
     @Override
@@ -234,12 +239,13 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void handleMessage(Message message, String relation) {
         logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
 
-        List<SimulatorRuleInfo> relationRules = relationToRules.get(relation);
+        Set<Integer> relationRules = relationToRuleId.get(relation);
         if (relationRules == null) {
-            relationRules = Collections.emptyList();
+            relationRules = Collections.emptySet();
         }
 
         List<SimulatorRuleInfo> triggeredRules = relationRules.stream()
+                .map(ruleIds::get)
                 .filter(ruleInfo -> ruleInfo.checkAlias(message) && ruleInfo.getRule().checkTriggered(message))
                 .collect(Collectors.toList());
 
