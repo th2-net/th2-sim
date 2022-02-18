@@ -46,25 +46,25 @@ class SimulatorTest {
     fun `default rule test - triggers none on add strategy`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
-        val ruleDefault = mock<IRule>()
-        val ruleNonDefault = mock<IRule>()
+        val ruleDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "defaultType"
+                }.build())
+            }
+        }
+        val ruleNonDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(false)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "nonDefaultType"
+                }.build())
+            }
+        }
+
         val simulatorConfiguration = SimulatorConfiguration().apply {
             strategyDefaultRules = DefaultRulesTurnOffStrategy.ON_ADD
-        }
-
-        Mockito.`when`(ruleNonDefault.checkTriggered(Mockito.any())).thenReturn(false)
-        Mockito.`when`(ruleDefault.checkTriggered(Mockito.any())).thenReturn(true)
-
-        Mockito.`when`(ruleDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "defaultType"
-            }.build())
-        }
-
-        Mockito.`when`(ruleNonDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "nonDefaultType"
-            }.build())
         }
 
         val sim = Simulator().apply {
@@ -98,24 +98,24 @@ class SimulatorTest {
     fun `default rule test - triggers only default`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
-        val ruleDefault = mock<IRule>()
-        val ruleNonDefault = mock<IRule>()
+        val ruleDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "defaultType"
+                }.build())
+            }
+        }
+        val ruleNonDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(false)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "nonDefaultType"
+                }.build())
+            }
+        }
+
         val simulatorConfiguration = SimulatorConfiguration()
-
-        Mockito.`when`(ruleNonDefault.checkTriggered(Mockito.any())).thenReturn(false)
-        Mockito.`when`(ruleDefault.checkTriggered(Mockito.any())).thenReturn(true)
-
-        Mockito.`when`(ruleDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "defaultType"
-            }.build())
-        }
-
-        Mockito.`when`(ruleNonDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "nonDefaultType"
-            }.build())
-        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
@@ -151,24 +151,23 @@ class SimulatorTest {
     fun `default rule test - triggers only non default`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
-        val ruleDefault = mock<IRule>()
-        val ruleNonDefault = mock<IRule>()
+        val ruleDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "defaultType"
+                }.build())
+            }
+        }
+        val ruleNonDefault = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
+                    metadataBuilder.messageType = "nonDefaultType"
+                }.build())
+            }
+        }
         val simulatorConfiguration = SimulatorConfiguration()
-
-        Mockito.`when`(ruleDefault.checkTriggered(Mockito.any())).thenReturn(true)
-        Mockito.`when`(ruleNonDefault.checkTriggered(Mockito.any())).thenReturn(true)
-
-        Mockito.`when`(ruleDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "defaultType"
-            }.build())
-        }
-
-        Mockito.`when`(ruleNonDefault.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send((it.arguments[1] as Message).toBuilder().apply {
-                metadataBuilder.messageType = "nonDefaultType"
-            }.build())
-        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
@@ -204,15 +203,15 @@ class SimulatorTest {
     fun `alias test`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
-        val rule = mock<IRule>()
+        val rule = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
+            }
+        }
         val simulatorConfiguration = SimulatorConfiguration()
         val testAlias = "TestAlias"
         val wrongAlias = "WrongAlias"
-
-        Mockito.`when`(rule.checkTriggered(Mockito.any())).thenReturn(true)
-        Mockito.`when`(rule.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
-        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
@@ -257,15 +256,15 @@ class SimulatorTest {
     fun `relation test`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
-        val rule = mock<IRule>()
+        val rule = mock<IRule>() {
+            on(mock.checkTriggered(Mockito.any())).thenReturn(true)
+            on(mock.handle(Mockito.any(), Mockito.any())).then {
+                (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
+            }
+        }
         val simulatorConfiguration = SimulatorConfiguration()
         val testRelation = "TestRelation"
         val messageType = "SomeType"
-
-        Mockito.`when`(rule.checkTriggered(Mockito.any())).thenReturn(true)
-        Mockito.`when`(rule.handle(Mockito.any(), Mockito.any())).then {
-            (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
-        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)

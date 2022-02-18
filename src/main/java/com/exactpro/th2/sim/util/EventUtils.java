@@ -58,10 +58,12 @@ public class EventUtils {
     }
 
     @Nullable
-    public static Event createEvent(String name, String body, String rootEventId) {
-        if (body != null) {
-            return createEvent(name, Collections.singleton(body), rootEventId);
-        }
+    public static Event createEvent(String name, @NotNull String body, String rootEventId) {
+        return createEvent(name, Collections.singleton(body), rootEventId);
+    }
+
+    @Nullable
+    public static Event createEvent(String name, String rootEventId) {
         return createEvent(name, Collections.emptySet(), rootEventId);
     }
 
@@ -85,12 +87,18 @@ public class EventUtils {
         return null;
     }
 
-    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String body, String rootEventId) {
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId, String body) {
         logger.info(name);
         return sendEvent(eventRouter, createEvent(name, body, rootEventId));
     }
 
-    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, @NotNull Set<String> body, String rootEventId) {
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId) {
+        logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, rootEventId));
+    }
+
+
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId, Set<String> body) {
         logger.info(name);
         return sendEvent(eventRouter, createEvent(name, body, rootEventId));
     }

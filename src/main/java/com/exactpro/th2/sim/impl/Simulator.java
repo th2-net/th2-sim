@@ -17,9 +17,7 @@
 package com.exactpro.th2.sim.impl;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -118,8 +116,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         Event event = EventUtils.sendEvent(
                 eventRouter,
                 infoMsg,
-                String.format("Rule class = %s", rule.getClass().getName()),
-                rootEventId
+                rootEventId,
+                String.format("Rule class = %s", rule.getClass().getName())
         );
 
         logger.info(infoMsg);
@@ -129,14 +127,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         String relation = configuration.getRelation();
 
         ruleIds.put(id, ruleInfo);
-        relationToRuleId.computeIfAbsent(relation, (key) -> new HashSet<>());
+        relationToRuleId.computeIfAbsent(relation, (key) -> ConcurrentHashMap.newKeySet());
         relationToRuleId.get(relation).add(ruleInfo.getId());
 
-        if (!subscribes.containsKey(relation)) {
-            var subscribe = this.defaultBatchRouter.subscribeAll((consumerTag, batch) -> {
+        subscribes.computeIfAbsent(relation, key -> {
+            SubscriberMonitor subscribe = this.defaultBatchRouter.subscribeAll((consumerTag, batch) -> {
                 for (MessageGroup messageGroup: batch.getGroupsList()) {
                     for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
-                        if (!anyMessage.getKindCase().equals(AnyMessage.KindCase.MESSAGE)) {
+                        if (anyMessage.getKindCase() != AnyMessage.KindCase.MESSAGE) {
                             logger.debug("Unsupported format of incoming message: {}", anyMessage.getKindCase().name());
                             continue;
                         }
@@ -157,7 +155,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 subscribes.put(relation, subscribe);
                 logger.debug("Subscribed to attribute '{}'", relation);
             }
-        }
+
+            return subscribe;
+        });
 
         return RuleID.newBuilder().setId(id).build();
     }
@@ -180,7 +180,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         if (rule != null) {
             rule.removeRule();
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), (String) null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -195,7 +195,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 logger.warn("Removed default rule with id = {}", id);
             }
 
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), (String) null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), rule.getRootEventId());
         }
         relationToRuleId.forEach((relation, ids) -> {
             if (ids.remove(id)) {
@@ -237,12 +237,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     public void handleMessage(Message message, String relation) {
-        logger.debug("Handle message: '{}'", message.getMetadata().getMessageType());
+        logger.debug("Handle message '{}' from relation '{}'", relation, message.getMetadata().getMessageType());
 
-        Set<Integer> relationRules = relationToRuleId.get(relation);
-        if (relationRules == null) {
-            relationRules = Collections.emptySet();
-        }
+        Set<Integer> relationRules = relationToRuleId.getOrDefault(relation, Collections.emptySet());
 
         List<SimulatorRuleInfo> triggeredRules = relationRules.stream()
                 .map(ruleIds::get)

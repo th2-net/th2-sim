@@ -87,7 +87,7 @@ public class SimulatorServer implements ISimulatorServer {
             rootEventId = factory.getRootEventId();
 
             if (rootEventId == null) {
-                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", (String) null, null);
+                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null);
                 if (event != null) {
                     rootEventId = event.getId().getId();
                 }

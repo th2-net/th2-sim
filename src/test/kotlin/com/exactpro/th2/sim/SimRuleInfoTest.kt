@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.mockito.kotlin.check
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
@@ -77,12 +78,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
 
             reset(batchRouter)
 
             simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setMessage(testParsedMessage).build()).build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
         }
 
         verify(eventRouter, never()).sendAll(Mockito.any())
@@ -110,12 +111,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
 
             reset(batchRouter)
 
             simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setRawMessage(testRawMessage).build()).build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
         }
 
         verify(eventRouter, never()).sendAll(Mockito.any())
@@ -164,7 +165,7 @@ class SimRuleInfoTest {
             group += testParsedMessage
             group += testRawMessage
             simulatorRuleInfo.send(group.build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
         }
 
         reset(batchRouter)
@@ -176,7 +177,7 @@ class SimRuleInfoTest {
             group += testParsedMessage
             group += testRawMessage
             simulatorRuleInfo.send(group.build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::checkEmptyAlias), check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals("default", it) })
+            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::checkEmptyAlias), eq("second"), eq("default"))
         }
 
         verify(eventRouter, never()).sendAll(Mockito.any())
