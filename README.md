@@ -27,6 +27,7 @@ Simulator subscribe message batches from pins with the attributes: ``first``, ``
 Simulator sends message group to pins with the attributes ``second``, ``publish`` \
 _From **6.0.0** need to define relation attribute, "default" as default, all incoming messages will be filtered to those relations
 
+
 *Example:*
 ```json
 {
@@ -58,6 +59,30 @@ _From **6.0.0** need to define relation attribute, "default" as default, all inc
   }
 }
 ```
+
+#### Relations
+Simulator subscribe rules to relation attribute in pins, default value  for rule is "default", all pins need to be filled with this attribute or custom one.
+Pins with relation attributes works only with related rules (with same value in RuleConfiguration object).
+Relation doesn't affect messages, relation is only used to be like a filter to let user manage flows of the messages. As example task: split some rules between two namespaces.
+To use those related attributes need: 
+1. Fill rule configuration
+2. Set relation as attribute in pin
+
+```yaml
+pins:
+    - name: subscribe1
+      connection-type: mq
+      attributes:
+        - first
+        - subscribe
+        - parsed
+        - example_relation  <-------
+```
+
+```kotlin
+ServiceUtils.addRule(AnyRule(), RuleConfiguraion().apply { sessionAlias = "example_relation" }, ... )
+```
+
 #### Custom configuration
 It contains the settings for Simulator \
 The field `strategyDefaultRules` can take the values `ON_ADD` or `ON_TRIGGER`. 

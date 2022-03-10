@@ -199,7 +199,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
         relationToRuleId.forEach((relation, ids) -> {
             if (ids.remove(id)) {
-                logger.warn("Removed rule with id = {} from relation {}", id, relation);
+                logger.debug("Removed rule with id = {} from relation {}", id, relation);
             }
         });
     }
@@ -209,6 +209,17 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
                 .addAllInfo(ruleIds.keySet().stream()
+                        .map(this::createRuleInfo)
+                        .collect(Collectors.toList()))
+                .build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getRelatedRules(RuleRelation request, StreamObserver<RulesInfo> responseObserver) {
+        responseObserver.onNext(RulesInfo
+                .newBuilder()
+                .addAllInfo(relationToRuleId.get(request.getRelation()).stream()
                         .map(this::createRuleInfo)
                         .collect(Collectors.toList()))
                 .build());
@@ -282,12 +293,16 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             return RuleInfo.newBuilder().setId(RuleID.newBuilder().setId(-1).build()).build();
         }
 
-        return RuleInfo.newBuilder()
+        var result =  RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setAlias(rule.getConfiguration().getSessionAlias())
-                .setRelation(RuleRelation.newBuilder().setRelation(rule.getConfiguration().getRelation()))
-                .build();
+                .setRelation(RuleRelation.newBuilder().setRelation(rule.getConfiguration().getRelation()));
+
+        if (rule.getConfiguration().getSessionAlias() != null) {
+            result.setAlias(rule.getConfiguration().getSessionAlias());
+        }
+
+        return result.build();
     }
 
     private void loggingTriggeredRules(List<SimulatorRuleInfo> triggeredRules) {

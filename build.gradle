@@ -168,7 +168,7 @@ dependencies {
 
     implementation "com.exactpro.th2:common:$common_version"
 
-    api "com.exactpro.th2:grpc-sim:4.0.0-dev-1739500515-SNAPSHOT"
+    api "com.exactpro.th2:grpc-sim:4.0.0"
 
     testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'

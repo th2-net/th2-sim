@@ -27,9 +27,12 @@ import com.exactpro.th2.common.schema.message.MessageRouter
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy
 import com.exactpro.th2.sim.configuration.RuleConfiguration
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration
+import com.exactpro.th2.sim.grpc.RuleRelation
+import com.exactpro.th2.sim.grpc.RulesInfo
 import com.exactpro.th2.sim.impl.Simulator
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
+import io.grpc.stub.StreamObserver
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
@@ -41,6 +44,37 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.reset
 
 class SimulatorTest {
+
+    @Test
+    fun `get related rules`() {
+        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
+        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val streamObserver = mock<StreamObserver<RulesInfo>>()
+        val simulatorConfiguration = SimulatorConfiguration()
+        val ruleDefault = mock<IRule>()
+
+        val sim = Simulator().apply {
+            init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
+        }
+
+        sim.addRule(ruleDefault, RuleConfiguration())
+        sim.addRule(ruleDefault, RuleConfiguration().apply { relation = "test" })
+        sim.addRule(ruleDefault, RuleConfiguration())
+
+        sim.getRelatedRules(RuleRelation.newBuilder().setRelation("default").build(), streamObserver)
+        verify(streamObserver, times(1)).onNext(check {
+            Assertions.assertEquals(2, it.infoCount)
+            Assertions.assertEquals(1, it.getInfo(0).id.id)
+            Assertions.assertEquals(3, it.getInfo(1).id.id)
+        })
+
+        sim.getRelatedRules(RuleRelation.newBuilder().setRelation("test").build(), streamObserver)
+        verify(streamObserver, times(1)).onNext(check {
+            Assertions.assertEquals(1, it.infoCount)
+            Assertions.assertEquals(2, it.getInfo(0).id.id)
+        })
+
+    }
 
     @Test
     fun `default rule test - triggers none on add strategy`() {
@@ -217,7 +251,7 @@ class SimulatorTest {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
         }
 
-        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { sessionAlias = testAlias }))
+        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { setSessionAlias(testAlias) }))
 
         fun EventBatch.check() {
             val event = this.getEvents(0)
