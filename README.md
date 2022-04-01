@@ -80,7 +80,7 @@ pins:
 ```
 
 ```kotlin
-ServiceUtils.addRule(AnyRule(), RuleConfiguraion().apply { sessionAlias = "example_relation" }, ... )
+ServiceUtils.addRule(AnyRule(), RuleConfiguraion().apply { sessionAlias = "relation" }, ... )
 ```
 
 #### Custom configuration

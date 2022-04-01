@@ -74,16 +74,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private boolean isDefault = false;
 
-    public SimulatorRuleInfo(
-            int id,
-            @NotNull IRule rule,
-            @NotNull RuleConfiguration configuration,
-            @NotNull MessageRouter<MessageGroupBatch> router,
-            @NotNull MessageRouter<EventBatch> eventRouter,
-            @NotNull String rootEventId,
-            @NotNull ScheduledExecutorService scheduledExecutorService,
-            @NotNull Consumer<SimulatorRuleInfo> onRemove
-    ) {
+    public SimulatorRuleInfo(int id, @NotNull IRule rule, @NotNull RuleConfiguration configuration, @NotNull MessageRouter<MessageGroupBatch> router, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService, @NotNull Consumer<SimulatorRuleInfo> onRemove) {
         this.id = id;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.configuration = Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
@@ -221,7 +212,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             eventForSend = event.toProtoEvent(rootEventId);
             eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
         } catch (IOException e) {
-            throw new IllegalStateException(String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}"), e);
+            throw new IllegalStateException("Can not send event = " + (eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}"), e);
         }
     }
 
@@ -259,15 +250,17 @@ public class SimulatorRuleInfo implements IRuleContext {
     private void sendGroup(@NotNull MessageGroup group) {
         try {
             var preparedGroup = prepareMessageGroup(group);
-            router.sendAll(MessageGroupBatch.newBuilder().addGroups(preparedGroup).build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
+            router.sendAll(MessageGroupBatch.newBuilder()
+                    .addGroups(preparedGroup)
+                    .build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
         } catch (IOException e) {
-            throw new IllegalStateException(String.format("Can not send message %s", TextFormat.shortDebugString(group)), e);
+            throw new IllegalStateException("Can not send message group: " + MessageUtils.toJson(group), e);
         }
     }
 
     private MessageGroup batchToGroup(@NotNull MessageBatch batch) {
         MessageGroup.Builder group = MessageGroup.newBuilder();
-        batch.getMessagesList().forEach(message -> group.addMessages(AnyMessage.newBuilder().setMessage(message).build()));
+        batch.getMessagesList().forEach(message -> MessageUtils.plusAssign(group, message));
         return group.build();
     }
 
@@ -293,7 +286,11 @@ public class SimulatorRuleInfo implements IRuleContext {
                         resultBuilder = msg.toBuilder();
                     }
                     if (configuration.getSessionAlias() != null) {
-                        resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                        resultBuilder.getMessageBuilder()
+                                .getMetadataBuilder()
+                                .getIdBuilder()
+                                .getConnectionIdBuilder()
+                                .setSessionAlias(configuration.getSessionAlias());
                     }
                 }
                 break;
@@ -301,14 +298,23 @@ public class SimulatorRuleInfo implements IRuleContext {
             case RAW_MESSAGE: {
                 if (StringUtils.isEmpty(msg.getRawMessage().getParentEventId().getId())) {
                     resultBuilder = msg.toBuilder();
-                    resultBuilder.getRawMessageBuilder().setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+                    resultBuilder.getRawMessageBuilder()
+                            .setParentEventId(EventID.newBuilder().setId(rootEventId).build());
                 }
-                if (StringUtils.isEmpty(msg.getRawMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
+                if (StringUtils.isEmpty(msg.getRawMessage()
+                        .getMetadata()
+                        .getId()
+                        .getConnectionId()
+                        .getSessionAlias())) {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
                     if (configuration.getSessionAlias() != null) {
-                        resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                        resultBuilder.getRawMessageBuilder()
+                                .getMetadataBuilder()
+                                .getIdBuilder()
+                                .getConnectionIdBuilder()
+                                .setSessionAlias(configuration.getSessionAlias());
                     }
                 }
                 break;
@@ -325,11 +331,15 @@ public class SimulatorRuleInfo implements IRuleContext {
         if (configuration.getSessionAlias() == null) {
             return true;
         }
-        return message.getMetadata().getId().getConnectionId().getSessionAlias().equals(configuration.getSessionAlias());
+        return message.getMetadata()
+                .getId()
+                .getConnectionId()
+                .getSessionAlias()
+                .equals(configuration.getSessionAlias());
     }
 
     private long checkDelay(long delay) {
-        if(delay < 0) {
+        if (delay < 0) {
             throw new IllegalStateException("Negative delay in rule " + id + ": " + delay);
         }
 
@@ -337,7 +347,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     private long checkPeriod(long period) {
-        if(period <= 0) {
+        if (period <= 0) {
             throw new IllegalStateException("Non-positive period in rule " + id + ": " + period);
         }
 

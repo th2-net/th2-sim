@@ -36,6 +36,9 @@ public class RuleConfiguration {
     }
 
     public void setRelation(String relation) {
+        if (relation==null || relation.isEmpty()) {
+            throw new NullPointerException("Relation cannot be empty or null");
+        }
         this.relation = relation;
     }
 
