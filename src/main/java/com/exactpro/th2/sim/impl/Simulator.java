@@ -166,8 +166,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         SimulatorRuleInfo rule = ruleIds.remove(id.getId());
 
         if (rule != null) {
+            logger.trace("Rule [id: {}] was removed from ruleIds", id.getId());
             rule.removeRule();
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id.getId()), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule [id: '%d'] was removed", id.getId()), null, rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -183,8 +184,6 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 countDefaultRules.decrementAndGet();
                 logger.warn("Removed default rule with id = {}", id);
             }
-
-            EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), null, rule.getRootEventId());
         }
     }
 
