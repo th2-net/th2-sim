@@ -129,7 +129,7 @@ spec:
 ## Changelog
 
 ### 5.2.1
-+ Fixed double message of rule removing
++ Removed duplicate rule-removal event
 
 ### 5.2.0
 + Toolkit logic updated: all errors will be thrown as unexpected
