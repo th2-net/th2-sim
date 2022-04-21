@@ -128,6 +128,9 @@ spec:
 
 ## Changelog
 
+### 5.2.1
++ Removed duplicate rule-removal event
+
 ### 5.2.0
 + Toolkit logic updated: all errors will be thrown as unexpected
 
