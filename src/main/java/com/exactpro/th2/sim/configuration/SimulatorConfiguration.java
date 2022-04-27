@@ -25,6 +25,8 @@ public class SimulatorConfiguration {
 
     private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
+    private int executionPoolSize = 12;
+
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
     }
@@ -39,5 +41,13 @@ public class SimulatorConfiguration {
 
     public void setStrategyDefaultRules(DefaultRulesTurnOffStrategy strategyDefaultRules) {
         this.strategyDefaultRules = strategyDefaultRules;
+    }
+
+    public int getExecutionPoolSize() {
+        return executionPoolSize;
+    }
+
+    public void setExecutionPoolSize(int executionPoolSize) {
+        this.executionPoolSize = executionPoolSize;
     }
 }
