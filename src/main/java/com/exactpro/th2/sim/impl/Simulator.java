@@ -291,6 +291,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         Set<Integer> relationRules = relationToRuleId.get(relation);
 
         if(relationRules == null) {
+            logger.trace("No related rules was found for message: " + message.getMetadata().getMessageType());
             return Collections.emptyList();
         }
 
