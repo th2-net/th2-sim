@@ -265,7 +265,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private void handleMessage(Message message, String relation) {
-        logger.debug("Handle message '{}' from relation '{}'", relation, message.getMetadata().getMessageType());
+        logger.debug("Handle message '{}' from relation '{}'", message.getMetadata().getMessageType(), relation);
 
         List<SimulatorRuleInfo> triggeredRules = getTriggered(message, relation);
 
