@@ -303,7 +303,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 .map(ruleIds::get)
                 .filter(ruleInfo ->  {
                     if (!ruleInfo.checkAlias(message)) {
-                        logger.trace("{} message was filtered by alias for rule: {}", messageType, ruleInfo.getRule().getClass().getSimpleName());
+                        logger.trace("{} message was filtered by alias for rule {}: {} != {}", messageType, ruleInfo.getRule().getClass().getSimpleName(), message.getMetadata().getId().getConnectionId().getSessionAlias(), ruleInfo.getConfiguration().getSessionAlias());
                         return false;
                     }
                     return ruleInfo.getRule().checkTriggered(message);
