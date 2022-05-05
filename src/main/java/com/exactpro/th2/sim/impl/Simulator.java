@@ -289,18 +289,25 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private List<SimulatorRuleInfo> getTriggered(Message message, String relation) {
         Set<Integer> relationRules = relationToRuleId.get(relation);
 
+        var messageType = message.getMetadata().getMessageType();
         if(relationRules == null) {
-            logger.trace("No related rules was found for message: " + message.getMetadata().getMessageType());
+            logger.trace("No related rules was found for message: " + messageType);
             return Collections.emptyList();
-        } else {
-            if (logger.isTraceEnabled()) {
-                logger.trace("Message {} checking against related rules: {}", message.getMetadata().getMessageType(), relationRules.stream().map(integer -> ruleIds.get(integer).getRule().getClass().getSimpleName()).collect(Collectors.joining(", ")));
-            }
+        }
+
+        if (logger.isTraceEnabled()) {
+            logger.trace("Message {} checking against related rules: {}", messageType, relationRules.stream().map(integer -> ruleIds.get(integer).getRule().getClass().getSimpleName()).collect(Collectors.joining(", ")));
         }
 
         List<SimulatorRuleInfo> triggeredRules = relationRules.stream()
                 .map(ruleIds::get)
-                .filter(ruleInfo -> ruleInfo.checkAlias(message) && ruleInfo.getRule().checkTriggered(message))
+                .filter(ruleInfo ->  {
+                    if (!ruleInfo.checkAlias(message)) {
+                        logger.trace("{} message was filtered by alias for rule: {}", messageType, ruleInfo.getRule().getClass().getSimpleName());
+                        return false;
+                    }
+                    return ruleInfo.getRule().checkTriggered(message);
+                })
                 .collect(Collectors.toList());
 
         int defaultCount = countDefaultRules.get();
