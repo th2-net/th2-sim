@@ -328,7 +328,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     public boolean checkAlias(@NotNull Message message) {
-        if (configuration.getSessionAlias() == null) {
+        if (configuration.getSessionAlias() == null || configuration.getSessionAlias().isEmpty()) {
             return true;
         }
         return message.getMetadata()

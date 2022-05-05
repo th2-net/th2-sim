@@ -304,7 +304,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 .filter(ruleInfo ->  {
                     if (!ruleInfo.checkAlias(message)) {
                         if (logger.isTraceEnabled()) {
-                            logger.trace("{} message was filtered by alias for rule {}: {} != {}", messageType, ruleInfo.getRule().getClass().getSimpleName(), message.getMetadata().getId().getConnectionId().getSessionAlias(), ruleInfo.getConfiguration().getSessionAlias());
+                            logger.trace("{} message was filtered by alias for rule {}: '{}' != '{}'", messageType, ruleInfo.getRule().getClass().getSimpleName(), message.getMetadata().getId().getConnectionId().getSessionAlias(), ruleInfo.getConfiguration().getSessionAlias());
                         }
                         return false;
                     }
