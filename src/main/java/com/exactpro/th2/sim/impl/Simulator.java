@@ -30,7 +30,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import com.exactpro.th2.common.grpc.AnyMessage;
-import com.exactpro.th2.common.grpc.MessageBatch;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
@@ -293,6 +292,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         if(relationRules == null) {
             logger.trace("No related rules was found for message: " + message.getMetadata().getMessageType());
             return Collections.emptyList();
+        } else {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Message {} checking against related rules: {}", message.getMetadata().getMessageType(), relationRules.stream().map(integer -> ruleIds.get(integer).getRule().getClass().getSimpleName()).collect(Collectors.joining(", ")));
+            }
         }
 
         List<SimulatorRuleInfo> triggeredRules = relationRules.stream()
