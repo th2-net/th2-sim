@@ -383,13 +383,15 @@ class SimulatorTest {
     private fun Simulator.handleAndWait(message: Message, relation: String, sleepTime: Long = 100) = this.handleAndWait(message.toGroup(), relation, sleepTime)
 
     private fun Simulator.handleAndWait(messageGroup: MessageGroup, relation: String, sleepTime: Long = 100) {
-        this.handleMessageGroup(messageGroup, relation)
+        this.handleBatch(messageGroup.toBatch(), relation)
         Thread.sleep(sleepTime)
     }
 
     private fun Message.toGroup() = MessageGroup.newBuilder().also {
         it.addMessages(AnyMessage.newBuilder().setMessage(this).build())
     }.build()
+
+    private fun MessageGroup.toBatch() = MessageGroupBatch.newBuilder().addGroups(this).build()
 
     companion object {
         private const val rootEventId = "12321"
