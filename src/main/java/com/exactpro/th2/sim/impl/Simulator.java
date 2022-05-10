@@ -143,12 +143,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         relationToRuleId.computeIfAbsent(relation, (key) -> ConcurrentHashMap.newKeySet()).add(ruleInfo.getId());
 
         if (!subscriptions.contains(relation)) {
-            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> {
-                for (MessageGroup group : batch.getGroupsList()) {
-                    handleMessageGroup(group, relation);
-                }
-            }, QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
-
+            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
             if (subscribe==null) {
                 logger.error("Cannot subscribe to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", relation);
             } else {
@@ -245,19 +240,21 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    public void handleMessageGroup(MessageGroup group, String relation) {
+    public void handleBatch(MessageGroupBatch batch, String relation) {
         executorService.submit(() -> {
             try {
-                for (AnyMessage message: group.getMessagesList()) {
-                    if (message.hasMessage()) {
-                        handleMessage(message.getMessage(), relation);
-                    } else {
-                        logger.warn("Unsupported format of incoming message: {}", message.getKindCase().name());
+                for (MessageGroup group: batch.getGroupsList()) {
+                    for (AnyMessage message: group.getMessagesList()) {
+                        if (message.hasMessage()) {
+                            handleMessage(message.getMessage(), relation);
+                        } else {
+                            logger.warn("Unsupported format of incoming message: {}", message.getKindCase().name());
+                        }
                     }
                 }
             } catch (Exception e) {
                 if (logger.isErrorEnabled()) {
-                    logger.error("Can`t handle group = {}", TextFormat.shortDebugString(group), e);
+                    logger.error("Can`t handle batch = {}", TextFormat.shortDebugString(batch), e);
                 }
             }
         });
