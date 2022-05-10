@@ -103,7 +103,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         this.rootEventId = rootEventId;
 
         var threadCount = new AtomicInteger(1);
-        executorService = new ThreadPoolExecutor(0, 2147483647, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
+        executorService = new ThreadPoolExecutor(0, configuration.getExecutionPoolSize(), 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
             var thread = new Thread(runnable);
             thread.setDaemon(true);
             thread.setName("th2-simulator-" + threadCount.incrementAndGet());
