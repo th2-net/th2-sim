@@ -27,6 +27,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import com.exactpro.th2.common.grpc.AnyMessage;
@@ -100,7 +103,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         this.rootEventId = rootEventId;
 
         var threadCount = new AtomicInteger(1);
-        executorService = Executors.newFixedThreadPool(configuration.getExecutionPoolSize(), runnable -> {
+        executorService = new ThreadPoolExecutor(0, 2147483647, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
             var thread = new Thread(runnable);
             thread.setDaemon(true);
             thread.setName("th2-simulator-" + threadCount.incrementAndGet());
