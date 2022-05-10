@@ -27,6 +27,9 @@ public class SimulatorConfiguration {
 
     private int executionPoolSize = 12;
 
+    private int queuePoolSize = 20;
+
+
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
     }
@@ -49,5 +52,13 @@ public class SimulatorConfiguration {
 
     public void setExecutionPoolSize(int executionPoolSize) {
         this.executionPoolSize = executionPoolSize;
+    }
+
+    public int getQueuePoolSize() {
+        return queuePoolSize;
+    }
+
+    public void setQueuePoolSize(int queuePoolSize) {
+        this.queuePoolSize = queuePoolSize;
     }
 }
