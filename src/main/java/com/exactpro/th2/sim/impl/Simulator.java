@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.SynchronousQueue;
@@ -103,7 +104,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         this.rootEventId = rootEventId;
 
         var threadCount = new AtomicInteger(1);
-        executorService = new ThreadPoolExecutor(0, configuration.getExecutionPoolSize(), 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
+        executorService = new ThreadPoolExecutor( configuration.getExecutionPoolSize(), configuration.getExecutionPoolSize(), 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), runnable -> {
             var thread = new Thread(runnable);
             thread.setDaemon(true);
             thread.setName("th2-simulator-" + threadCount.incrementAndGet());
