@@ -22,10 +22,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.SynchronousQueue;
@@ -104,12 +106,25 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         this.rootEventId = rootEventId;
 
         var threadCount = new AtomicInteger(1);
-        executorService = new ThreadPoolExecutor( configuration.getExecutionPoolSize(), configuration.getExecutionPoolSize(), 0, TimeUnit.SECONDS, new LinkedBlockingQueue<>(configuration.getQueuePoolSize()), runnable -> {
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor( configuration.getExecutionPoolSize(), configuration.getExecutionPoolSize(), 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(configuration.getQueuePoolSize()), runnable -> {
             var thread = new Thread(runnable);
             thread.setDaemon(true);
             thread.setName("th2-simulator-" + threadCount.incrementAndGet());
             return thread;
         });
+
+        poolExecutor.setRejectedExecutionHandler((runnable, threadPoolExecutor) -> {
+            try {
+                threadPoolExecutor.getQueue().put(runnable);
+                if (threadPoolExecutor.isShutdown()) {
+                    throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor + " due shutdown");
+                }
+            } catch (InterruptedException e) {
+                throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor, e);
+            }
+        });
+
+        executorService = poolExecutor;
     }
 
     @Override
