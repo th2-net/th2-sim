@@ -328,14 +328,15 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     public boolean checkAlias(@NotNull Message message) {
-        if (configuration.getSessionAlias() == null || configuration.getSessionAlias().isEmpty()) {
+        String alias = configuration.getSessionAlias();
+        if (alias == null || alias.isEmpty()) {
             return true;
         }
         return message.getMetadata()
                 .getId()
                 .getConnectionId()
                 .getSessionAlias()
-                .equals(configuration.getSessionAlias());
+                .equals(alias);
     }
 
     private long checkDelay(long delay) {
