@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.sim.impl;
 
-import java.io.IOException;
 import java.util.Deque;
 import java.util.Map;
 import java.util.Objects;
@@ -24,6 +23,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
@@ -141,21 +141,25 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), timeUnit);
+        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+
+        scheduledExecutorService.schedule(() -> send(msg), delay, timeUnit);
     }
 
     @Override
     public void send(@NotNull RawMessage msg, long delay, TimeUnit timeUnit) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        scheduledExecutorService.schedule(() -> send(msg), checkDelay(delay), timeUnit);
+        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+
+        scheduledExecutorService.schedule(() -> send(msg), delay, timeUnit);
     }
 
     @Override
     public void send(@NotNull MessageGroup group, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(group, () -> "Null group supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        checkDelay(delay);
+        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
 
         if (group.getMessagesCount() < 1) {
             return;
@@ -178,13 +182,18 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public ICancellable execute(long delay, @NotNull IAction action) {
         Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
-        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), action));
+        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, action));
     }
 
     @Override
     public ICancellable execute(long delay, long period, @NotNull IAction action) {
         Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
-        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, checkDelay(delay), checkPeriod(period), action));
+        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requirePositive(period, () -> "Negative period in rule " + id + ": " + period);
+
+        return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, period, action));
     }
 
     @Override
@@ -273,20 +282,16 @@ public class SimulatorRuleInfo implements IRuleContext {
                 .equals(alias);
     }
 
-    private long checkDelay(long delay) {
-        if (delay < 0) {
-            throw new IllegalStateException("Negative delay in rule " + id + ": " + delay);
+    private void requirePositiveOrZero(long value, Supplier<String> messageSupplier) {
+        if (value < 0) {
+            throw new IllegalStateException(messageSupplier == null ? null : messageSupplier.get());
         }
-
-        return delay;
     }
 
-    private long checkPeriod(long period) {
-        if (period <= 0) {
-            throw new IllegalStateException("Non-positive period in rule " + id + ": " + period);
+    private void requirePositive(long value, Supplier<String> messageSupplier) {
+        if (value <= 0) {
+            throw new IllegalStateException(messageSupplier == null ? null : messageSupplier.get());
         }
-
-        return period;
     }
 
     private ICancellable registerCancellable(ICancellable cancellable) {
