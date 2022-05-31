@@ -74,11 +74,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         logger.debug { "Group sent: ${TextFormat.shortDebugString(group)}" }
     }
 
-    override fun send(batch: MessageBatch) {
-        results.add(batch)
-        logger.debug { "Batch sent: ${TextFormat.shortDebugString(batch)}" }
-    }
-
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(msg)
@@ -94,12 +89,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     override fun send(group: MessageGroup, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(group)
-        })
-    }
-
-    override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
-        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
-            send(batch)
         })
     }
 

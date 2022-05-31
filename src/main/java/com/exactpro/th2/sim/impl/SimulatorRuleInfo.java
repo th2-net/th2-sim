@@ -27,29 +27,25 @@ import java.util.function.Consumer;
 
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
-import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.grpc.RawMessage;
+import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
+import com.exactpro.th2.sim.util.MessageBatcher;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.common.event.Event;
-import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
-import com.exactpro.th2.common.grpc.MessageBatch;
-import com.exactpro.th2.common.message.MessageUtils;
-import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.exactpro.th2.sim.rule.action.IAction;
 import com.exactpro.th2.sim.rule.action.ICancellable;
 import com.exactpro.th2.sim.rule.action.impl.ActionRunner;
 import com.exactpro.th2.sim.rule.action.impl.MessageSender;
-import com.google.protobuf.TextFormat;
 
 public class SimulatorRuleInfo implements IRuleContext {
 
@@ -62,8 +58,8 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private final RuleConfiguration configuration;
 
-    private final MessageRouter<EventBatch> eventRouter;
-    private final MessageRouter<MessageGroupBatch> router;
+    private final EventBatcher eventBatcher;
+    private final MessageBatcher messageBatcher;
 
     private final ScheduledExecutorService scheduledExecutorService;
     private final Deque<ICancellable> cancellables = new ConcurrentLinkedDeque<>();
@@ -74,12 +70,12 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private boolean isDefault = false;
 
-    public SimulatorRuleInfo(int id, @NotNull IRule rule, @NotNull RuleConfiguration configuration, @NotNull MessageRouter<MessageGroupBatch> router, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService, @NotNull Consumer<SimulatorRuleInfo> onRemove) {
+    public SimulatorRuleInfo(int id, @NotNull IRule rule, @NotNull RuleConfiguration configuration, @NotNull MessageBatcher messageBatcher, @NotNull EventBatcher eventBatcher, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService, @NotNull Consumer<SimulatorRuleInfo> onRemove) {
         this.id = id;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.configuration = Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
-        this.router = Objects.requireNonNull(router, "Router can not be null");
-        this.eventRouter = Objects.requireNonNull(eventRouter, "Event router can not be null");
+        this.messageBatcher = Objects.requireNonNull(messageBatcher, "Router can not be null");
+        this.eventBatcher = Objects.requireNonNull(eventBatcher, "Event router can not be null");
         this.rootEventId = Objects.requireNonNull(rootEventId, "Root event id can not be null");
         this.scheduledExecutorService = Objects.requireNonNull(scheduledExecutorService, "Scheduler can not be null");
         this.onRemove = Objects.requireNonNull(onRemove, "onRemove can not be null");
@@ -123,26 +119,13 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public void send(@NotNull Message msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        send(AnyMessage.newBuilder().setMessage(msg).build());
+        messageBatcher.onMessage(prepareMessage(msg), configuration.getRelation());
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        send(AnyMessage.newBuilder().setRawMessage(msg).build());
-    }
-
-    private void send(@NotNull AnyMessage msg) {
-        Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        if (msg.getKindCase().equals(AnyMessage.KindCase.KIND_NOT_SET)) {
-            throw new UnsupportedOperationException("Unsupported kind of AnyMessage");
-        }
-
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
-        }
-
-        sendGroup(MessageGroup.newBuilder().addMessages(msg).build());
+        messageBatcher.onMessage(prepareMessage(msg), configuration.getRelation());
     }
 
     @Override
@@ -151,14 +134,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         if (group.getMessagesCount() < 1) {
             return;
         }
-        sendGroup(group);
-    }
-
-    @Override
-    @Deprecated
-    public void send(@NotNull MessageBatch batch) {
-        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
-        send(batchToGroup(batch));
+        messageBatcher.onGroup(prepareMessageGroup(group), configuration.getRelation());
     }
 
     @Override
@@ -185,35 +161,12 @@ public class SimulatorRuleInfo implements IRuleContext {
             return;
         }
 
-        scheduledExecutorService.schedule(() -> sendGroup(group), delay, timeUnit);
-    }
-
-    /**
-     * @deprecated Will be removed in future releases. Please use send(MessageGroup) to improve performance.
-     */
-    @Override
-    @Deprecated
-    public void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit) {
-        Objects.requireNonNull(batch, () -> "Null batch supplied from rule " + id);
-        Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        checkDelay(delay);
-
-        if (batch.getMessagesCount() < 1) {
-            return;
-        }
-
-        scheduledExecutorService.schedule(() -> sendGroup(batchToGroup(batch)), delay, timeUnit);
+        scheduledExecutorService.schedule(() -> send(group), delay, timeUnit);
     }
 
     @Override
-    public void sendEvent(Event event) {
-        com.exactpro.th2.common.grpc.Event eventForSend = null;
-        try {
-            eventForSend = event.toProtoEvent(rootEventId);
-            eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
-        } catch (IOException e) {
-            throw new IllegalStateException("Can not send event = " + (eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}"), e);
-        }
+    public void sendEvent(@NotNull Event event) throws JsonProcessingException {
+        eventBatcher.onEvent(event.toProtoEvent(rootEventId));
     }
 
     @Override
@@ -247,23 +200,6 @@ public class SimulatorRuleInfo implements IRuleContext {
         onRemove.accept(this);
     }
 
-    private void sendGroup(@NotNull MessageGroup group) {
-        try {
-            var preparedGroup = prepareMessageGroup(group);
-            router.sendAll(MessageGroupBatch.newBuilder()
-                    .addGroups(preparedGroup)
-                    .build(), QueueAttribute.SECOND.getValue(), configuration.getRelation());
-        } catch (IOException e) {
-            throw new IllegalStateException("Can not send message group: " + MessageUtils.toJson(group), e);
-        }
-    }
-
-    private MessageGroup batchToGroup(@NotNull MessageBatch batch) {
-        MessageGroup.Builder group = MessageGroup.newBuilder();
-        batch.getMessagesList().forEach(message -> MessageUtils.plusAssign(group, message));
-        return group.build();
-    }
-
     private MessageGroup prepareMessageGroup(MessageGroup batch) {
         MessageGroup.Builder builder = MessageGroup.newBuilder();
         for (AnyMessage message : batch.getMessagesList()) {
@@ -272,59 +208,57 @@ public class SimulatorRuleInfo implements IRuleContext {
         return builder.build();
     }
 
-    private AnyMessage prepareMessage(@NotNull AnyMessage msg) {
-        AnyMessage.Builder resultBuilder = null;
+    private Message prepareMessage(Message msg) {
+        Message.Builder resultBuilder = null;
 
+        if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
+            resultBuilder = msg.toBuilder();
+            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+        }
+        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+            if (resultBuilder == null) {
+                resultBuilder = msg.toBuilder();
+            }
+            resultBuilder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+        }
+        return resultBuilder == null ? msg : resultBuilder.build();
+    }
+
+    private RawMessage prepareMessage(RawMessage msg) {
+        RawMessage.Builder resultBuilder = null;
+
+        if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
+            resultBuilder = msg.toBuilder();
+            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+        }
+        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+            if (resultBuilder == null) {
+                resultBuilder = msg.toBuilder();
+            }
+            resultBuilder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+        }
+        return resultBuilder == null ? msg : resultBuilder.build();
+    }
+
+    private AnyMessage prepareMessage(@NotNull AnyMessage msg) {
         switch (msg.getKindCase()) {
             case MESSAGE: {
-                if (StringUtils.isEmpty(msg.getMessage().getParentEventId().getId())) {
-                    resultBuilder = msg.toBuilder();
-                    resultBuilder.getMessageBuilder().setParentEventId(EventID.newBuilder().setId(rootEventId).build());
-                }
-                if (StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
-                    if (resultBuilder == null) {
-                        resultBuilder = msg.toBuilder();
-                    }
-                    if (configuration.getSessionAlias() != null) {
-                        resultBuilder.getMessageBuilder()
-                                .getMetadataBuilder()
-                                .getIdBuilder()
-                                .getConnectionIdBuilder()
-                                .setSessionAlias(configuration.getSessionAlias());
-                    }
+                if (StringUtils.isEmpty(msg.getMessage().getParentEventId().getId()) || StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
+                    return AnyMessage.newBuilder().setMessage(prepareMessage(msg.getMessage())).build();
                 }
                 break;
             }
             case RAW_MESSAGE: {
-                if (StringUtils.isEmpty(msg.getRawMessage().getParentEventId().getId())) {
-                    resultBuilder = msg.toBuilder();
-                    resultBuilder.getRawMessageBuilder()
-                            .setParentEventId(EventID.newBuilder().setId(rootEventId).build());
-                }
-                if (StringUtils.isEmpty(msg.getRawMessage()
-                        .getMetadata()
-                        .getId()
-                        .getConnectionId()
-                        .getSessionAlias())) {
-                    if (resultBuilder == null) {
-                        resultBuilder = msg.toBuilder();
-                    }
-                    if (configuration.getSessionAlias() != null) {
-                        resultBuilder.getRawMessageBuilder()
-                                .getMetadataBuilder()
-                                .getIdBuilder()
-                                .getConnectionIdBuilder()
-                                .setSessionAlias(configuration.getSessionAlias());
-                    }
+                if (StringUtils.isEmpty(msg.getRawMessage().getParentEventId().getId()) || StringUtils.isEmpty(msg.getRawMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
+                    return AnyMessage.newBuilder().setRawMessage(prepareMessage(msg.getRawMessage())).build();
                 }
                 break;
             }
             default: {
-                LOGGER.warn("Unsupported kind of message: {}", msg.getKindCase());
+                throw new IllegalStateException("Unsupported kind of message: " + msg.getKindCase());
             }
         }
-
-        return resultBuilder == null ? msg : resultBuilder.build();
+        return msg;
     }
 
     public boolean checkAlias(@NotNull Message message) {

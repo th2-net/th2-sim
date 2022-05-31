@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.sim.impl;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,11 +37,15 @@ import java.util.stream.Collectors;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.common.schema.message.SubscriberMonitor;
+import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.grpc.RuleRelation;
 import com.exactpro.th2.sim.util.EventUtils;
+import com.exactpro.th2.sim.util.MessageBatcher;
+import kotlin.Unit;
 import org.apache.commons.lang3.ObjectUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -88,6 +93,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     private ExecutorService executorService;
 
+    private MessageBatcher messageBatcher;
+    private EventBatcher eventBatcher;
+
     @Override
     public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) {
 
@@ -98,9 +106,27 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         this.strategy = configuration.getStrategyDefaultRules();
 
         this.batchRouter = batchRouter;
-
         this.eventRouter = eventRouter;
+
         this.rootEventId = rootEventId;
+
+        this.messageBatcher = new MessageBatcher(configuration.getMaxBatchSize(), configuration.getMaxFlushTime(), scheduler, (batch, relation) -> {
+            try {
+                batchRouter.sendAll(batch, QueueAttribute.SECOND.getValue(), relation);
+            } catch (IOException e) {
+                throw new IllegalStateException("Can not send message group batch: " + MessageUtils.toJson(batch), e);
+            }
+            return Unit.INSTANCE;
+        });
+
+        this.eventBatcher = new EventBatcher(configuration.getMaxBatchSize(), configuration.getMaxFlushTime(), scheduler, eventBatch -> {
+            try {
+                eventRouter.sendAll(eventBatch);
+            } catch (IOException e) {
+                throw new IllegalStateException("Can not send event batch: " + MessageUtils.toJson(eventBatch), e);
+            }
+            return Unit.INSTANCE;
+        });
 
         var threadCount = new AtomicInteger(1);
 
@@ -139,7 +165,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         logger.info(infoMsg);
 
-        var ruleInfo = new SimulatorRuleInfo(id, rule, configuration, batchRouter, eventRouter, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule);
+        var ruleInfo = new SimulatorRuleInfo(id, rule, configuration, messageBatcher, eventBatcher, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule);
 
         String relation = configuration.getRelation();
 

@@ -29,6 +29,9 @@ public class SimulatorConfiguration {
 
     private int queuePoolSize = 20;
 
+    private int maxBatchSize = 100;
+
+    private long maxFlushTime = 1000L;
 
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
@@ -60,5 +63,21 @@ public class SimulatorConfiguration {
 
     public void setQueuePoolSize(int queuePoolSize) {
         this.queuePoolSize = queuePoolSize;
+    }
+
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(int maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
+    }
+
+    public long getMaxFlushTime() {
+        return maxFlushTime;
+    }
+
+    public void setMaxFlushTime(long maxFlushTime) {
+        this.maxFlushTime = maxFlushTime;
     }
 }

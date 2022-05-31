@@ -153,7 +153,9 @@ class SimulatorTest {
             }
         }
 
-        val simulatorConfiguration = SimulatorConfiguration()
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            maxFlushTime = 100
+        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
@@ -164,6 +166,7 @@ class SimulatorTest {
         })
         Assertions.assertNotNull(sim.addRule(ruleNonDefault, RuleConfiguration()))
 
+        Thread.sleep(150)
 
         fun EventBatch.check() {
             val event = this.getEvents(0)
@@ -174,7 +177,7 @@ class SimulatorTest {
         verify(eventRouter, times(2)).send(check(EventBatch::check))
 
         reset(batchRouter)
-        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_RELATION, 500)
 
         verify(ruleDefault, times(1)).handle(Mockito.any(), check { Assertions.assertEquals(Message.getDefaultInstance(), it) })
         verify(ruleNonDefault, never()).handle(Mockito.any(), Mockito.any())
@@ -205,7 +208,9 @@ class SimulatorTest {
                 }.build())
             }
         }
-        val simulatorConfiguration = SimulatorConfiguration()
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            maxFlushTime = 100
+        }
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
@@ -247,7 +252,9 @@ class SimulatorTest {
                 (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
             }
         }
-        val simulatorConfiguration = SimulatorConfiguration()
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            maxFlushTime = 100
+        }
         val testAlias = "TestAlias"
         val wrongAlias = "WrongAlias"
 
@@ -256,6 +263,8 @@ class SimulatorTest {
         }
 
         Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { sessionAlias = testAlias }))
+
+        Thread.sleep(150)
 
         fun EventBatch.check() {
             val event = this.getEvents(0)
@@ -300,7 +309,9 @@ class SimulatorTest {
                 (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
             }
         }
-        val simulatorConfiguration = SimulatorConfiguration()
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            maxFlushTime = 100
+        }
         val testRelation = "TestRelation"
         val messageType = "SomeType"
 
@@ -309,6 +320,8 @@ class SimulatorTest {
         }
 
         Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { relation = testRelation }))
+
+        Thread.sleep(150)
 
         fun EventBatch.check() {
             val event = this.getEvents(0)
@@ -360,7 +373,10 @@ class SimulatorTest {
                 (it.arguments[0] as IRuleContext).send(it.arguments[1] as Message)
             }
         }
-        val simulatorConfiguration = SimulatorConfiguration()
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            maxFlushTime = 150
+        }
+
         val testRelation = "TestRelation"
 
         val sim = Simulator().apply {
@@ -380,7 +396,7 @@ class SimulatorTest {
         })
     }
 
-    private fun Simulator.handleAndWait(message: Message, relation: String, sleepTime: Long = 100) = this.handleAndWait(message.toGroup(), relation, sleepTime)
+    private fun Simulator.handleAndWait(message: Message, relation: String, sleepTime: Long = 200) = this.handleAndWait(message.toGroup(), relation, sleepTime)
 
     private fun Simulator.handleAndWait(messageGroup: MessageGroup, relation: String, sleepTime: Long = 100) {
         this.handleBatch(messageGroup.toBatch(), relation)

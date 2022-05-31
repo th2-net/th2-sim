@@ -167,6 +167,7 @@ dependencies {
     implementation "com.google.guava:guava"
 
     implementation "com.exactpro.th2:common:$common_version"
+    implementation "com.exactpro.th2:common-utils:0.0.1-dev-2415646252-SNAPSHOT" //TODO: change to master branch
 
     api "com.exactpro.th2:grpc-sim:4.0.0"
 
