@@ -27,8 +27,6 @@ public class SimulatorConfiguration {
 
     private int executionPoolSize = 12;
 
-    private int queuePoolSize = 20;
-
     private int maxBatchSize = 100;
 
     private long maxFlushTime = 1000L;
@@ -55,14 +53,6 @@ public class SimulatorConfiguration {
 
     public void setExecutionPoolSize(int executionPoolSize) {
         this.executionPoolSize = executionPoolSize;
-    }
-
-    public int getQueuePoolSize() {
-        return queuePoolSize;
-    }
-
-    public void setQueuePoolSize(int queuePoolSize) {
-        this.queuePoolSize = queuePoolSize;
     }
 
     public int getMaxBatchSize() {

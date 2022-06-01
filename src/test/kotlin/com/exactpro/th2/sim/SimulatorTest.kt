@@ -418,6 +418,7 @@ class SimulatorTest {
 
         val simulatorConfiguration = SimulatorConfiguration().apply {
             strategyDefaultRules = DefaultRulesTurnOffStrategy.ON_ADD
+            executionPoolSize = 1
             maxFlushTime = 500
             maxBatchSize = batcherSize
         }
