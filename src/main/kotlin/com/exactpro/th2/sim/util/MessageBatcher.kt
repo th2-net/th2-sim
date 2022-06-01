@@ -1,5 +1,6 @@
 package com.exactpro.th2.sim.util
 
+import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
@@ -23,6 +24,7 @@ class MessageBatcher(
 
     fun onMessage(message: RawMessage, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(message.toGroup())
     fun onMessage(message: Message, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(message.toGroup())
+    fun onMessage(message: AnyMessage, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(MessageGroup.newBuilder().addMessages(message).build())
     fun onGroup(group: MessageGroup, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(group)
 
     override fun close() = batches.values.forEach(MessageBatch::close)

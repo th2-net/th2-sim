@@ -119,13 +119,13 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public void send(@NotNull Message msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        messageBatcher.onMessage(prepareMessage(msg), configuration.getRelation());
+        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setMessage(msg).build()), configuration.getRelation());
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        messageBatcher.onMessage(prepareMessage(msg), configuration.getRelation());
+        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setRawMessage(msg).build()), configuration.getRelation());
     }
 
     @Override
@@ -217,57 +217,43 @@ public class SimulatorRuleInfo implements IRuleContext {
         return builder.build();
     }
 
-    private Message prepareMessage(Message msg) {
-        Message.Builder resultBuilder = null;
-
-        if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
-            resultBuilder = msg.toBuilder();
-            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
-        }
-        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
-            if (resultBuilder == null) {
-                resultBuilder = msg.toBuilder();
-            }
-            resultBuilder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
-        }
-        return resultBuilder == null ? msg : resultBuilder.build();
-    }
-
-    private RawMessage prepareMessage(RawMessage msg) {
-        RawMessage.Builder resultBuilder = null;
-
-        if (StringUtils.isEmpty(msg.getParentEventId().getId())) {
-            resultBuilder = msg.toBuilder();
-            resultBuilder.setParentEventId(EventID.newBuilder().setId(rootEventId).build());
-        }
-        if (StringUtils.isEmpty(msg.getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
-            if (resultBuilder == null) {
-                resultBuilder = msg.toBuilder();
-            }
-            resultBuilder.getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
-        }
-        return resultBuilder == null ? msg : resultBuilder.build();
-    }
-
     private AnyMessage prepareMessage(@NotNull AnyMessage msg) {
+        AnyMessage.Builder resultBuilder = null;
+
         switch (msg.getKindCase()) {
             case MESSAGE: {
-                if (StringUtils.isEmpty(msg.getMessage().getParentEventId().getId()) || StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
-                    return AnyMessage.newBuilder().setMessage(prepareMessage(msg.getMessage())).build();
+                if (!msg.getMessage().hasParentEventId()) {
+                    resultBuilder = msg.toBuilder();
+                    resultBuilder.getMessageBuilder().setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+                }
+                if (StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+                    if (resultBuilder == null) {
+                        resultBuilder = msg.toBuilder();
+                    }
+                    resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
                 }
                 break;
             }
             case RAW_MESSAGE: {
-                if (StringUtils.isEmpty(msg.getRawMessage().getParentEventId().getId()) || StringUtils.isEmpty(msg.getRawMessage().getMetadata().getId().getConnectionId().getSessionAlias())) {
-                    return AnyMessage.newBuilder().setRawMessage(prepareMessage(msg.getRawMessage())).build();
+                if (!msg.getMessage().hasParentEventId()) {
+                    resultBuilder = msg.toBuilder();
+                    resultBuilder.getRawMessageBuilder()
+                            .setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+                }
+                if (StringUtils.isEmpty(msg.getRawMessage().getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+                    if (resultBuilder == null) {
+                        resultBuilder = msg.toBuilder();
+                    }
+                    resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
                 }
                 break;
             }
             default: {
-                throw new IllegalStateException("Unsupported kind of message: " + msg.getKindCase());
+                LOGGER.warn("Unsupported kind of message: {}", msg.getKindCase());
             }
         }
-        return msg;
+
+        return resultBuilder == null ? msg : resultBuilder.build();
     }
 
     public boolean checkAlias(@NotNull Message message) {

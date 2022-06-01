@@ -21,7 +21,6 @@ import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.MessageBatch
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.sim.rule.IRule
