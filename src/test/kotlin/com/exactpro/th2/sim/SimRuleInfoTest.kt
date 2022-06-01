@@ -18,6 +18,7 @@ package com.exactpro.th2.sim
 
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.createMessageBean
+import com.exactpro.th2.common.grpc.AnyMessage
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
@@ -63,11 +64,14 @@ class SimRuleInfoTest {
             addField("SomeField", "SomeValue")
         }.build()
 
-        fun Message.check() {
-            Assertions.assertEquals("SomeMessage", messageType)
-            Assertions.assertEquals(testAlias, sessionAlias)
-            Assertions.assertEquals("TestProtocol", metadata.protocol)
-            Assertions.assertEquals("SomeValue", getString("SomeField"))
+        fun AnyMessage.check() {
+            Assertions.assertTrue(hasMessage())
+            with(message) {
+                Assertions.assertEquals("SomeMessage", messageType)
+                Assertions.assertEquals(testAlias, sessionAlias)
+                Assertions.assertEquals("TestProtocol", metadata.protocol)
+                Assertions.assertEquals("SomeValue", getString("SomeField"))
+            }
         }
 
         SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
@@ -75,12 +79,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(messageBatcher, times(1)).onMessage(check(Message::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
 
             reset(messageBatcher)
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(messageBatcher, times(1)).onMessage(check(Message::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
         }
 
         verify(eventBatcher, never()).onEvent(any())
@@ -96,10 +100,13 @@ class SimRuleInfoTest {
             body = ByteString.copyFrom("test data".toByteArray())
         }.build()
 
-        fun RawMessage.check() {
-            Assertions.assertEquals(testAlias, sessionAlias)
-            Assertions.assertEquals("TestProtocol", metadata.protocol)
-            Assertions.assertEquals(testRawMessage.body, body)
+        fun AnyMessage.check() {
+            Assertions.assertTrue(hasRawMessage())
+            with (rawMessage) {
+                Assertions.assertEquals(testAlias, sessionAlias)
+                Assertions.assertEquals("TestProtocol", metadata.protocol)
+                Assertions.assertEquals(testRawMessage.body, body)
+            }
         }
 
         SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
@@ -107,12 +114,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(messageBatcher, times(1)).onMessage(check(RawMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
 
             reset(messageBatcher)
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(messageBatcher, times(1)).onMessage(check(RawMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
         }
 
         verify(eventBatcher, never()).onEvent(any())
