@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.SynchronousQueue;
@@ -130,12 +131,27 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         var threadCount = new AtomicInteger(1);
 
-        executorService = new ThreadPoolExecutor(configuration.getExecutionPoolSize(), configuration.getExecutionPoolSize(), 0, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(configuration.getExecutionPoolSize(), configuration.getExecutionPoolSize(), 0, TimeUnit.SECONDS, new SynchronousQueue<>(), runnable -> {
             var thread = new Thread(runnable);
             thread.setDaemon(true);
             thread.setName("th2-simulator-" + threadCount.incrementAndGet());
             return thread;
         });
+
+        poolExecutor.setRejectedExecutionHandler((runnable, threadPoolExecutor) -> {
+            try {
+                // Wait until queue is ready, don`t throw reject
+                threadPoolExecutor.getQueue().put(runnable);
+                if (threadPoolExecutor.isShutdown()) {
+                    throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor + " due shutdown");
+                }
+            } catch (InterruptedException e) {
+                throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor, e);
+            }
+        });
+
+        executorService = poolExecutor;
+
     }
 
     @Override
@@ -272,7 +288,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     public void handleBatch(MessageGroupBatch batch, String relation) {
-        executorService.submit(() -> {
+        executorService.execute(() -> {
             try {
                 List<MessageGroup> messageGroups = batch.getGroupsList();
                 int messageGroupsSize = messageGroups.size();

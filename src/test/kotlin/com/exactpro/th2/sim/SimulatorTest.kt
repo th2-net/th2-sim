@@ -22,6 +22,7 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.MessageGroupBatch
+import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.message
 import com.exactpro.th2.common.message.messageType
 import com.exactpro.th2.common.message.plusAssign
@@ -38,6 +39,7 @@ import com.exactpro.th2.sim.rule.IRuleContext
 import io.grpc.stub.StreamObserver
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
@@ -394,6 +396,50 @@ class SimulatorTest {
         verify(rule,  times(1)).handle(Mockito.any(), check {
             Assertions.assertEquals(secondMessageType, it.messageType)
         })
+    }
+
+    @Test
+    fun `stress test`() {
+        val batcherSize = 1000
+        val answers = 5
+        val stressCount = 15000
+
+        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
+        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val ruleDefault = object : IRule {
+            override fun checkTriggered(message: Message): Boolean = true
+            override fun touch(ruleContext: IRuleContext, args: MutableMap<String, String>) = Unit
+            override fun handle(ruleContext: IRuleContext, message: Message) {
+                repeat(answers) {
+                    ruleContext.send(Message.newBuilder().addField("test", "test").build())
+                }
+            }
+        }
+
+        val simulatorConfiguration = SimulatorConfiguration().apply {
+            strategyDefaultRules = DefaultRulesTurnOffStrategy.ON_ADD
+            maxFlushTime = 500
+            maxBatchSize = batcherSize
+        }
+
+        val sim = Simulator().apply {
+            init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
+        }
+
+        Assertions.assertNotNull(sim.addRule(ruleDefault, RuleConfiguration()).also {
+            sim.addDefaultRule(it)
+        })
+
+        repeat(stressCount) {
+            try {
+                sim.handleBatch(Message.getDefaultInstance().toGroup().toBatch(), RuleConfiguration.DEFAULT_RELATION)
+            } catch (e: Exception) {
+                fail("${it}th iteration failed", e)
+            }
+        }
+
+        Thread.sleep(600)
+        verify(batchRouter, times(stressCount * answers / batcherSize)).sendAll(Mockito.any(),Mockito.any(), Mockito.any())
     }
 
     private fun Simulator.handleAndWait(message: Message, relation: String, sleepTime: Long = 200) = this.handleAndWait(message.toGroup(), relation, sleepTime)
