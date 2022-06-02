@@ -382,6 +382,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
     @Override
     public void close() {
+        messageBatcher.close();
+        eventBatcher.close();
         scheduler.shutdown();
         ruleIds.clear();
     }
