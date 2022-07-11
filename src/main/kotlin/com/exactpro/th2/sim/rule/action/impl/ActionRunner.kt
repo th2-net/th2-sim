@@ -17,7 +17,8 @@
 package com.exactpro.th2.sim.rule.action.impl
 
 import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.MessageBatch
+import com.exactpro.th2.common.grpc.MessageGroup
+import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.sim.rule.action.IAction
 import com.exactpro.th2.sim.rule.action.ICancellable
 import com.exactpro.th2.sim.rule.action.IExecutionScope
@@ -66,9 +67,13 @@ class ActionRunner private constructor(
     override fun send(message: Message, delay: Long): ICancellable = schedule(delay) { sender.send(message) }
     override fun send(message: Message, delay: Long, period: Long): ICancellable = schedule(delay, period) { sender.send(message) }
 
-    override fun send(batch: MessageBatch): ICancellable = submit { sender.send(batch) }
-    override fun send(batch: MessageBatch, delay: Long): ICancellable = schedule(delay) { sender.send(batch) }
-    override fun send(batch: MessageBatch, delay: Long, period: Long): ICancellable = schedule(delay, period) { sender.send(batch) }
+    override fun send(message: RawMessage): ICancellable = submit { sender.send(message) }
+    override fun send(message: RawMessage, delay: Long): ICancellable  = schedule(delay) { sender.send(message) }
+    override fun send(message: RawMessage, delay: Long, period: Long): ICancellable = schedule(delay, period) { sender.send(message) }
+
+    override fun send(group: MessageGroup): ICancellable = submit { sender.send(group) }
+    override fun send(group: MessageGroup, delay: Long): ICancellable = schedule(delay) { sender.send(group) }
+    override fun send(group: MessageGroup, delay: Long, period: Long): ICancellable = schedule(delay, period) { sender.send(group) }
 
     override fun execute(action: IAction): ICancellable = ActionRunner(executor, sender, action).registerCancellable()
     override fun execute(delay: Long, action: IAction): ICancellable = ActionRunner(executor, sender, delay, action).registerCancellable()
@@ -95,8 +100,10 @@ class ActionRunner private constructor(
 
 class MessageSender(
     private val messageSender: Consumer<Message>,
-    private val batchSender: Consumer<MessageBatch>
+    private val rawMessageSender: Consumer<RawMessage>,
+    private val groupSender: Consumer<MessageGroup>
 ) {
     fun send(message: Message) = messageSender.accept(message)
-    fun send(batch: MessageBatch) = batchSender.accept(batch)
+    fun send(message: RawMessage) = rawMessageSender.accept(message)
+    fun send(group: MessageGroup) = groupSender.accept(group)
 }

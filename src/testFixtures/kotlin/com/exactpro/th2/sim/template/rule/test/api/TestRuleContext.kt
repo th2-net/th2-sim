@@ -16,13 +16,15 @@
 
 package com.exactpro.th2.sim.template.rule.test.api
 
-import com.exactpro.th2.common.assertEqualBatches
+import com.exactpro.th2.common.assertEqualGroups
 import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
+import com.exactpro.th2.common.grpc.MessageGroup
+import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.schema.box.configuration.BoxConfiguration
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
@@ -36,9 +38,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.fail
 import java.time.Duration
 import java.time.Instant
-import java.util.Deque
-import java.util.LinkedList
-import java.util.Queue
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit
  * @constructor Creates a rule context for tests.
  */
 class TestRuleContext private constructor(private val speedUp: Int, val shutdownTimeout: Long) : IRuleContext, AutoCloseable {
-    private val messageSender = MessageSender(this::send, this::send)
+    private val messageSender = MessageSender(this::send, this::send, this::send)
 
     private val cancellables: Deque<ICancellable> = ConcurrentLinkedDeque()
     private val scheduledExecutorService: ScheduledExecutorService =  Executors.newScheduledThreadPool(1)
@@ -62,7 +62,17 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
 
     override fun send(msg: Message) {
         results.add(msg)
-        logger.debug { "Message sent: ${TextFormat.shortDebugString(msg)}" }
+        logger.debug { "Parsed message sent: ${TextFormat.shortDebugString(msg)}" }
+    }
+
+    override fun send(msg: RawMessage) {
+        results.add(msg)
+        logger.debug { "Raw message sent: ${TextFormat.shortDebugString(msg)}" }
+    }
+
+    override fun send(group: MessageGroup) {
+        results.add(group)
+        logger.debug { "Group sent: ${TextFormat.shortDebugString(group)}" }
     }
 
     override fun send(batch: MessageBatch) {
@@ -73,6 +83,18 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(msg)
+        })
+    }
+
+    override fun send(msg: RawMessage, delay: Long, timeUnit: TimeUnit) {
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
+            send(msg)
+        })
+    }
+
+    override fun send(group: MessageGroup, delay: Long, timeUnit: TimeUnit) {
+        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
+            send(group)
         })
     }
 
@@ -157,7 +179,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param duration max expected message handling time
      */
     private fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
-        this.handle(this@TestRuleContext, testMessage)
+        handle(this@TestRuleContext, testMessage)
         Thread.sleep(duration.toMillis())
         removeRule()
         logger.debug { "Rule ${this::class.simpleName} was successfully handled after $duration delay" }
@@ -196,8 +218,10 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         assertSent(expected::class.java) { actual: Any ->
             when (expected) {
                 is Message -> assertEqualMessages(expected, actual as Message) { failureMessage }
-                is MessageBatch -> assertEqualBatches(expected, actual as MessageBatch) { failureMessage }
+                is RawMessage -> assertEqualMessages(expected, actual as RawMessage) { failureMessage }
+                is MessageGroup -> assertEqualGroups(expected, actual as MessageGroup) { failureMessage }
                 is Event -> Assertions.assertEquals(expected, actual as Event) { failureMessage }
+                else -> fail {"Unsupported format of expecting sent data: $expected"}
             }
         }
     }
@@ -212,7 +236,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         val actual = results.peek()
         Assertions.assertNotNull(actual) { "Nothing was sent from rule" }
 
-        if (expectedType::class.isInstance(actual)) {
+        if (!expectedType.isInstance(actual)) {
             fail { "Rule ${this::class.simpleName} expected: <${expectedType.simpleName}> but was: <${actual::class.simpleName}>" }
         }
 
@@ -220,13 +244,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
 
         logger.debug { "Rule ${this::class.simpleName}: Message was successfully handled" }
         results.poll()
-    }
-
-    private fun test(block: TestRuleContext.() -> Unit) {
-        runCatching(block).onFailure {
-            logger.error(it) { "IRule threw error:" }
-        }
-
     }
 
     override fun close() {
@@ -246,10 +263,12 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
          * @param shutdownTimeout timeout of shutdown hook
          * @param block test case
          */
-        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) =
+        fun testRule(speedUp: Int = 1, shutdownTimeout: Long = 3000, block: TestRuleContext.() -> Unit) {
             TestRuleContext(speedUp, shutdownTimeout).use {
-                it.test(block)
+                it.block()
             }
+        }
+
     }
 
 

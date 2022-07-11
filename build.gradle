@@ -149,7 +149,7 @@ signing {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:3.1.0')
+    api platform('com.exactpro.th2:bom:3.2.0')
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "io.github.microutils:kotlin-logging:2.0.8"
@@ -172,12 +172,17 @@ dependencies {
 
     testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
+    testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"
 
     testFixturesImplementation "io.github.microutils:kotlin-logging:2.0.8"
     testFixturesImplementation "com.exactpro.th2:common:$common_version"
     testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
     testFixturesImplementation testFixtures("com.exactpro.th2:common:$common_version")
+}
+
+test {
+    useJUnitPlatform()
 }
 
 sourceSets {
@@ -188,3 +193,5 @@ sourceSets {
 clean {
     delete sharedDir
 }
+
+javadoc.enabled = false

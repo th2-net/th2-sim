@@ -15,13 +15,12 @@
  */
 package com.exactpro.th2.sim;
 
-import java.io.Closeable;
-
-import org.jetbrains.annotations.NotNull;
-
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.impl.SimulatorServer;
+import org.jetbrains.annotations.NotNull;
+
+import java.io.Closeable;
 
 /**
  * Interface of {@link Simulator} server.
@@ -33,9 +32,8 @@ public interface ISimulatorServer extends Closeable {
 
     /**
      * Start server
-     * @return server was start
      */
-    boolean start();
+    void start();
 
     /**
      * Wait while server is running
