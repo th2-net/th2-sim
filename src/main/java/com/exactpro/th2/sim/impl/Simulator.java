@@ -101,7 +101,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) {
 
         if (this.batchRouter != null) {
-            throw new IllegalStateException("Simulator already init");
+            throw new IllegalStateException("Simulator is already initialized");
         }
 
         this.strategy = configuration.getStrategyDefaultRules();
@@ -333,7 +333,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 triggeredRule.handle(message);
             } catch (Exception e) {
                 String msgType = message.getMetadata().getMessageType();
-                logger.error("Rule id: " + triggeredRule.getId() + " can not handle message " + msgType, e);
+                logger.error("Rule id: {} can not handle message {}", triggeredRule.getId(), msgType, e);
                 EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + msgType, triggeredRule.getRootEventId(), e);
             }
         }

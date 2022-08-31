@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.RawMessage;
+import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.util.MessageBatcher;
@@ -70,7 +71,16 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private boolean isDefault = false;
 
-    public SimulatorRuleInfo(int id, @NotNull IRule rule, @NotNull RuleConfiguration configuration, @NotNull MessageBatcher messageBatcher, @NotNull EventBatcher eventBatcher, @NotNull String rootEventId, @NotNull ScheduledExecutorService scheduledExecutorService, @NotNull Consumer<SimulatorRuleInfo> onRemove) {
+    public SimulatorRuleInfo(
+            int id,
+            @NotNull IRule rule,
+            @NotNull RuleConfiguration configuration,
+            @NotNull MessageBatcher messageBatcher,
+            @NotNull EventBatcher eventBatcher,
+            @NotNull String rootEventId,
+            @NotNull ScheduledExecutorService scheduledExecutorService,
+            @NotNull Consumer<SimulatorRuleInfo> onRemove
+    ) {
         this.id = id;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.configuration = Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
@@ -222,29 +232,30 @@ public class SimulatorRuleInfo implements IRuleContext {
 
         switch (msg.getKindCase()) {
             case MESSAGE: {
-                if (!msg.getMessage().hasParentEventId()) {
+                Message parsedMessage = msg.getMessage();
+                if (!parsedMessage.hasParentEventId()) {
                     resultBuilder = msg.toBuilder();
-                    resultBuilder.getMessageBuilder().setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+                    resultBuilder.getMessageBuilder().getParentEventIdBuilder().setId(rootEventId);
                 }
-                if (StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+                if (StringUtils.isEmpty(MessageUtils.getSessionAlias(parsedMessage)) && configuration.getSessionAlias() != null) {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                    MessageUtils.setSessionAlias(resultBuilder.getMessageBuilder(), configuration.getSessionAlias());
                 }
                 break;
             }
             case RAW_MESSAGE: {
-                if (!msg.getMessage().hasParentEventId()) {
+                RawMessage rawMessage = msg.getRawMessage();
+                if (!rawMessage.hasParentEventId()) {
                     resultBuilder = msg.toBuilder();
-                    resultBuilder.getRawMessageBuilder()
-                            .setParentEventId(EventID.newBuilder().setId(rootEventId).build());
+                    resultBuilder.getRawMessageBuilder().getParentEventIdBuilder().setId(rootEventId);
                 }
-                if (StringUtils.isEmpty(msg.getRawMessage().getMetadata().getId().getConnectionId().getSessionAlias()) && configuration.getSessionAlias() != null) {
+                if (StringUtils.isEmpty(MessageUtils.getSessionAlias(rawMessage)) && configuration.getSessionAlias() != null) {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(configuration.getSessionAlias());
+                    MessageUtils.setSessionAlias(resultBuilder.getRawMessageBuilder(), configuration.getSessionAlias());
                 }
                 break;
             }
@@ -258,14 +269,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     public boolean checkAlias(@NotNull Message message) {
         String alias = configuration.getSessionAlias();
-        if (alias == null || alias.isEmpty()) {
-            return true;
-        }
-        return message.getMetadata()
-                .getId()
-                .getConnectionId()
-                .getSessionAlias()
-                .equals(alias);
+        return alias == null || alias.isEmpty() || MessageUtils.getSessionAlias(message).equals(alias);
     }
 
     private void requirePositiveOrZero(long value, Supplier<String> messageSupplier) {

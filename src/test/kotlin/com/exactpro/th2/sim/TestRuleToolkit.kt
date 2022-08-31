@@ -25,6 +25,8 @@ import com.exactpro.th2.sim.template.rule.test.api.TestRuleContext.Companion.tes
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.opentest4j.AssertionFailedError
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class TestRuleToolkit {
 
@@ -80,6 +82,32 @@ class TestRuleToolkit {
             TestRule.assertHandle(Message.getDefaultInstance())
             Assertions.assertThrows(AssertionFailedError::class.java) {
                 assertSent(MessageGroupBatch::class.java) { }
+            }
+
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(MessageGroupBatch::class.java) { }
+            }
+
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(Event::class.java) { }
+            }
+        }
+
+    }
+
+    @Test
+    fun `test of sent with delay`() {
+        val delay = 1000L
+
+        TestRule.triggeredAnswer = true
+        TestRule.sendLogic = {
+            it.send(Message.getDefaultInstance(), delay, TimeUnit.MILLISECONDS)
+        }
+
+        testRule {
+            TestRule.assertHandle(Message.getDefaultInstance(), Duration.ofMillis(delay+100L))
+            Assertions.assertDoesNotThrow {
+                assertSent(Message::class.java) { }
             }
 
             Assertions.assertThrows(AssertionFailedError::class.java) {
