@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -79,7 +80,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final Set<String> subscriptions = ConcurrentHashMap.newKeySet();
 
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
-    private final Map<String, List<Integer>> relationToRuleId = new ConcurrentHashMap<>();
+    private final Map<String, Set<Integer>> relationToRuleId = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
@@ -141,10 +142,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         poolExecutor.setRejectedExecutionHandler((runnable, threadPoolExecutor) -> {
             try {
                 // Wait until queue is ready, don`t throw reject
-                threadPoolExecutor.getQueue().put(runnable);
                 if (threadPoolExecutor.isShutdown()) {
                     throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor + " due shutdown");
                 }
+                threadPoolExecutor.getQueue().put(runnable);
             } catch (InterruptedException e) {
                 throw new RejectedExecutionException("Task " + runnable + " rejected from " + threadPoolExecutor, e);
             }
@@ -186,10 +187,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         String relation = configuration.getRelation();
 
         ruleIds.put(id, ruleInfo);
-        List<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> new CopyOnWriteArrayList<>());
-        if (!relationRules.contains(ruleInfo.getId())) {
-            relationRules.add(ruleInfo.getId());
-        }
+        Set<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> new CopyOnWriteArraySet<>());
+        relationRules.add(ruleInfo.getId());
 
         if (!subscriptions.contains(relation)) {
             SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
@@ -238,7 +237,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), rule.getRootEventId());
         }
         relationToRuleId.forEach((relation, ids) -> {
-            if (ids.remove((Integer) id)) {
+            if (ids.remove(id)) {
                 logger.debug("Removed rule with id = {} from relation {}", id, relation);
             }
         });
@@ -308,7 +307,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
                 }
             } catch (Exception e) {
                 if (logger.isErrorEnabled()) {
-                    logger.error("Can`t handle batch = {}", TextFormat.shortDebugString(batch), e);
+                    logger.error("Can`t handle batch = {}", MessageUtils.toJson(batch), e);
                 }
             }
         });
@@ -341,7 +340,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     private List<SimulatorRuleInfo> getTriggered(Message message, String relation) {
-        List<Integer> relationRules = relationToRuleId.get(relation);
+        Set<Integer> relationRules = relationToRuleId.get(relation);
 
         var messageType = message.getMetadata().getMessageType();
         if(relationRules == null) {
@@ -350,13 +349,16 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
 
         if (logger.isTraceEnabled()) {
-            logger.trace("Message {} checking against related rules: {}", messageType, relationRules.stream().map(integer -> ruleIds.get(integer).getRule().getClass().getSimpleName()).collect(Collectors.joining(", ")));
+            String rules = relationRules.stream()
+                    .map(id -> ruleIds.get(id).getRule().getClass().getSimpleName())
+                    .collect(Collectors.joining(", "));
+
+            logger.trace("Message {} checking against related rules: {}", messageType, rules);
         }
 
         List<SimulatorRuleInfo> triggeredRules = new ArrayList<>();
-        int relationSize = relationRules.size();
-        for (int i = 0; i < relationSize; i++) {
-            SimulatorRuleInfo rule = ruleIds.get(relationRules.get(i));
+        for (Integer id : relationRules) {
+            SimulatorRuleInfo rule = ruleIds.get(id);
             if (rule.checkAlias(message) && rule.getRule().checkTriggered(message)) {
                 triggeredRules.add(rule);
             }

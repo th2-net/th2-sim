@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.exactpro.th2.common.event.Event;
-import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
@@ -151,7 +150,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull Message msg, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requireNonNegative(delay, () -> "Negative delay in rule " + id + ": " + delay);
 
         scheduledExecutorService.schedule(() -> send(msg), delay, timeUnit);
     }
@@ -160,7 +159,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull RawMessage msg, long delay, TimeUnit timeUnit) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requireNonNegative(delay, () -> "Negative delay in rule " + id + ": " + delay);
 
         scheduledExecutorService.schedule(() -> send(msg), delay, timeUnit);
     }
@@ -169,7 +168,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull MessageGroup group, long delay, @NotNull TimeUnit timeUnit) {
         Objects.requireNonNull(group, () -> "Null group supplied from rule " + id);
         Objects.requireNonNull(timeUnit, () -> "Null time unit supplied from rule " + id);
-        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requireNonNegative(delay, () -> "Negative delay in rule " + id + ": " + delay);
 
         if (group.getMessagesCount() < 1) {
             return;
@@ -192,7 +191,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public ICancellable execute(long delay, @NotNull IAction action) {
         Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
-        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requireNonNegative(delay, () -> "Negative delay in rule " + id + ": " + delay);
 
         return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, action));
     }
@@ -200,7 +199,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public ICancellable execute(long delay, long period, @NotNull IAction action) {
         Objects.requireNonNull(action, () -> "Null action supplied from rule " + id);
-        requirePositiveOrZero(delay, () -> "Negative delay in rule " + id + ": " + delay);
+        requireNonNegative(delay, () -> "Negative delay in rule " + id + ": " + delay);
         requirePositive(period, () -> "Negative period in rule " + id + ": " + period);
 
         return registerCancellable(new ActionRunner(scheduledExecutorService, sender, delay, period, action));
@@ -272,7 +271,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         return alias == null || alias.isEmpty() || MessageUtils.getSessionAlias(message).equals(alias);
     }
 
-    private void requirePositiveOrZero(long value, Supplier<String> messageSupplier) {
+    private void requireNonNegative(long value, Supplier<String> messageSupplier) {
         if (value < 0) {
             throw new IllegalStateException(messageSupplier == null ? null : messageSupplier.get());
         }

@@ -28,9 +28,6 @@ public class RuleConfiguration {
     }
 
     public void setSessionAlias(String sessionAlias) {
-        if (sessionAlias !=null && sessionAlias.isBlank()) {
-            throw new IllegalStateException("Rule configuration must contain non blank alias");
-        }
         this.sessionAlias = sessionAlias;
     }
 
