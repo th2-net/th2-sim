@@ -187,7 +187,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         String relation = configuration.getRelation();
 
         ruleIds.put(id, ruleInfo);
-        Set<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> new CopyOnWriteArraySet<>());
+        Set<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> ConcurrentHashMap.newKeySet());
         relationRules.add(ruleInfo.getId());
 
         if (!subscriptions.contains(relation)) {
