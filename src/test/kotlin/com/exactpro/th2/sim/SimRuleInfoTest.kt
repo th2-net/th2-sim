@@ -19,11 +19,9 @@ package com.exactpro.th2.sim
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.createMessageBean
 import com.exactpro.th2.common.grpc.AnyMessage
-import com.exactpro.th2.common.grpc.EventBatch
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
-import com.exactpro.th2.common.grpc.MessageGroupBatch
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.getString
@@ -31,15 +29,16 @@ import com.exactpro.th2.common.message.message
 import com.exactpro.th2.common.message.messageType
 import com.exactpro.th2.common.message.plusAssign
 import com.exactpro.th2.common.message.sessionAlias
-import com.exactpro.th2.common.schema.message.MessageRouter
+import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.sim.configuration.RuleConfiguration
 import com.exactpro.th2.sim.impl.SimulatorRuleInfo
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
+import com.exactpro.th2.sim.util.MessageBatcher
 import com.google.protobuf.ByteString
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
+import org.mockito.kotlin.any
 import org.mockito.kotlin.check
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -57,75 +56,79 @@ class SimRuleInfoTest {
 
     @Test
     fun `send parsed`() {
-        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
-        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val messageBatcher = mock<MessageBatcher>()
+        val eventBatcher = mock<EventBatcher>()
 
         val testParsedMessage = message("SomeMessage").apply {
             metadataBuilder.protocol = "TestProtocol"
             addField("SomeField", "SomeValue")
         }.build()
 
-        fun MessageGroupBatch.check() {
-            val message = this.getGroups(0).getMessages(0).message
-            Assertions.assertEquals("SomeMessage", message.messageType)
-            Assertions.assertEquals(testAlias, message.sessionAlias)
-            Assertions.assertEquals("TestProtocol", message.metadata.protocol)
-            Assertions.assertEquals("SomeValue", message.getString("SomeField"))
+        fun AnyMessage.check() {
+            Assertions.assertTrue(hasMessage())
+            with(message) {
+                Assertions.assertEquals("SomeMessage", messageType)
+                Assertions.assertEquals(testAlias, sessionAlias)
+                Assertions.assertEquals("TestProtocol", metadata.protocol)
+                Assertions.assertEquals("SomeValue", getString("SomeField"))
+            }
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
 
-            reset(batchRouter)
+            reset(messageBatcher)
 
-            simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setMessage(testParsedMessage).build()).build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
+            simulatorRuleInfo.send(testParsedMessage)
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
         }
 
-        verify(eventRouter, never()).sendAll(Mockito.any())
+        verify(eventBatcher, never()).onEvent(any())
     }
 
     @Test
     fun `send rawMessage`() {
-        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
-        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val messageBatcher = mock<MessageBatcher>()
+        val eventBatcher = mock<EventBatcher>()
 
         val testRawMessage = RawMessage.newBuilder().apply {
             metadataBuilder.protocol = "TestProtocol"
             body = ByteString.copyFrom("test data".toByteArray())
         }.build()
 
-        fun MessageGroupBatch.check() {
-            val message = this.getGroups(0).getMessages(0).rawMessage
-            Assertions.assertEquals(testAlias, message.sessionAlias)
-            Assertions.assertEquals("TestProtocol", message.metadata.protocol)
-            Assertions.assertEquals(testRawMessage.body, message.body)
+        fun AnyMessage.check() {
+            Assertions.assertTrue(hasRawMessage())
+            with (rawMessage) {
+                Assertions.assertEquals(testAlias, sessionAlias)
+                Assertions.assertEquals("TestProtocol", metadata.protocol)
+                Assertions.assertEquals(testRawMessage.body, body)
+            }
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
 
-            reset(batchRouter)
+            reset(messageBatcher)
 
-            simulatorRuleInfo.send(MessageGroup.newBuilder().addMessages(AnyMessage.newBuilder().setRawMessage(testRawMessage).build()).build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
+            simulatorRuleInfo.send(testRawMessage)
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
         }
 
-        verify(eventRouter, never()).sendAll(Mockito.any())
+        verify(eventBatcher, never()).onEvent(any())
     }
 
     @Test
     fun `send group`() {
-        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
-        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val messageBatcher = mock<MessageBatcher>()
+        val eventBatcher = mock<EventBatcher>()
 
         val testParsedMessage = message("SomeMessage").apply {
             metadataBuilder.protocol = "TestProtocol"
@@ -138,55 +141,57 @@ class SimRuleInfoTest {
         }.build()
 
 
-        fun MessageGroupBatch.check() {
-            val parsed = this.getGroups(0).getMessages(0).message
+        fun MessageGroup.check() {
+            val parsed = this.getMessages(0).message
             Assertions.assertEquals("SomeMessage", parsed.messageType)
             Assertions.assertEquals(testAlias, parsed.sessionAlias)
             Assertions.assertEquals("TestProtocol", parsed.metadata.protocol)
             Assertions.assertEquals("SomeValue", parsed.getString("SomeField"))
 
-            val raw = this.getGroups(0).getMessages(1).rawMessage
+            val raw = this.getMessages(1).rawMessage
             Assertions.assertEquals(testAlias, raw.sessionAlias)
             Assertions.assertEquals("TestProtocol", raw.metadata.protocol)
             Assertions.assertEquals(testRawMessage.body, raw.body)
         }
 
-        fun MessageGroupBatch.checkEmptyAlias() {
-            val parsed = this.getGroups(0).getMessages(0).message
+        fun MessageGroup.checkEmptyAlias() {
+            val parsed = this.getMessages(0).message
             Assertions.assertEquals("", parsed.sessionAlias)
-            val raw = this.getGroups(0).getMessages(1).rawMessage
+            val raw = this.getMessages(1).rawMessage
             Assertions.assertEquals("", raw.sessionAlias)
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             val group = MessageGroup.newBuilder()
             group += testParsedMessage
             group += testRawMessage
             simulatorRuleInfo.send(group.build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::check), eq("second"), eq(testRelation))
+            Thread.sleep(150)
+            verify(messageBatcher, times(1)).onGroup(check(MessageGroup::check), eq(testRelation))
         }
 
-        reset(batchRouter)
+        reset(messageBatcher)
 
-        SimulatorRuleInfo(0, EmptyTestRule, RuleConfiguration(), batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, RuleConfiguration(), messageBatcher, eventBatcher, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             val group = MessageGroup.newBuilder()
             group += testParsedMessage
             group += testRawMessage
             simulatorRuleInfo.send(group.build())
-            verify(batchRouter, times(1)).sendAll(check(MessageGroupBatch::checkEmptyAlias), eq("second"), eq("default"))
+            Thread.sleep(150)
+            verify(messageBatcher, times(1)).onGroup(check(MessageGroup::checkEmptyAlias), eq("default"))
         }
 
-        verify(eventRouter, never()).sendAll(Mockito.any())
+        verify(eventBatcher, never()).onEvent(any())
     }
 
     @Test
     fun `send event`() {
-        val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
-        val eventRouter = mock<MessageRouter<EventBatch>>()
+        val messageBatcher = mock<MessageBatcher>()
+        val eventBatcher = mock<EventBatcher>()
 
         val resultEvent = Event.start()
             .endTimestamp()
@@ -197,22 +202,23 @@ class SimRuleInfoTest {
 
         resultEvent.bodyData(createMessageBean("SomeBody"))
 
-        fun EventBatch.check() {
-            val event = this.getEvents(0)
-            Assertions.assertTrue(event.name.startsWith("SomeName"))
-            Assertions.assertTrue(event.body.toStringUtf8().endsWith("""{"data":"SomeBody","type":"message"}]"""))
-            Assertions.assertEquals(EventStatus.SUCCESS, event.status)
-            Assertions.assertEquals(rootEventId, event.parentId.id)
+        fun com.exactpro.th2.common.grpc.Event.check() {
+            Assertions.assertTrue(name.startsWith("SomeName"))
+            Assertions.assertTrue(body.toStringUtf8().endsWith("""{"data":"SomeBody","type":"message"}]"""))
+            Assertions.assertEquals(EventStatus.SUCCESS, status)
+            Assertions.assertEquals(rootEventId, parentId.id)
         }
 
-        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, batchRouter, eventRouter, rootEventId, scheduler) {
+        SimulatorRuleInfo(0, EmptyTestRule, ruleConfiguration, messageBatcher, eventBatcher, rootEventId, scheduler) {
             LOGGER.debug("Rule removed")
         }.let { simulatorRuleInfo ->
             simulatorRuleInfo.sendEvent(resultEvent)
-            verify(eventRouter, times(1)).send(check(EventBatch::check))
+            Thread.sleep(150)
+            verify(eventBatcher, times(1)).onEvent(check(com.exactpro.th2.common.grpc.Event::check))
         }
 
-        verify(batchRouter, never()).sendAll(Mockito.any())
+        verify(messageBatcher, never()).onMessage(any<Message>(), any())
+        verify(messageBatcher, never()).onMessage(any<RawMessage>(), any())
     }
 
     companion object {

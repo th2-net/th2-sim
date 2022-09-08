@@ -25,6 +25,12 @@ public class SimulatorConfiguration {
 
     private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
+    private int executionPoolSize = 12;
+
+    private int maxBatchSize = 100;
+
+    private long maxFlushTime = 1000L;
+
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
     }
@@ -39,5 +45,29 @@ public class SimulatorConfiguration {
 
     public void setStrategyDefaultRules(DefaultRulesTurnOffStrategy strategyDefaultRules) {
         this.strategyDefaultRules = strategyDefaultRules;
+    }
+
+    public int getExecutionPoolSize() {
+        return executionPoolSize;
+    }
+
+    public void setExecutionPoolSize(int executionPoolSize) {
+        this.executionPoolSize = executionPoolSize;
+    }
+
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(int maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
+    }
+
+    public long getMaxFlushTime() {
+        return maxFlushTime;
+    }
+
+    public void setMaxFlushTime(long maxFlushTime) {
+        this.maxFlushTime = maxFlushTime;
     }
 }

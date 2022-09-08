@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.RawMessage;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.common.event.Event;
@@ -46,12 +47,6 @@ public interface IRuleContext {
     void send(@NotNull MessageGroup group);
 
     /**
-     * Attempts to send a batch immediately
-     */
-    @Deprecated
-    void send(@NotNull MessageBatch batch);
-
-    /**
      * Attempts to send a raw msg after a specified delay
      */
     void send(@NotNull RawMessage msg, long delay, TimeUnit timeUnit);
@@ -65,13 +60,6 @@ public interface IRuleContext {
      * Attempts to send a group after a specified delay
      */
     void send(@NotNull MessageGroup group, long delay, TimeUnit timeUnit);
-
-    /**
-     * Attempts to send a batch after a specified delay
-     */
-    @Deprecated
-    void send(@NotNull MessageBatch batch, long delay, TimeUnit timeUnit);
-
     /**
      * Attempts to execute action immediately
      * @return an entity which can be used cancel this operation
@@ -96,7 +84,7 @@ public interface IRuleContext {
     /**
      * Attempts to send an event immediately
      */
-    void sendEvent(Event event);
+    void sendEvent(Event event) throws JsonProcessingException;
 
     void removeRule();
 }
