@@ -1,5 +1,5 @@
 # Simulator core
-![version](https://img.shields.io/badge/version-6.0.0-blue.svg)
+![version](https://img.shields.io/badge/version-6.0.1-blue.svg)
 
 ## Description
 The Simulator is a service used for simulate different logics.
@@ -232,6 +232,9 @@ testRule {
 **Line 14**: method to check is there no result in queue;
 
 ## Changelog
+
+### 6.0.1
++ Execution pool for rule tasks implemented
 
 ### 6.0.0
 + Aliases removed from attributes for common filtering support
