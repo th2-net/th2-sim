@@ -237,6 +237,9 @@ testRule {
 + Aliases removed from attributes for common filtering support
 + Alias attribute switched to relation attribute
 
+### 5.2.1
++ Removed duplicate rule-removal event
+
 ### 5.2.0
 + Toolkit logic updated: all errors will be thrown as unexpected
 

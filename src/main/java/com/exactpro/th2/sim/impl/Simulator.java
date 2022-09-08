@@ -220,7 +220,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         SimulatorRuleInfo rule = ruleIds.get(id.getId());
 
         if (rule != null) {
+            logger.trace("Rule [id: {}] was removed from ruleIds", id.getId());
             rule.removeRule();
+            EventUtils.sendEvent(eventRouter, String.format("Rule [id: '%d'] was removed", id.getId()), rule.getRootEventId());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -349,6 +351,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
 
         if (logger.isTraceEnabled()) {
+            //TODO: Performance issue because of set.stream
             String rules = relationRules.stream()
                     .map(id -> ruleIds.get(id).getRule().getClass().getSimpleName())
                     .collect(Collectors.joining(", "));
