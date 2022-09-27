@@ -233,12 +233,10 @@ testRule {
 
 ## Changelog
 
-### 6.0.1
-+ Execution pool for rule tasks implemented
-
 ### 6.0.0
 + Aliases removed from attributes for common filtering support
 + Alias attribute switched to relation attribute
++ Execution pool for rule tasks implemented
 
 ### 5.2.1
 + Removed duplicate rule-removal event

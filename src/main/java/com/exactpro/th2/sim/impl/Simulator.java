@@ -190,12 +190,11 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         Set<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> ConcurrentHashMap.newKeySet());
         relationRules.add(ruleInfo.getId());
 
-        if (!subscriptions.contains(relation)) {
+        if (subscriptions.add(relation)) {
             SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
             if (subscribe==null) {
                 logger.error("Cannot subscribe to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", relation);
             } else {
-                subscriptions.add(relation);
                 logger.debug("Created subscription for relation: '{}'", relation);
             }
         }
