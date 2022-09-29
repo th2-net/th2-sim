@@ -17,11 +17,11 @@
 package com.exactpro.th2.sim.configuration;
 
 public class RuleConfiguration {
-    public final static String DEFAULT_RELATION = "default";
+    public final static String DEFAULT_MESSAGE_FLOW = "default";
 
     private String sessionAlias = null;
 
-    private String relation = DEFAULT_RELATION;
+    private String messageFlow = DEFAULT_MESSAGE_FLOW;
 
     public String getSessionAlias() {
         return sessionAlias;
@@ -31,22 +31,22 @@ public class RuleConfiguration {
         this.sessionAlias = sessionAlias;
     }
 
-    public String getRelation() {
-        return relation;
+    public String getMessageFlow() {
+        return messageFlow;
     }
 
-    public void setRelation(String relation) {
-        if (relation==null || relation.isBlank() ) {
-            throw new IllegalArgumentException("Relation cannot be empty or null");
+    public void setMessageFlow(String messageFlow) {
+        if (messageFlow==null || messageFlow.isBlank() ) {
+            throw new IllegalArgumentException("Message-flow cannot be empty or null");
         }
-        this.relation = relation;
+        this.messageFlow = messageFlow;
     }
 
     @Override
     public String toString() {
         return "RuleConfiguration {" +
                 "sessionAlias='" + sessionAlias + '\'' +
-                ", relation='" + relation + '\'' +
+                ", messageFlow='" + messageFlow + '\'' +
                 '}';
     }
 

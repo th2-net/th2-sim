@@ -25,7 +25,7 @@ Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``cus
 #### Pins in MessageRouter
 Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
 Simulator sends message group to pins with the attributes ``second``, ``publish`` \
-_From **6.0.0** need to define relation attribute, "default" as default, all incoming messages will be filtered to those relations
+_From **6.0.0** need to define messageFlow attribute, "default" as default, all incoming messages will be filtered to those messageFlows
 
 
 *Example:*
@@ -60,13 +60,13 @@ _From **6.0.0** need to define relation attribute, "default" as default, all inc
 }
 ```
 
-#### Relations
-Simulator subscribe rules to relation attribute in pins, default value  for rule is "default", all pins need to be filled with this attribute or custom one.
-Pins with relation attributes works only with related rules (with same value in RuleConfiguration object).
-Relation doesn't affect messages, relation is only used to be like a filter to let user manage flows of the messages. As example task: split some rules between two namespaces.
+#### messageFlows
+Simulator subscribe rules to messageFlow attribute in pins, default value  for rule is "default", all pins need to be filled with this attribute or custom one.
+Pins with messageFlow attributes works only with related rules (with same value in RuleConfiguration object).
+Message-flow doesn't affect messages, messageFlow is only used to be like a filter to let user manage flows of the messages. As example task: split some rules between two namespaces.
 To use those related attributes need: 
 1. Fill rule configuration
-2. Set relation as attribute in pin
+2. Set message-flow as attribute in pin
 
 ```yaml
 pins:
@@ -76,11 +76,14 @@ pins:
         - first
         - subscribe
         - parsed
-        - example_relation  <-------
+        - example_message_flow  <-------
 ```
 
 ```kotlin
-ServiceUtils.addRule(AnyRule(), RuleConfiguraion().apply { sessionAlias = "relation" }, ... )
+ServiceUtils.addRule(AnyRule(), RuleConfiguraion().apply { 
+    sessionAlias = "non_required_alias" 
+    messageFlow = "example_message_flow"
+}, ... )
 ```
 
 #### Custom configuration
@@ -235,7 +238,7 @@ testRule {
 
 ### 6.0.0
 + Aliases removed from attributes for common filtering support
-+ Alias attribute switched to relation attribute
++ Alias attribute switched to messageFlow attribute
 + Execution pool for rule tasks implemented
 
 ### 5.2.1

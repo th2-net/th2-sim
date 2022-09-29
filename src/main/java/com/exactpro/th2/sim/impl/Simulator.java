@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,7 +42,7 @@ import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.common.schema.message.SubscriberMonitor;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
-import com.exactpro.th2.sim.grpc.RuleRelation;
+import com.exactpro.th2.sim.grpc.RuleMessageFlow;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.exactpro.th2.sim.util.MessageBatcher;
 import kotlin.Unit;
@@ -80,7 +78,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private final Set<String> subscriptions = ConcurrentHashMap.newKeySet();
 
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
-    private final Map<String, Set<Integer>> relationToRuleId = new ConcurrentHashMap<>();
+    private final Map<String, Set<Integer>> messageFlowToRuleId = new ConcurrentHashMap<>();
 
     private final AtomicInteger nextId = new AtomicInteger(0);
     private final AtomicInteger countDefaultRules = new AtomicInteger(0);
@@ -112,9 +110,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         this.rootEventId = rootEventId;
 
-        this.messageBatcher = new MessageBatcher(configuration.getMaxBatchSize(), configuration.getMaxFlushTime(), scheduler, (batch, relation) -> {
+        this.messageBatcher = new MessageBatcher(configuration.getMaxBatchSize(), configuration.getMaxFlushTime(), scheduler, (batch, messageFlow) -> {
             try {
-                batchRouter.sendAll(batch, QueueAttribute.SECOND.getValue(), relation);
+                batchRouter.sendAll(batch, QueueAttribute.SECOND.getValue(), messageFlow);
             } catch (IOException e) {
                 throw new IllegalStateException("Can not send message group batch: " + MessageUtils.toJson(batch), e);
             }
@@ -184,18 +182,18 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         var ruleInfo = new SimulatorRuleInfo(id, rule, configuration, messageBatcher, eventBatcher, event == null ? rootEventId : event.getId().getId(), scheduler, this::removeRule);
 
-        String relation = configuration.getRelation();
+        String messageFlow = configuration.getMessageFlow();
 
         ruleIds.put(id, ruleInfo);
-        Set<Integer> relationRules = relationToRuleId.computeIfAbsent(relation, (key) -> ConcurrentHashMap.newKeySet());
-        relationRules.add(ruleInfo.getId());
+        Set<Integer> messageFlowRules = messageFlowToRuleId.computeIfAbsent(messageFlow, (key) -> ConcurrentHashMap.newKeySet());
+        messageFlowRules.add(ruleInfo.getId());
 
-        if (subscriptions.add(relation)) {
-            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
+        if (subscriptions.add(messageFlow)) {
+            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, messageFlow), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), messageFlow);
             if (subscribe==null) {
-                logger.error("Cannot subscribe to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", relation);
+                logger.error("Cannot subscribe to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", messageFlow);
             } else {
-                logger.debug("Created subscription for relation: '{}'", relation);
+                logger.debug("Created subscription for message-flow: '{}'", messageFlow);
             }
         }
 
@@ -237,9 +235,9 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             }
             EventUtils.sendEvent(eventRouter, String.format("Rule with id = '%d' was removed", id), rule.getRootEventId());
         }
-        relationToRuleId.forEach((relation, ids) -> {
+        messageFlowToRuleId.forEach((messageFlow, ids) -> {
             if (ids.remove(id)) {
-                logger.debug("Removed rule with id = {} from relation {}", id, relation);
+                logger.debug("Removed rule with id = {} from message-flow {}", id, messageFlow);
             }
         });
     }
@@ -256,10 +254,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void getRelatedRules(RuleRelation request, StreamObserver<RulesInfo> responseObserver) {
+    public void getRelatedRules(RuleMessageFlow request, StreamObserver<RulesInfo> responseObserver) {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
-                .addAllInfo(relationToRuleId.get(request.getRelation()).stream()
+                .addAllInfo(messageFlowToRuleId.get(request.getMessageFlow()).stream()
                         .map(this::createRuleInfo)
                         .collect(Collectors.toList()))
                 .build());
@@ -287,7 +285,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
     }
 
-    public void handleBatch(MessageGroupBatch batch, String relation) {
+    public void handleBatch(MessageGroupBatch batch, String messageFlow) {
         executorService.execute(() -> {
             try {
                 List<MessageGroup> messageGroups = batch.getGroupsList();
@@ -300,7 +298,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
                         AnyMessage message = messages.get(messageIndex);
                         if (message.hasMessage()) {
-                            handleMessage(message.getMessage(), relation);
+                            handleMessage(message.getMessage(), messageFlow);
                         } else {
                             logger.warn("Unsupported format of incoming message: {}", message.getKindCase().name());
                         }
@@ -314,12 +312,12 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         });
     }
 
-    private void handleMessage(Message message, String relation) {
+    private void handleMessage(Message message, String messageFlow) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Handle message '{}' from relation '{}'", message.getMetadata().getMessageType(), relation);
+            logger.debug("Handle message '{}' from message-flow '{}'", message.getMetadata().getMessageType(), messageFlow);
         }
 
-        List<SimulatorRuleInfo> triggeredRules = getTriggered(message, relation);
+        List<SimulatorRuleInfo> triggeredRules = getTriggered(message, messageFlow);
 
         if(triggeredRules.isEmpty()) {
             logger.debug("No rules were triggered");
@@ -340,18 +338,18 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         logTriggeredRules(triggeredRules);
     }
 
-    private List<SimulatorRuleInfo> getTriggered(Message message, String relation) {
-        Set<Integer> relationRules = relationToRuleId.get(relation);
+    private List<SimulatorRuleInfo> getTriggered(Message message, String messageFlow) {
+        Set<Integer> messageFlowRules = messageFlowToRuleId.get(messageFlow);
 
         var messageType = message.getMetadata().getMessageType();
-        if(relationRules == null) {
+        if(messageFlowRules == null) {
             logger.trace("No related rules was found for message: {}", messageType);
             return Collections.emptyList();
         }
 
         if (logger.isTraceEnabled()) {
             //TODO: Performance issue because of set.stream
-            String rules = relationRules.stream()
+            String rules = messageFlowRules.stream()
                     .map(id -> ruleIds.get(id).getRule().getClass().getSimpleName())
                     .collect(Collectors.joining(", "));
 
@@ -359,7 +357,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         }
 
         List<SimulatorRuleInfo> triggeredRules = new ArrayList<>();
-        for (Integer id : relationRules) {
+        for (Integer id : messageFlowRules) {
             SimulatorRuleInfo rule = ruleIds.get(id);
             if (rule.checkAlias(message) && rule.getRule().checkTriggered(message)) {
                 triggeredRules.add(rule);
@@ -401,7 +399,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         var result =  RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setRelation(RuleRelation.newBuilder().setRelation(rule.getConfiguration().getRelation()));
+                .setMessageFlow(RuleMessageFlow.newBuilder().setMessageFlow(rule.getConfiguration().getMessageFlow()));
 
         if (rule.getConfiguration().getSessionAlias() != null) {
             result.setAlias(rule.getConfiguration().getSessionAlias());

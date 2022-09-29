@@ -128,13 +128,13 @@ public class SimulatorRuleInfo implements IRuleContext {
     @Override
     public void send(@NotNull Message msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setMessage(msg).build()), configuration.getRelation());
+        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setMessage(msg).build()), configuration.getMessageFlow());
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
         Objects.requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setRawMessage(msg).build()), configuration.getRelation());
+        messageBatcher.onMessage(prepareMessage(AnyMessage.newBuilder().setRawMessage(msg).build()), configuration.getMessageFlow());
     }
 
     @Override
@@ -143,7 +143,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         if (group.getMessagesCount() < 1) {
             return;
         }
-        messageBatcher.onGroup(prepareMessageGroup(group), configuration.getRelation());
+        messageBatcher.onGroup(prepareMessageGroup(group), configuration.getMessageFlow());
     }
 
     @Override

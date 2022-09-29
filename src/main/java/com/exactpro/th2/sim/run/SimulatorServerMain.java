@@ -44,7 +44,7 @@ public class SimulatorServerMain {
     private static void addShutdownHook(SimulatorServer server, CommonFactory factory) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                try (factory; server) {}
+                try (factory; server) {} // factory and server will be closed, if some of them throwing error we will catch it below
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);
             }

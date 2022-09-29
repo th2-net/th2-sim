@@ -79,12 +79,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testMessageFlow))
 
             reset(messageBatcher)
 
             simulatorRuleInfo.send(testParsedMessage)
-            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testMessageFlow))
         }
 
         verify(eventBatcher, never()).onEvent(any())
@@ -114,12 +114,12 @@ class SimRuleInfoTest {
         }.let { simulatorRuleInfo ->
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testMessageFlow))
 
             reset(messageBatcher)
 
             simulatorRuleInfo.send(testRawMessage)
-            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onMessage(check(AnyMessage::check), eq(testMessageFlow))
         }
 
         verify(eventBatcher, never()).onEvent(any())
@@ -169,7 +169,7 @@ class SimRuleInfoTest {
             group += testRawMessage
             simulatorRuleInfo.send(group.build())
             Thread.sleep(150)
-            verify(messageBatcher, times(1)).onGroup(check(MessageGroup::check), eq(testRelation))
+            verify(messageBatcher, times(1)).onGroup(check(MessageGroup::check), eq(testMessageFlow))
         }
 
         reset(messageBatcher)
@@ -226,10 +226,10 @@ class SimRuleInfoTest {
 
         private const val rootEventId = "12345"
         private const val testAlias = "TestAlias"
-        private const val testRelation = "testRelation"
+        private const val testMessageFlow = "testMessageFlow"
         private val ruleConfiguration =  RuleConfiguration().apply {
             this.sessionAlias = testAlias
-            this.relation = testRelation
+            this.messageFlow = testMessageFlow
         }
 
         private var scheduler: ScheduledExecutorService = ScheduledThreadPoolExecutor(1)

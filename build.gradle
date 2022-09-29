@@ -170,13 +170,13 @@ dependencies {
     implementation "com.exactpro.th2:common:$common_version"
     implementation "com.exactpro.th2:common-utils:0.0.1-dev-3139295943-SNAPSHOT" //TODO: change to master branch
 
-    api "com.exactpro.th2:grpc-sim:4.0.0"
+    api "com.exactpro.th2:grpc-sim:$grpc_ver"
 
     testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
     testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"
 
-    testFixturesImplementation "io.github.microutils:kotlin-logging:2.0.8"
+    testFixturesImplementation "io.github.microutils:kotlin-logging:2.1.21"
     testFixturesImplementation "com.exactpro.th2:common:$common_version"
     testFixturesImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'

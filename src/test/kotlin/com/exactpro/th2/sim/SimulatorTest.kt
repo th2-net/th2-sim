@@ -31,7 +31,7 @@ import com.exactpro.th2.common.schema.message.MessageRouter
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy
 import com.exactpro.th2.sim.configuration.RuleConfiguration
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration
-import com.exactpro.th2.sim.grpc.RuleRelation
+import com.exactpro.th2.sim.grpc.RuleMessageFlow
 import com.exactpro.th2.sim.grpc.RulesInfo
 import com.exactpro.th2.sim.impl.Simulator
 import com.exactpro.th2.sim.rule.IRule
@@ -64,17 +64,17 @@ class SimulatorTest {
         }
 
         sim.addRule(ruleDefault, RuleConfiguration())
-        sim.addRule(ruleDefault, RuleConfiguration().apply { relation = "test" })
+        sim.addRule(ruleDefault, RuleConfiguration().apply { messageFlow = "test" })
         sim.addRule(ruleDefault, RuleConfiguration())
 
-        sim.getRelatedRules(RuleRelation.newBuilder().setRelation("default").build(), streamObserver)
+        sim.getRelatedRules(RuleMessageFlow.newBuilder().setMessageFlow("default").build(), streamObserver)
         verify(streamObserver, times(1)).onNext(check {
             Assertions.assertEquals(2, it.infoCount)
             Assertions.assertEquals(1, it.getInfo(0).id.id)
             Assertions.assertEquals(3, it.getInfo(1).id.id)
         })
 
-        sim.getRelatedRules(RuleRelation.newBuilder().setRelation("test").build(), streamObserver)
+        sim.getRelatedRules(RuleMessageFlow.newBuilder().setMessageFlow("test").build(), streamObserver)
         verify(streamObserver, times(1)).onNext(check {
             Assertions.assertEquals(1, it.infoCount)
             Assertions.assertEquals(2, it.getInfo(0).id.id)
@@ -126,7 +126,7 @@ class SimulatorTest {
         verify(eventRouter, times(2)).send(check(EventBatch::check))
 
         reset(batchRouter)
-        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_MESSAGE_FLOW)
 
         verify(ruleDefault, never()).handle(Mockito.any(), Mockito.any())
         verify(ruleNonDefault, never()).handle(Mockito.any(), Mockito.any())
@@ -179,7 +179,7 @@ class SimulatorTest {
         verify(eventRouter, times(2)).send(check(EventBatch::check))
 
         reset(batchRouter)
-        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_RELATION, 500)
+        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_MESSAGE_FLOW, 500)
 
         verify(ruleDefault, times(1)).handle(Mockito.any(), check { Assertions.assertEquals(Message.getDefaultInstance(), it) })
         verify(ruleNonDefault, never()).handle(Mockito.any(), Mockito.any())
@@ -233,7 +233,7 @@ class SimulatorTest {
         verify(eventRouter, times(2)).send(check(EventBatch::check))
 
         reset(batchRouter)
-        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(Message.getDefaultInstance(), RuleConfiguration.DEFAULT_MESSAGE_FLOW)
 
         verify(ruleNonDefault, times(1)).handle(Mockito.any(), check { Assertions.assertEquals(Message.getDefaultInstance(), it) })
         verify(ruleDefault, never()).handle(Mockito.any(), Mockito.any())
@@ -281,7 +281,7 @@ class SimulatorTest {
         }.build()
 
         reset(batchRouter)
-        sim.handleAndWait(handlingMsg, RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(handlingMsg, RuleConfiguration.DEFAULT_MESSAGE_FLOW)
 
         verify(rule).handle(Mockito.any(), check { Assertions.assertEquals(handlingMsg, it) })
         verify(batchRouter, times(1)).sendAll(check {
@@ -295,14 +295,14 @@ class SimulatorTest {
 
         reset(batchRouter)
         reset(rule)
-        sim.handleAndWait(wrongMsg, RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(wrongMsg, RuleConfiguration.DEFAULT_MESSAGE_FLOW)
 
         verify(rule, never()).handle(Mockito.any(), Mockito.any())
         verify(batchRouter, never()).sendAll(Mockito.any(), Mockito.any(), Mockito.any())
     }
 
     @Test
-    fun `relation test`() {
+    fun `messageFlow test`() {
         val batchRouter = mock<MessageRouter<MessageGroupBatch>>()
         val eventRouter = mock<MessageRouter<EventBatch>>()
         val rule = mock<IRule>() {
@@ -314,14 +314,14 @@ class SimulatorTest {
         val simulatorConfiguration = SimulatorConfiguration().apply {
             maxFlushTime = 100
         }
-        val testRelation = "TestRelation"
+        val testMessageFlow = "TestMessageFlow"
         val messageType = "SomeType"
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
         }
 
-        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { relation = testRelation }))
+        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { messageFlow = testMessageFlow }))
 
         Thread.sleep(150)
 
@@ -336,19 +336,19 @@ class SimulatorTest {
         val handlingMsg = message(messageType).build()
 
         reset(batchRouter)
-        sim.handleAndWait(handlingMsg, testRelation)
+        sim.handleAndWait(handlingMsg, testMessageFlow)
 
         verify(rule, times(1)).checkTriggered(check { Assertions.assertEquals(handlingMsg, it) })
         verify(rule).handle(Mockito.any(), check { Assertions.assertEquals(handlingMsg, it) })
         verify(batchRouter, times(1)).sendAll( check {
             Assertions.assertEquals(messageType, it.getGroups(0).getMessages(0).message.messageType)
-        }, check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testRelation, it) })
+        }, check { Assertions.assertEquals("second", it) }, check { Assertions.assertEquals(testMessageFlow, it) })
 
         val wrongMsg = message("messageType").build()
 
         reset(batchRouter)
         reset(rule)
-        sim.handleAndWait(wrongMsg, RuleConfiguration.DEFAULT_RELATION)
+        sim.handleAndWait(wrongMsg, RuleConfiguration.DEFAULT_MESSAGE_FLOW)
 
         verify(rule, never()).handle(Mockito.any(), Mockito.any())
         verify(batchRouter, never()).sendAll(Mockito.any(), Mockito.any(), Mockito.any())
@@ -379,18 +379,18 @@ class SimulatorTest {
             maxFlushTime = 150
         }
 
-        val testRelation = "TestRelation"
+        val testMessageFlow = "TestMessageFlow"
 
         val sim = Simulator().apply {
             init(batchRouter, eventRouter, simulatorConfiguration, rootEventId)
         }
 
-        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { relation = testRelation }))
+        Assertions.assertNotNull(sim.addRule(rule, RuleConfiguration().apply { messageFlow = testMessageFlow }))
 
         sim.handleAndWait(MessageGroup.newBuilder().apply {
             this += message(firstMessageType).build()
             this += message(secondMessageType).build()
-        }.build(), testRelation)
+        }.build(), testMessageFlow)
 
         verify(rule, times(2)).checkTriggered(Mockito.any())
         verify(rule,  times(1)).handle(Mockito.any(), check {
@@ -433,7 +433,7 @@ class SimulatorTest {
 
         repeat(stressCount) {
             try {
-                sim.handleBatch(Message.getDefaultInstance().toGroup().toBatch(), RuleConfiguration.DEFAULT_RELATION)
+                sim.handleBatch(Message.getDefaultInstance().toGroup().toBatch(), RuleConfiguration.DEFAULT_MESSAGE_FLOW)
             } catch (e: Exception) {
                 fail("${it}th iteration failed", e)
             }
@@ -443,10 +443,10 @@ class SimulatorTest {
         verify(batchRouter, times(stressCount * answers / batcherSize)).sendAll(Mockito.any(),Mockito.any(), Mockito.any())
     }
 
-    private fun Simulator.handleAndWait(message: Message, relation: String, sleepTime: Long = 200) = this.handleAndWait(message.toGroup(), relation, sleepTime)
+    private fun Simulator.handleAndWait(message: Message, messageFlow: String, sleepTime: Long = 200) = this.handleAndWait(message.toGroup(), messageFlow, sleepTime)
 
-    private fun Simulator.handleAndWait(messageGroup: MessageGroup, relation: String, sleepTime: Long = 100) {
-        this.handleBatch(messageGroup.toBatch(), relation)
+    private fun Simulator.handleAndWait(messageGroup: MessageGroup, messageFlow: String, sleepTime: Long = 100) {
+        this.handleBatch(messageGroup.toBatch(), messageFlow)
         Thread.sleep(sleepTime)
     }
 

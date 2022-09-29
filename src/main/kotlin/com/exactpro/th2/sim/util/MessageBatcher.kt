@@ -38,14 +38,14 @@ class MessageBatcher(
 ) : AutoCloseable {
     private val batches = ConcurrentHashMap<String, MessageBatch>()
 
-    fun onMessage(message: RawMessage, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(message.toGroup())
-    fun onMessage(message: Message, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(message.toGroup())
-    fun onMessage(message: AnyMessage, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(MessageGroup.newBuilder().addMessages(message).build())
-    fun onGroup(group: MessageGroup, relation: String) = batches.getOrPut(relation) { MessageBatch(relation) }.add(group)
+    fun onMessage(message: RawMessage, messageFlow: String) = batches.getOrPut(messageFlow) { MessageBatch(messageFlow) }.add(message.toGroup())
+    fun onMessage(message: Message, messageFlow: String) = batches.getOrPut(messageFlow) { MessageBatch(messageFlow) }.add(message.toGroup())
+    fun onMessage(message: AnyMessage, messageFlow: String) = batches.getOrPut(messageFlow) { MessageBatch(messageFlow) }.add(MessageGroup.newBuilder().addMessages(message).build())
+    fun onGroup(group: MessageGroup, messageFlow: String) = batches.getOrPut(messageFlow) { MessageBatch(messageFlow) }.add(group)
 
     override fun close() = batches.values.forEach(MessageBatch::close)
 
-    private inner class MessageBatch(val relation: String) : AutoCloseable {
+    private inner class MessageBatch(val messageFlow: String) : AutoCloseable {
         private val lock = ReentrantLock()
         private var batch = MessageGroupBatch.newBuilder()
         private var future: Future<*> = CompletableFuture.completedFuture(null)
@@ -61,7 +61,7 @@ class MessageBatcher(
 
         private fun send() = lock.withLock<Unit> {
             if (batch.groupsCount == 0) return
-            onBatch(batch.build(), relation)
+            onBatch(batch.build(), messageFlow)
             batch.clearGroups()
             future.cancel(false)
         }
