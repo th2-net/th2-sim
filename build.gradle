@@ -170,7 +170,7 @@ dependencies {
     implementation "com.exactpro.th2:common:$common_version"
     implementation "com.exactpro.th2:common-utils:0.0.1-dev-3139295943-SNAPSHOT" //TODO: change to master branch
 
-    api "com.exactpro.th2:grpc-sim:$grpc_ver"
+    api "com.exactpro.th2:grpc-sim:4.0.0-dev-3148568989-SNAPSHOT"
 
     testImplementation group: 'org.jetbrains.kotlin', name: 'kotlin-test-junit5', version: kotlin_version
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
