@@ -28,9 +28,9 @@ import java.util.function.Supplier;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.RawMessage;
-import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
+import com.exactpro.th2.common.utils.message.MessageUtilsKt;
 import com.exactpro.th2.sim.util.MessageBatcher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.commons.lang3.StringUtils;
@@ -236,11 +236,11 @@ public class SimulatorRuleInfo implements IRuleContext {
                     resultBuilder = msg.toBuilder();
                     resultBuilder.getMessageBuilder().getParentEventIdBuilder().setId(rootEventId);
                 }
-                if (StringUtils.isEmpty(MessageUtils.getSessionAlias(parsedMessage)) && configuration.getSessionAlias() != null) {
+                if (MessageUtilsKt.getSessionAlias(parsedMessage) == null && configuration.getSessionAlias() != null) {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    MessageUtils.setSessionAlias(resultBuilder.getMessageBuilder(), configuration.getSessionAlias());
+                    MessageUtilsKt.setSessionAlias(resultBuilder.getMessageBuilder(), configuration.getSessionAlias());
                 }
                 break;
             }
@@ -250,11 +250,11 @@ public class SimulatorRuleInfo implements IRuleContext {
                     resultBuilder = msg.toBuilder();
                     resultBuilder.getRawMessageBuilder().getParentEventIdBuilder().setId(rootEventId);
                 }
-                if (StringUtils.isEmpty(MessageUtils.getSessionAlias(rawMessage)) && configuration.getSessionAlias() != null) {
+                if (MessageUtilsKt.getSessionAlias(rawMessage) == null && configuration.getSessionAlias() != null) {
                     if (resultBuilder == null) {
                         resultBuilder = msg.toBuilder();
                     }
-                    MessageUtils.setSessionAlias(resultBuilder.getRawMessageBuilder(), configuration.getSessionAlias());
+                    MessageUtilsKt.setSessionAlias(resultBuilder.getRawMessageBuilder(), configuration.getSessionAlias());
                 }
                 break;
             }
@@ -268,7 +268,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     public boolean checkAlias(@NotNull Message message) {
         String alias = configuration.getSessionAlias();
-        return alias == null || alias.isEmpty() || MessageUtils.getSessionAlias(message).equals(alias);
+        return alias == null || alias.isBlank() || StringUtils.equals(MessageUtilsKt.getSessionAlias(message), alias);
     }
 
     private void requireNonNegative(long value, Supplier<String> messageSupplier) {
