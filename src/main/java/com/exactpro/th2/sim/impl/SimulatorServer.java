@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.sim.impl;
 
 import com.exactpro.th2.common.grpc.Event;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -74,13 +74,20 @@ public class SimulatorServer implements ISimulatorServer {
 
         try {
             MessageRouter<MessageGroupBatch> batchRouter = factory.getMessageRouterMessageGroupBatch();
-            SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+            SimulatorConfiguration configuration;
+
+            try {
+                configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
+            } catch (IllegalStateException e) {
+                logger.info("Can not find custom configuration, default is used");
+                configuration = new SimulatorConfiguration();
+            }
 
             eventRouter = factory.getEventBatchRouter();
             rootEventId = factory.getRootEventId();
 
             if (rootEventId == null) {
-                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null, null);
+                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null);
                 if (event != null) {
                     rootEventId = event.getId().getId();
                 }
@@ -93,6 +100,7 @@ public class SimulatorServer implements ISimulatorServer {
         } catch (Exception e) {
             throw new IllegalStateException("Can not init simulator from class " + simulatorClass.getTypeName(), e);
         }
+
     }
 
     @Override

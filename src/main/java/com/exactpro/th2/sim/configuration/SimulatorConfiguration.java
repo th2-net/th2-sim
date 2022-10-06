@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,12 @@ public class SimulatorConfiguration {
 
     private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
+    private int executionPoolSize = 12;
+
+    private int maxBatchSize = 1000;
+
+    private long maxFlushTime = 1000L;
+
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
     }
@@ -39,5 +45,29 @@ public class SimulatorConfiguration {
 
     public void setStrategyDefaultRules(DefaultRulesTurnOffStrategy strategyDefaultRules) {
         this.strategyDefaultRules = strategyDefaultRules;
+    }
+
+    public int getExecutionPoolSize() {
+        return executionPoolSize;
+    }
+
+    public void setExecutionPoolSize(int executionPoolSize) {
+        this.executionPoolSize = executionPoolSize;
+    }
+
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(int maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
+    }
+
+    public long getMaxFlushTime() {
+        return maxFlushTime;
+    }
+
+    public void setMaxFlushTime(long maxFlushTime) {
+        this.maxFlushTime = maxFlushTime;
     }
 }

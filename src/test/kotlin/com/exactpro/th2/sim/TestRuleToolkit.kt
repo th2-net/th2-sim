@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.exactpro.th2.sim
 
 import com.exactpro.th2.common.grpc.Event
@@ -9,6 +25,8 @@ import com.exactpro.th2.sim.template.rule.test.api.TestRuleContext.Companion.tes
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.opentest4j.AssertionFailedError
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class TestRuleToolkit {
 
@@ -64,6 +82,32 @@ class TestRuleToolkit {
             TestRule.assertHandle(Message.getDefaultInstance())
             Assertions.assertThrows(AssertionFailedError::class.java) {
                 assertSent(MessageGroupBatch::class.java) { }
+            }
+
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(MessageGroupBatch::class.java) { }
+            }
+
+            Assertions.assertThrows(AssertionFailedError::class.java) {
+                assertSent(Event::class.java) { }
+            }
+        }
+
+    }
+
+    @Test
+    fun `test of sent with delay`() {
+        val delay = 1000L
+
+        TestRule.triggeredAnswer = true
+        TestRule.sendLogic = {
+            it.send(Message.getDefaultInstance(), delay, TimeUnit.MILLISECONDS)
+        }
+
+        testRule {
+            TestRule.assertHandle(Message.getDefaultInstance(), Duration.ofMillis(delay+100L))
+            Assertions.assertDoesNotThrow {
+                assertSent(Message::class.java) { }
             }
 
             Assertions.assertThrows(AssertionFailedError::class.java) {

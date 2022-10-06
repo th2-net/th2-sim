@@ -1,3 +1,19 @@
+/*
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.exactpro.th2.sim.util;
 
 import com.exactpro.th2.common.grpc.Event;
@@ -42,10 +58,12 @@ public class EventUtils {
     }
 
     @Nullable
-    public static Event createEvent(String name, String body, String rootEventId) {
-        if (body != null) {
-            return createEvent(name, Collections.singleton(body), rootEventId);
-        }
+    public static Event createEvent(String name, @NotNull String body, String rootEventId) {
+        return createEvent(name, Collections.singleton(body), rootEventId);
+    }
+
+    @Nullable
+    public static Event createEvent(String name, String rootEventId) {
         return createEvent(name, Collections.emptySet(), rootEventId);
     }
 
@@ -69,10 +87,23 @@ public class EventUtils {
         return null;
     }
 
-    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String body, String rootEventId) {
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId, String body) {
         logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, body, rootEventId));
+    }
 
-        Event event = createEvent(name, body, rootEventId);
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId) {
+        logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, rootEventId));
+    }
+
+
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, String name, String rootEventId, Set<String> body) {
+        logger.info(name);
+        return sendEvent(eventRouter, createEvent(name, body, rootEventId));
+    }
+
+    public static Event sendEvent(MessageRouter<EventBatch> eventRouter, Event event) {
         if (event != null) {
             try {
                 eventRouter.send(EventBatch.newBuilder().addEvents(event).build());

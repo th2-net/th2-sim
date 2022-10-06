@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.MessageBatch
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.sim.rule.IRule
@@ -74,11 +73,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         logger.debug { "Group sent: ${TextFormat.shortDebugString(group)}" }
     }
 
-    override fun send(batch: MessageBatch) {
-        results.add(batch)
-        logger.debug { "Batch sent: ${TextFormat.shortDebugString(batch)}" }
-    }
-
     override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(msg)
@@ -94,12 +88,6 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     override fun send(group: MessageGroup, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(group)
-        })
-    }
-
-    override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
-        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
-            send(batch)
         })
     }
 

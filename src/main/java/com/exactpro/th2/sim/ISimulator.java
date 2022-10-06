@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.sim;
 
 import java.io.Closeable;
@@ -20,6 +21,7 @@ import java.io.Closeable;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,14 +40,24 @@ public interface ISimulator extends BindableService, Closeable {
     void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) throws Exception;
 
     /**
-     * Add rule to simulator which listen connectivity with connectionID
-     * Parse input to single message
-     * Parse output to single message
+     * Add rule to simulator which listen connectivity
+     *
+     * Please use addRule(rule, configuration) method instead
+     *
      * @param rule
-     * @param sessionAlias
+     * @param sessionAlias filter by alias
      * @return Rule's id
      */
+    @Deprecated(forRemoval = true)
     RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
+
+    /**
+     * Add rule to simulator which listen connectivity
+     * @param rule
+     * @param configuration filter by configuration
+     * @return Rule's id
+     */
+    RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration);
 
     /**
      * Add default rule to simulator
