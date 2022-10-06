@@ -31,7 +31,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 class MessageBatcher(
-    private val maxBatchSize: Int = 100,
+    private val maxBatchSize: Int = 1000,
     private val maxFlushTime: Long = 1000,
     private val executor: ScheduledExecutorService,
     private val onBatch: (MessageGroupBatch, String) -> Unit

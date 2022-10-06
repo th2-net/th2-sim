@@ -27,7 +27,7 @@ public class SimulatorConfiguration {
 
     private int executionPoolSize = 12;
 
-    private int maxBatchSize = 100;
+    private int maxBatchSize = 1000;
 
     private long maxFlushTime = 1000L;
 
