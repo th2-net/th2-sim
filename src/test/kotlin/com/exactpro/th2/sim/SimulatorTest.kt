@@ -31,7 +31,7 @@ import com.exactpro.th2.common.schema.message.MessageRouter
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy
 import com.exactpro.th2.sim.configuration.RuleConfiguration
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration
-import com.exactpro.th2.sim.grpc.RuleMessageFlow
+import com.exactpro.th2.sim.grpc.MessageFlow
 import com.exactpro.th2.sim.grpc.RulesInfo
 import com.exactpro.th2.sim.impl.Simulator
 import com.exactpro.th2.sim.rule.IRule
@@ -67,14 +67,14 @@ class SimulatorTest {
         sim.addRule(ruleDefault, RuleConfiguration().apply { messageFlow = "test" })
         sim.addRule(ruleDefault, RuleConfiguration())
 
-        sim.getRelatedRules(RuleMessageFlow.newBuilder().setMessageFlow("default").build(), streamObserver)
+        sim.getRelatedRules(MessageFlow.newBuilder().setFlow("default").build(), streamObserver)
         verify(streamObserver, times(1)).onNext(check {
             Assertions.assertEquals(2, it.infoCount)
             Assertions.assertEquals(1, it.getInfo(0).id.id)
             Assertions.assertEquals(3, it.getInfo(1).id.id)
         })
 
-        sim.getRelatedRules(RuleMessageFlow.newBuilder().setMessageFlow("test").build(), streamObserver)
+        sim.getRelatedRules(MessageFlow.newBuilder().setFlow("test").build(), streamObserver)
         verify(streamObserver, times(1)).onNext(check {
             Assertions.assertEquals(1, it.infoCount)
             Assertions.assertEquals(2, it.getInfo(0).id.id)

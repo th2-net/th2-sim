@@ -42,7 +42,7 @@ import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.common.schema.message.SubscriberMonitor;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
-import com.exactpro.th2.sim.grpc.RuleMessageFlow;
+import com.exactpro.th2.sim.grpc.MessageFlow;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.exactpro.th2.sim.util.MessageBatcher;
 import kotlin.Unit;
@@ -254,10 +254,10 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public void getRelatedRules(RuleMessageFlow request, StreamObserver<RulesInfo> responseObserver) {
+    public void getRelatedRules(MessageFlow request, StreamObserver<RulesInfo> responseObserver) {
         responseObserver.onNext(RulesInfo
                 .newBuilder()
-                .addAllInfo(messageFlowToRuleId.get(request.getMessageFlow()).stream()
+                .addAllInfo(messageFlowToRuleId.get(request.getFlow()).stream()
                         .map(this::createRuleInfo)
                         .collect(Collectors.toList()))
                 .build());
@@ -399,7 +399,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         var result =  RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setMessageFlow(RuleMessageFlow.newBuilder().setMessageFlow(rule.getConfiguration().getMessageFlow()));
+                .setMessageFlow(MessageFlow.newBuilder().setFlow(rule.getConfiguration().getMessageFlow()));
 
         if (rule.getConfiguration().getSessionAlias() != null) {
             result.setAlias(rule.getConfiguration().getSessionAlias());
