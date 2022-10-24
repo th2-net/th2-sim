@@ -5,6 +5,12 @@ plugins {
     id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
     id 'signing'
     id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
+    id "org.owasp.dependencycheck" version "7.3.0"
+}
+
+dependencyCheck {
+    format='HTML'
+    failBuildOnCVSS=5
 }
 
 ext {
@@ -149,13 +155,11 @@ signing {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:3.1.0')
+    api platform('com.exactpro.th2:bom:4.0.2')
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "io.github.microutils:kotlin-logging:2.0.8"
 
-    implementation "org.slf4j:slf4j-log4j12"
-    implementation "org.slf4j:slf4j-api"
 
     implementation "com.fasterxml.jackson.core:jackson-core"
     implementation "com.fasterxml.jackson.core:jackson-databind"
