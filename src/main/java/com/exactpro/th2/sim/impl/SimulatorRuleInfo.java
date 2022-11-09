@@ -134,7 +134,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             LOGGER.trace("Process message by rule with ID '{}' = {}", id, TextFormat.shortDebugString(msg));
         }
 
-        sendGroup(MessageGroup.newBuilder().addMessages(msg).build());
+        sendGroup(MessageGroup.newBuilder().addMessages(prepareMessage(msg)).build());
     }
 
     @Override
