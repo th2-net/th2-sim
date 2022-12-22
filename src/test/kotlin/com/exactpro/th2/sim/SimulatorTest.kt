@@ -33,7 +33,7 @@ class SimulatorTest {
         val streamObserver = mock<StreamObserver<Empty>>()
         val messageRouter = mock<MessageRouter<MessageGroupBatch>>()
 
-        sim.init(messageRouter, eventRouter, SimulatorConfiguration(), EventID.newBuilder().setId("rootEventID").setBookName("bookName").build())
+        sim.init(messageRouter, eventRouter, SimulatorConfiguration(), EventID.newBuilder().setId("rootEventID").build())
 
         val rules = mutableListOf<RuleID>()
 
