@@ -197,7 +197,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      */
     fun assertNothingSent(failureMessage: String? = null) {
         results.peek()?.let { actual ->
-            fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <Nothing> but was: $actual" }
+            fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <Nothing> but was: <${actual::class.simpleName}>" }
         }
         logger.debug { "Rule ${this::class.simpleName}: nothing was sent" }
     }
