@@ -191,3 +191,8 @@ clean {
 }
 
 javadoc.enabled = false
+
+
+dependencyLocking {    
+    lockAllConfigurations()
+}
