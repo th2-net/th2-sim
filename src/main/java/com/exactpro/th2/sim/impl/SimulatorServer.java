@@ -15,15 +15,16 @@
  */
 package com.exactpro.th2.sim.impl;
 
-import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.sim.IInitializedSimulator;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.ISimulatorPart;
 import com.exactpro.th2.sim.ISimulatorServer;
+import com.exactpro.th2.sim.InitializationContext;
 import com.exactpro.th2.sim.configuration.DefaultRuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
@@ -61,13 +62,13 @@ public class SimulatorServer implements ISimulatorServer {
     private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
 
     private AbstractCommonFactory factory;
-    private ISimulator simulator;
+    private IInitializedSimulator simulator;
     private Server server;
     private EventID rootEventId;
     private MessageRouter<EventBatch> eventRouter;
 
     @Override
-    public void init(@NotNull AbstractCommonFactory commonFactory, @NotNull Class<? extends ISimulator> simulatorClass) {
+    public void init(@NotNull AbstractCommonFactory commonFactory, @NotNull Class<? extends IInitializedSimulator> simulatorClass) {
 
         this.factory = Objects.requireNonNull(commonFactory, "Common factory can not be null");
         Objects.requireNonNull(simulatorClass, "Simulator class can not be null");
@@ -79,15 +80,13 @@ public class SimulatorServer implements ISimulatorServer {
             eventRouter = factory.getEventBatchRouter();
             rootEventId = factory.getRootEventId();
 
-            if (rootEventId == null) {
-                Event event = EventUtils.sendEvent(eventRouter, "Simulator - RootEvent", null, null);
-                if (event != null) {
-                    rootEventId = event.getId();
-                }
-            }
-
             simulator = simulatorClass.getConstructor().newInstance();
-            simulator.init(batchRouter, eventRouter, configuration, rootEventId);
+            simulator.init(InitializationContext.builder()
+                    .withBatchRouter(batchRouter)
+                    .withEventRouter(eventRouter)
+                    .withRootEventId(rootEventId)
+                    .withConfiguration(configuration)
+                    .build());
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);
         } catch (Exception e) {

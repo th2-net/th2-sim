@@ -28,7 +28,7 @@ import java.io.Closeable;
  */
 public interface ISimulatorServer extends Closeable {
 
-    void init(@NotNull AbstractCommonFactory factory, @NotNull Class<? extends ISimulator> simulatorServer);
+    void init(@NotNull AbstractCommonFactory factory, @NotNull Class<? extends IInitializedSimulator> simulatorServer);
 
     /**
      * Start server

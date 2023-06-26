@@ -16,7 +16,7 @@
 package com.exactpro.th2.sim.impl;
 
 import com.exactpro.th2.common.grpc.AnyMessage;
-import com.exactpro.th2.common.grpc.ConnectionID;
+import com.exactpro.th2.common.grpc.AnyMessage.KindCase;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
@@ -24,20 +24,19 @@ import com.exactpro.th2.common.grpc.Message;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.IInitializedSimulator;
+import com.exactpro.th2.sim.InitializationContext;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
-import com.exactpro.th2.sim.grpc.SimGrpc;
+import com.exactpro.th2.sim.grpc.SimGrpc.SimImplBase;
 import com.exactpro.th2.sim.grpc.TouchRequest;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.google.protobuf.Empty;
 import com.google.protobuf.TextFormat;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -60,11 +59,11 @@ import java.util.stream.Stream;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 /**
- * Default implementation of {@link ISimulator}.
+ * Default implementation of {@link IInitializedSimulator}.
  */
-public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
+public class Simulator extends SimImplBase implements IInitializedSimulator {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass() + "@" + this.hashCode());
+    private final Logger logger = LoggerFactory.getLogger(getClass() + "@" + hashCode());
 
     private final Map<String, Set<Integer>> connectivityRules = new ConcurrentHashMap<>();
     private final Map<Integer, SimulatorRuleInfo> ruleIds = new ConcurrentHashMap<>();
@@ -80,24 +79,24 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     private EventID rootEventId;
 
     @Override
-    public void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull EventID rootEventId) {
+    public void init(InitializationContext context) {
 
         if (this.batchRouter != null) {
             throw new IllegalStateException("Simulator already init");
         }
 
         try {
-            strategy = defaultIfNull(configuration.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
+            strategy = defaultIfNull(context.getConfiguration().getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
         } catch (IllegalStateException e) {
-            logger.info("Can not find custom configuration. Use '{}' for default rules starategy", this.strategy);
+            logger.info("Can not find custom configuration. Use '{}' for default rules strategy", strategy);
         }
 
-        this.batchRouter = batchRouter;
+        this.batchRouter = context.getBatchRouter();
         this.batchRouter.subscribeAll((consumerTag, batch) -> {
             for (MessageGroup messageGroup: batch.getGroupsList()) {
                 for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
-                    if (anyMessage.getKindCase().equals(AnyMessage.KindCase.RAW_MESSAGE)) {
-                        logger.debug("Unsupported format of incoming message: {}", AnyMessage.KindCase.RAW_MESSAGE.name());
+                    if (anyMessage.getKindCase() == KindCase.RAW_MESSAGE) {
+                        logger.debug("Unsupported format of incoming message: {}", KindCase.RAW_MESSAGE.name());
                         continue;
                     }
                     Message message = anyMessage.getMessage();
@@ -118,8 +117,8 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
 
         }, "first", "subscribe", "parsed");
 
-        this.eventRouter = eventRouter;
-        this.rootEventId = rootEventId;
+        this.eventRouter = context.getEventRouter();
+        this.rootEventId = context.getRootEventId();
     }
 
     @Override

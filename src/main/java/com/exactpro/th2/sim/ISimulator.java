@@ -34,8 +34,6 @@ import java.io.Closeable;
  */
 public interface ISimulator extends BindableService, Closeable {
 
-    void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull EventID rootEventId) throws Exception;
-
     /**
      * Add rule to simulator which listen connectivity with connectionID
      * Parse input to single message
