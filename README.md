@@ -1,5 +1,5 @@
 # Simulator core
-![version](https://img.shields.io/badge/version-5.2.3-blue.svg)
+![version](https://img.shields.io/badge/version-7.0.0-blue.svg)
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -127,6 +127,11 @@ spec:
 ```
 
 ## Changelog
+
+### 7.0.0
+
++ Migrate to book and pages
+  + Update common version to 5.2.1-dev
 
 ### 5.2.3
 + Fixed bug of sending AnyMessage without event_id setup
