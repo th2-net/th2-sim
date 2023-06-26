@@ -86,6 +86,7 @@ public class SimulatorServer implements ISimulatorServer {
                     .withEventRouter(eventRouter)
                     .withRootEventId(rootEventId)
                     .withConfiguration(configuration)
+                    .withBookName(factory.getBoxConfiguration().getBookName())
                     .build());
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new IllegalArgumentException("Can not create simulator with default constructor from class" + simulatorClass, e);

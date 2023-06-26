@@ -35,16 +35,24 @@ public class InitializationContext {
     @NotNull
     private final EventID rootEventId;
 
+    @NotNull
+    private final String bookName;
+
     private InitializationContext(
             @NotNull MessageRouter<MessageGroupBatch> batchRouter,
             @NotNull MessageRouter<EventBatch> eventRouter,
             @NotNull SimulatorConfiguration configuration,
-            @NotNull EventID rootEventId
+            @NotNull EventID rootEventId,
+            @NotNull String bookName
     ) {
         this.batchRouter = Objects.requireNonNull(batchRouter, "'batchRouter' parameter");
         this.eventRouter = Objects.requireNonNull(eventRouter, "'eventRouter' parameter");
         this.configuration = Objects.requireNonNull(configuration, "'configuration' parameter");
         this.rootEventId = Objects.requireNonNull(rootEventId, "'rootEventId' parameter");
+        this.bookName = Objects.requireNonNull(bookName, "'bookName' parameter");
+        if (bookName.isBlank()) {
+            throw new IllegalArgumentException("bookName is blank");
+        }
     }
 
     public MessageRouter<MessageGroupBatch> getBatchRouter() {
@@ -63,6 +71,10 @@ public class InitializationContext {
         return rootEventId;
     }
 
+    public String getBookName() {
+        return bookName;
+    }
+
     public static InitializationContextBuilder builder() {
         return new InitializationContextBuilder();
     }
@@ -72,6 +84,7 @@ public class InitializationContext {
         private MessageRouter<EventBatch> eventRouter;
         private SimulatorConfiguration configuration;
         private EventID rootEventId;
+        private String bookName;
 
         private InitializationContextBuilder() {
         }
@@ -96,8 +109,13 @@ public class InitializationContext {
             return this;
         }
 
+        public InitializationContextBuilder withBookName(String bookName) {
+            this.bookName = bookName;
+            return this;
+        }
+
         public InitializationContext build() {
-            return new InitializationContext(batchRouter, eventRouter, configuration, rootEventId);
+            return new InitializationContext(batchRouter, eventRouter, configuration, rootEventId, bookName);
         }
     }
 }

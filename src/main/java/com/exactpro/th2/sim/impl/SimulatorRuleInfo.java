@@ -57,6 +57,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final IRule rule;
     private final boolean isDefault;
     private final String sessionAlias;
+    private final String bookName;
     private final MessageRouter<MessageGroupBatch> router;
     private final ScheduledExecutorService scheduledExecutorService;
     private final MessageRouter<EventBatch> eventRouter;
@@ -70,6 +71,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             @NotNull IRule rule,
             boolean isDefault,
             @NotNull String sessionAlias,
+            @NotNull String bookName,
             @NotNull MessageRouter<MessageGroupBatch> router,
             @NotNull MessageRouter<EventBatch> eventRouter,
             @NotNull EventID rootEventId,
@@ -78,6 +80,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     ) {
         this.id = id;
         this.isDefault = isDefault;
+        this.bookName = bookName;
         this.rule = Objects.requireNonNull(rule, "Rule can not be null");
         this.sessionAlias = Objects.requireNonNull(sessionAlias, "Session alias can not be null");
         this.router = Objects.requireNonNull(router, "Router can not be null");
@@ -275,7 +278,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         AnyMessage.Builder resultBuilder = null;
 
         switch (msg.getKindCase()) {
-            case MESSAGE: {
+            case MESSAGE:
                 if (StringUtils.isEmpty(msg.getMessage().getParentEventId().getId())) {
                     resultBuilder = msg.toBuilder();
                     resultBuilder.getMessageBuilder().setParentEventId(rootEventId);
@@ -286,9 +289,14 @@ public class SimulatorRuleInfo implements IRuleContext {
                     }
                     resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
                 }
+                if (StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getBookName())) {
+                    if (resultBuilder == null) {
+                        resultBuilder = msg.toBuilder();
+                    }
+                    resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().setBookName(bookName);
+                }
                 break;
-            }
-            case RAW_MESSAGE: {
+            case RAW_MESSAGE:
                 if (StringUtils.isEmpty(msg.getRawMessage().getParentEventId().getId())) {
                     resultBuilder = msg.toBuilder();
                     resultBuilder.getRawMessageBuilder().setParentEventId(rootEventId);
@@ -299,11 +307,16 @@ public class SimulatorRuleInfo implements IRuleContext {
                     }
                     resultBuilder.getRawMessageBuilder().getMetadataBuilder().getIdBuilder().getConnectionIdBuilder().setSessionAlias(sessionAlias);
                 }
+                if (StringUtils.isEmpty(msg.getMessage().getMetadata().getId().getBookName())) {
+                    if (resultBuilder == null) {
+                        resultBuilder = msg.toBuilder();
+                    }
+                    resultBuilder.getMessageBuilder().getMetadataBuilder().getIdBuilder().setBookName(bookName);
+                }
                 break;
-            }
-            default: {
+            default:
                 LOGGER.warn("Unsupported kind of message: {}", msg.getKindCase());
-            }
+                break;
         }
 
         return resultBuilder == null ? msg : resultBuilder.build();

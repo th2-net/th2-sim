@@ -77,6 +77,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
     private MessageRouter<MessageGroupBatch> batchRouter;
     private MessageRouter<EventBatch> eventRouter;
     private EventID rootEventId;
+    private String bookName;
 
     @Override
     public void init(InitializationContext context) {
@@ -90,6 +91,8 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
         } catch (IllegalStateException e) {
             logger.info("Can not find custom configuration. Use '{}' for default rules strategy", strategy);
         }
+
+        this.bookName = context.getBookName();
 
         this.batchRouter = context.getBatchRouter();
         this.batchRouter.subscribeAll((consumerTag, batch) -> {
@@ -149,6 +152,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                         rule,
                         false,
                         sessionAlias,
+                        bookName,
                         batchRouter,
                         eventRouter,
                         event == null ? rootEventId : event.getId(),
@@ -173,6 +177,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                                 v.getRule(),
                                 true,
                                 v.getSessionAlias(),
+                                bookName,
                                 batchRouter,
                                 eventRouter,
                                 v.getRootEventId(),
@@ -238,7 +243,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
         logger.debug("Call touch on rule with id = {}", ruleInfo.getId());
 
         try {
-            ruleInfo.touch(ObjectUtils.defaultIfNull(request.getArgsMap(), Collections.emptyMap()));
+            ruleInfo.touch(defaultIfNull(request.getArgsMap(), Collections.emptyMap()));
             responseObserver.onNext(Empty.getDefaultInstance());
             responseObserver.onCompleted();
         } catch (Exception e) {
@@ -315,7 +320,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
         return RuleInfo.newBuilder()
                 .setId(RuleID.newBuilder().setId(ruleId).build())
                 .setClassName(rule.getRule().getClass().getName())
-                .setConnectionId(ConnectionID.newBuilder().setSessionAlias(rule.getSessionAlias()).build())
+                .setAlias(rule.getSessionAlias())
                 .build();
     }
 

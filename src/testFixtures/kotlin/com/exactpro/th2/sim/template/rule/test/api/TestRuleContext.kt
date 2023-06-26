@@ -240,7 +240,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
             fail { "Rule ${this::class.simpleName} expected: <${expectedType.simpleName}> but was: <${actual::class.simpleName}>" }
         }
 
-        testCase(actual as T)
+        testCase(expectedType.cast(actual))
 
         logger.debug { "Rule ${this::class.simpleName}: Message was successfully handled" }
         results.poll()

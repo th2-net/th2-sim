@@ -38,6 +38,7 @@ class SimulatorTest {
             .withBatchRouter(messageRouter)
             .withEventRouter(eventRouter)
             .withConfiguration(SimulatorConfiguration())
+            .withBookName("test_book")
             .build()
         )
 
