@@ -21,6 +21,7 @@ import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.toEventID
+import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageBatch
 import com.exactpro.th2.common.grpc.MessageGroup
@@ -122,6 +123,11 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     override fun sendEvent(event: Event) {
         results.add(event)
         logger.debug { "Event sent: $event" }
+    }
+
+    override fun sendEvent(event: Event, parentId: EventID) {
+        results.add(event.toProto(parentId))
+        logger.debug { "Event with $parentId parent ID sent: $event" }
     }
 
     override fun removeRule() {

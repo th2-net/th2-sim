@@ -250,12 +250,21 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void sendEvent(Event event) {
+        sendEventInternal(event, rootEventId);
+    }
+
+    @Override
+    public void sendEvent(Event event, EventID parentId) {
+        sendEventInternal(event, parentId);
+    }
+
+    private void sendEventInternal(Event event, EventID parentId) {
         com.exactpro.th2.common.grpc.Event eventForSend = null;
         try {
-            eventForSend = event.toProto(rootEventId);
+            eventForSend = event.toProto(parentId);
             eventRouter.send(EventBatch.newBuilder().addEvents(eventForSend).build());
         } catch (IOException e) {
-            String msg = String.format("Can not send event = %s", eventForSend != null ? MessageUtils.toJson(eventForSend) : "{null}");
+            String msg = String.format("Can not send event = %s", eventForSend == null ? "{null}" : MessageUtils.toJson(eventForSend));
             LOGGER.error(msg, e);
             throw new IllegalStateException(msg, e);
         }

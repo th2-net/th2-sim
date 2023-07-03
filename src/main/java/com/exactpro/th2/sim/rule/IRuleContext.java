@@ -98,5 +98,12 @@ public interface IRuleContext {
      */
     void sendEvent(Event event);
 
+    /**
+     * Sends {@code event} immediately. Attaches it to the {@code parentId}.
+     * @param event event to send
+     * @param parentId event ID to attach the event
+     */
+    void sendEvent(Event event, EventID parentId);
+
     void removeRule();
 }
