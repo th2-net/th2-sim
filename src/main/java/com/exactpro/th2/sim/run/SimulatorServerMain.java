@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,11 @@
  */
 package com.exactpro.th2.sim.run;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.exactpro.th2.common.schema.factory.CommonFactory;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.impl.SimulatorServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SimulatorServerMain {
 
@@ -41,18 +40,13 @@ public class SimulatorServerMain {
     }
 
     private static void addShutdownHook(SimulatorServer server, CommonFactory factory) {
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    try {
-                        server.close();
-                    } finally {
-                        factory.close();
-                    }
-                } catch (Exception e) {
-                    LOGGER.error(e.getMessage(), e);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                try (factory) {
+                    server.close();
                 }
+            } catch (Exception e) {
+                LOGGER.error(e.getMessage(), e);
             }
         }));
     }

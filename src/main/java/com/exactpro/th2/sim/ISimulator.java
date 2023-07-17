@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,6 @@
  */
 package com.exactpro.th2.sim;
 
-import com.exactpro.th2.common.grpc.EventBatch;
-import com.exactpro.th2.common.grpc.EventID;
-import com.exactpro.th2.common.grpc.MessageGroupBatch;
-import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.impl.Simulator;
 import com.exactpro.th2.sim.rule.IRule;
@@ -38,15 +33,12 @@ public interface ISimulator extends BindableService, Closeable {
      * Add rule to simulator which listen connectivity with connectionID
      * Parse input to single message
      * Parse output to single message
-     * @param rule
-     * @param sessionAlias
      * @return Rule's id
      */
     RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
 
     /**
      * Add default rule to simulator
-     * @param ruleID
      */
     void addDefaultRule(RuleID ruleID);
 

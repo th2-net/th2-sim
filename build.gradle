@@ -135,8 +135,8 @@ nexusPublishing {
 }
 
 signing {
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
+    String signingKey = findProperty("signingKey")
+    String signingPassword = findProperty("signingPassword")
     useInMemoryPgpKeys(signingKey, signingPassword)
     sign publishing.publications.mavenJava
 }
@@ -145,7 +145,8 @@ dependencies {
     api platform('com.exactpro.th2:bom:4.4.0')
     api "com.exactpro.th2:grpc-sim:5.1.0-TH2-4989-+"
 
-    implementation("com.exactpro.th2:common:$common_version")
+    implementation "com.exactpro.th2:common:$common_version"
+    implementation "com.exactpro.th2:common-utils:$common_utils_version"
 
     implementation "io.github.microutils:kotlin-logging:3.0.0"
 
@@ -166,6 +167,7 @@ dependencies {
 
     testFixturesImplementation "io.github.microutils:kotlin-logging:3.0.0"
     testFixturesApi testFixtures("com.exactpro.th2:common:$common_version")
+    testFixturesApi testFixtures("com.exactpro.th2:common-utils:$common_utils_version")
     testFixturesImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
 }
 

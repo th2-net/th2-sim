@@ -130,6 +130,7 @@ spec:
 
 ### 7.0.0
 
++ Migrate to th2 transport protocol
 + Migrate to book and pages
   + Update common version to 5.2.1-dev
 

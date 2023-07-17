@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,31 @@
 
 package com.exactpro.th2.sim.template.rule.test.api
 
-import com.exactpro.th2.common.assertEqualGroups
-import com.exactpro.th2.common.assertEqualMessages
 import com.exactpro.th2.common.buildPrefix
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.event.EventUtils.toEventID
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.MessageBatch
-import com.exactpro.th2.common.grpc.MessageGroup
-import com.exactpro.th2.common.grpc.RawMessage
 import com.exactpro.th2.common.schema.box.configuration.BoxConfiguration
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage
+import com.exactpro.th2.common.utils.event.toTransport
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
 import com.exactpro.th2.sim.rule.action.IAction
 import com.exactpro.th2.sim.rule.action.ICancellable
 import com.exactpro.th2.sim.rule.action.impl.ActionRunner
 import com.exactpro.th2.sim.rule.action.impl.MessageSender
-import com.google.protobuf.TextFormat
 import mu.KotlinLogging
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.fail
 import java.time.Duration
 import java.time.Instant
-import java.util.*
+import java.util.Deque
+import java.util.LinkedList
+import java.util.Queue
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -61,27 +62,28 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
 
     private val results: Queue<Any> = LinkedList()
 
-    override fun send(msg: Message) {
+    override fun send(msg: ParsedMessage) {
         results.add(msg)
-        logger.debug { "Parsed message sent: ${TextFormat.shortDebugString(msg)}" }
+        logger.debug { "Parsed message sent: $msg" }
     }
 
     override fun send(msg: RawMessage) {
         results.add(msg)
-        logger.debug { "Raw message sent: ${TextFormat.shortDebugString(msg)}" }
+        logger.debug { "Raw message sent: $msg" }
     }
 
     override fun send(group: MessageGroup) {
         results.add(group)
-        logger.debug { "Group sent: ${TextFormat.shortDebugString(group)}" }
+        logger.debug { "Group sent: $group" }
     }
 
-    override fun send(batch: MessageBatch) {
+    @Deprecated("Deprecated in Java")
+    override fun send(batch: GroupBatch) {
         results.add(batch)
-        logger.debug { "Batch sent: ${TextFormat.shortDebugString(batch)}" }
+        logger.debug { "Batch sent: $batch" }
     }
 
-    override fun send(msg: Message, delay: Long, timeUnit: TimeUnit) {
+    override fun send(msg: ParsedMessage, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(msg)
         })
@@ -99,7 +101,8 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         })
     }
 
-    override fun send(batch: MessageBatch, delay: Long, timeUnit: TimeUnit) {
+    @Deprecated("Deprecated in Java")
+    override fun send(batch: GroupBatch, delay: Long, timeUnit: TimeUnit) {
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, timeUnit.toMillis(delay) / speedUp) {
             send(batch)
         })
@@ -112,13 +115,23 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay / speedUp, action))
 
     override fun execute(delay: Long, period: Long, action: IAction): ICancellable =
-        registerCancellable(ActionRunner(scheduledExecutorService, messageSender, delay / speedUp, period / speedUp, action))
+        registerCancellable(
+            ActionRunner(
+                scheduledExecutorService,
+                messageSender,
+                delay / speedUp,
+                period / speedUp,
+                action
+            )
+        )
 
-    override fun getRootEventId() = toEventID(
+    override fun getRootEventIdProto() = toEventID(
         Instant.now(),
         BoxConfiguration.DEFAULT_BOOK_NAME,
         "testEventID",
     )
+
+    override fun getRootEventId() = rootEventIdProto.toTransport()
 
     override fun sendEvent(event: Event) {
         results.add(event)
@@ -147,7 +160,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param failureMessage log message on fail.
      * @return fail if rule was triggered
      */
-    fun IRule.assertNotTriggered(testMessage: Message, failureMessage: String? = null) {
+    fun IRule.assertNotTriggered(testMessage: ParsedMessage, failureMessage: String? = null) {
         if (checkTriggered(testMessage)) {
             fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <not triggered> but was: <triggered>" }
         }
@@ -160,7 +173,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param failureMessage log message on fail.
      * @return fail if rule was not triggered
      */
-    fun IRule.assertTriggered(testMessage: Message, failureMessage: String? = null) {
+    fun IRule.assertTriggered(testMessage: ParsedMessage, failureMessage: String? = null) {
         if (!checkTriggered(testMessage)) {
             fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
         }
@@ -174,7 +187,11 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param failureMessage log message on fail.
      * @return fail if rule was not triggered
      */
-    fun IRule.assertHandle(testMessage: Message, duration: Duration = Duration.ZERO, failureMessage: String? = null) {
+    fun IRule.assertHandle(
+        testMessage: ParsedMessage,
+        duration: Duration = Duration.ZERO,
+        failureMessage: String? = null
+    ) {
         assertTriggered(testMessage, failureMessage)
         handle(testMessage, duration)
     }
@@ -184,7 +201,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
      * @param testMessage incoming Message.
      * @param duration max expected message handling time
      */
-    private fun IRule.handle(testMessage: Message, duration: Duration = Duration.ZERO) {
+    private fun IRule.handle(testMessage: ParsedMessage, duration: Duration = Duration.ZERO) {
         handle(this@TestRuleContext, testMessage)
         Thread.sleep(duration.toMillis())
         removeRule()
@@ -223,11 +240,11 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     fun assertSent(expected: Any, failureMessage: String? = null) {
         assertSent(expected::class.java) { actual: Any ->
             when (expected) {
-                is Message -> assertEqualMessages(expected, actual as Message) { failureMessage }
-                is RawMessage -> assertEqualMessages(expected, actual as RawMessage) { failureMessage }
-                is MessageGroup -> assertEqualGroups(expected, actual as MessageGroup) { failureMessage }
-                is Event -> Assertions.assertEquals(expected, actual as Event) { failureMessage }
-                else -> fail {"Unsupported format of expecting sent data: $expected"}
+                is ParsedMessage -> assertEquals(expected, actual as ParsedMessage) { failureMessage }
+                is RawMessage -> assertEquals(expected, actual as RawMessage) { failureMessage }
+                is MessageGroup -> assertEquals(expected, actual as MessageGroup) { failureMessage }
+                is Event -> assertEquals(expected, actual as Event) { failureMessage }
+                else -> fail { "Unsupported format of expecting sent data: $expected" }
             }
         }
     }

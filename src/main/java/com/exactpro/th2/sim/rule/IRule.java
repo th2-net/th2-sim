@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.exactpro.th2.sim.rule;
 
-import com.exactpro.th2.common.grpc.Message;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
 import com.exactpro.th2.sim.ISimulator;
 import org.jetbrains.annotations.NotNull;
 
@@ -27,15 +27,15 @@ import java.util.Map;
 public interface IRule {
     /**
      * @param message input message
-     * @return True, if rule will triggered on this message
+     * @return True, if rule will be triggered on this message
      */
-    boolean checkTriggered(@NotNull Message message);
+    boolean checkTriggered(@NotNull ParsedMessage message);
 
     /**
      * @param ruleContext context
-     * @param message input message
+     * @param message     input message
      */
-    void handle(@NotNull IRuleContext ruleContext, @NotNull Message message);
+    void handle(@NotNull IRuleContext ruleContext, @NotNull ParsedMessage message);
 
     /**
      * Called on grpc request touchRule
