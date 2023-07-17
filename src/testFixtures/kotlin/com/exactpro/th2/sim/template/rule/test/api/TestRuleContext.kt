@@ -58,7 +58,7 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     private val messageSender = MessageSender(this::send, this::send, this::send)
 
     private val cancellables: Deque<ICancellable> = ConcurrentLinkedDeque()
-    private val scheduledExecutorService: ScheduledExecutorService =  Executors.newScheduledThreadPool(1)
+    private val scheduledExecutorService: ScheduledExecutorService = Executors.newScheduledThreadPool(1)
 
     private val results: Queue<Any> = LinkedList()
 
@@ -67,9 +67,19 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         logger.debug { "Parsed message sent: $msg" }
     }
 
+    override fun send(msg: ParsedMessage.FromMapBuilder) {
+        results.add(msg)
+        logger.debug { "Parsed message builder sent: $msg" }
+    }
+
     override fun send(msg: RawMessage) {
         results.add(msg)
         logger.debug { "Raw message sent: $msg" }
+    }
+
+    override fun send(msg: RawMessage.Builder) {
+        results.add(msg)
+        logger.debug { "Raw message builder sent: $msg" }
     }
 
     override fun send(group: MessageGroup) {

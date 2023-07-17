@@ -26,6 +26,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage;
 import com.exactpro.th2.sim.rule.IRule;
@@ -124,18 +125,33 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     @Override
     public void send(@NotNull ParsedMessage msg) {
+        requireNonNull(msg, () -> "Null parsed message supplied from rule " + id);
+        LOGGER.trace("Process parsed message by rule with ID '{}' = {}", id, msg);
         send((Message<?>) msg);
     }
 
     @Override
+    public void send(ParsedMessage.@NotNull FromMapBuilder msg) {
+        requireNonNull(msg, () -> "Null parsed message builder supplied from rule " + id);
+        LOGGER.trace("Process parsed message builder by rule with ID '{}' = {}", id, msg);
+        sendBatch(toBatch(toGroup(prepareMessage(msg).build()), bookName, ""));
+    }
+
+    @Override
     public void send(@NotNull RawMessage msg) {
+        requireNonNull(msg, () -> "Null raw message supplied from rule " + id);
+        LOGGER.trace("Process raw message by rule with ID '{}' = {}", id, msg);
         send((Message<?>) msg);
     }
 
-    private void send(@NotNull Message<?> msg) {
-        requireNonNull(msg, () -> "Null message supplied from rule " + id);
-        LOGGER.trace("Process message by rule with ID '{}' = {}", id, msg);
+    @Override
+    public void send(@NotNull RawMessage.Builder msg) {
+        requireNonNull(msg, () -> "Null raw message builder supplied from rule " + id);
+        LOGGER.trace("Process raw message builder by rule with ID '{}' = {}", id, msg);
+        sendBatch(toBatch(toGroup(prepareMessage(msg).build()), bookName, ""));
+    }
 
+    private void send(@NotNull Message<?> msg) {
         sendBatch(toBatch(toGroup(checkMessage(msg)), bookName, ""));
     }
 
@@ -294,6 +310,19 @@ public class SimulatorRuleInfo implements IRuleContext {
         }
 
         return msg;
+    }
+
+    private <T extends Message.Builder<?>> T prepareMessage(T builder) {
+        if (builder.getEventId() == null) {
+            builder.setEventId(getRootEventId());
+        }
+
+        MessageId.Builder idBuilder = builder.idBuilder();
+        if (idBuilder.getSessionAlias().isEmpty()) {
+            idBuilder.setSessionAlias(sessionAlias);
+        }
+
+        return builder;
     }
 
     private MessageGroup checkGroup(MessageGroup batch) {

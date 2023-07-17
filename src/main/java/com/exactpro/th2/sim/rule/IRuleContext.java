@@ -37,9 +37,19 @@ public interface IRuleContext {
     void send(@NotNull ParsedMessage msg);
 
     /**
+     * Attempts to send a msg immediately
+     */
+    void send(@NotNull ParsedMessage.FromMapBuilder msg);
+
+    /**
      * Attempts to send a raw msg immediately
      */
     void send(@NotNull RawMessage msg);
+
+    /**
+     * Attempts to send a raw msg immediately
+     */
+    void send(@NotNull RawMessage.Builder msg);
 
     /**
      * Attempts to send a group immediately
