@@ -6,10 +6,7 @@ plugins {
     id 'signing'
     id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
     id "org.owasp.dependencycheck" version "8.2.1"
-}
-
-ext {
-    sharedDir = file("${project.rootDir}/shared")
+    id "com.gorylenko.gradle-git-properties" version "2.4.1"
 }
 
 group = 'com.exactpro.th2'
@@ -66,8 +63,7 @@ tasks.withType(PublishToMavenRepository).configureEach {
                 project.hasProperty('nexus_url')) ||
                 (repository == publishing.repositories.sonatype &&
                         project.hasProperty('sonatypeUsername') &&
-                        project.hasProperty('sonatypePassword')) ||
-                (repository == publishing.repositories.localRepo)
+                        project.hasProperty('sonatypePassword'))
     }
 }
 tasks.withType(Sign).configureEach {
@@ -117,11 +113,7 @@ publishing {
         }
     }
     repositories {
-        maven {
-            name = 'localRepo'
-            url = sharedDir
-        }
-//Nexus repo to publish from gitlab
+        //Nexus repo to publish from gitlab
         maven {
             name = 'nexusRepository'
             credentials {
@@ -150,8 +142,8 @@ signing {
 }
 
 dependencies {
-    api platform('com.exactpro.th2:bom:4.3.0')
-    api "com.exactpro.th2:grpc-sim:5.0.0-dev-version-5-5378307570-195fe70-SNAPSHOT"
+    api platform('com.exactpro.th2:bom:4.4.0')
+    api "com.exactpro.th2:grpc-sim:5.1.0-TH2-4989-+"
 
     implementation("com.exactpro.th2:common:$common_version")
 
@@ -179,10 +171,6 @@ dependencies {
 
 test {
     useJUnitPlatform()
-}
-
-clean {
-    delete sharedDir
 }
 
 javadoc.enabled = false
