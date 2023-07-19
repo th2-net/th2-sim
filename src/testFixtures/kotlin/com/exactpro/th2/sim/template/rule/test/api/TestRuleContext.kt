@@ -251,9 +251,14 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
         assertSent(expected::class.java) { actual: Any ->
             when (expected) {
                 is ParsedMessage -> assertEquals(expected, actual as ParsedMessage) { failureMessage }
-                is RawMessage -> assertEquals(expected, actual as RawMessage) { failureMessage }
-                is MessageGroup -> assertEquals(expected, actual as MessageGroup) { failureMessage }
-                is Event -> assertEquals(expected, actual as Event) { failureMessage }
+                is ParsedMessage.FromMapBuilder -> assertEquals(
+                    expected.build(),
+                    (actual as ParsedMessage.FromMapBuilder).build()
+                ) { failureMessage }
+
+                is RawMessage -> assertEquals(expected, actual) { failureMessage }
+                is MessageGroup -> assertEquals(expected, actual) { failureMessage }
+                is Event -> assertEquals(expected, actual) { failureMessage }
                 else -> fail { "Unsupported format of expecting sent data: $expected" }
             }
         }
