@@ -116,8 +116,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                     }
                 }
             }
-
-        }, "first", "subscribe", "parsed");
+        });
 
         this.eventRouter = context.getEventRouter();
         this.rootEventId = context.getRootEventId();

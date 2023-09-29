@@ -21,7 +21,6 @@ import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
 import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.message.MessageRouter;
-import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
@@ -345,7 +344,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private void sendBatch(GroupBatch batch) {
         try {
-            router.sendAll(batch, QueueAttribute.SECOND.getValue());
+            router.sendAll(batch);
         } catch (Exception e) {
             LOGGER.error("Can not send batch {}", batch, e);
         }

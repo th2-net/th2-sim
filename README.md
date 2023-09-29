@@ -22,8 +22,8 @@ In a rule, you should override the method with the name ``touch``, which will ca
 The simulator using schema api for settings. \
 Requirements: ``rabbitMq.json``, ``mq.json``, ``grpc.json`` (server only), ``custom.json`` (optional) 
 #### Pins in MessageRouter
-Simulator subscribe message batches from pins with the attributes: ``first``, ``subscribe``, ``parsed`` \
-Simulator sends message group to pins with the attributes ``second``, ``publish`` \
+Simulator subscribe message batches from pins with the attributes: ``subscribe``, ``transport-group`` \
+Simulator sends message group to pins with the attributes ``publish``, ``transport-group`` \
 _From **4.0.0** there no session-alias attribute anymore, please use **filter** instead._
 
 *Example:*
@@ -34,19 +34,13 @@ _From **4.0.0** there no session-alias attribute anymore, please use **filter** 
       "name": "subscribe1_name",
       "queue": "subscribe1_queue",
       "exchange": "subscribe1_exchange",
-      "attributes": ["first", "subscribe", "parsed"]
+      "attributes": ["subscribe", "transport-group"]
     },
     "send1": {
       "name": "send1_name",
       "queue": "send1_queue",
       "exchange": "send1_exchange",
-      "attributes": ["second", "publish"]
-    },
-    "send2": {
-      "name": "send2_name",
-      "queue": "send2_queue",
-      "exchange": "send2_exchange",
-      "attributes": ["second", "publish"]
+      "attributes": ["publish", "transport-group"]
     }
   }
 }
