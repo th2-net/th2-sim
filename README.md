@@ -126,7 +126,7 @@ spec:
 
 + Migrate to th2 transport protocol
 + Migrate to book and pages
-  + Update common version to 5.2.1-dev
+  + Update common version to 5.5.0-dev
 
 ### 5.2.3
 + Fixed bug of sending AnyMessage without event_id setup
