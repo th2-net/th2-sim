@@ -25,7 +25,6 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.EventId;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup;
-import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageId;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage;
 import com.exactpro.th2.sim.rule.IRule;
@@ -114,7 +113,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         return isDefault;
     }
 
-    public void handle(ParsedMessage message) {
+    public void handle(@NotNull ParsedMessage message) {
         rule.handle(this, requireNonNull(message, "Message can not be null"));
     }
 
@@ -126,31 +125,31 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull ParsedMessage msg) {
         requireNonNull(msg, () -> "Null parsed message supplied from rule " + id);
         LOGGER.trace("Process parsed message by rule with ID '{}' = {}", id, msg);
-        send((Message<?>) msg);
+        sendInternal(msg);
     }
 
     @Override
-    public void send(ParsedMessage.@NotNull FromMapBuilder msg) {
+    public void send(@NotNull ParsedMessage.FromMapBuilder msg) {
         requireNonNull(msg, () -> "Null parsed message builder supplied from rule " + id);
         LOGGER.trace("Process parsed message builder by rule with ID '{}' = {}", id, msg);
-        sendBatch(toBatch(toGroup(prepareMessage(msg).build()), bookName, ""));
+        sendBatch(toBatch(toGroup(completeMessage(msg)), bookName, ""));
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
         requireNonNull(msg, () -> "Null raw message supplied from rule " + id);
         LOGGER.trace("Process raw message by rule with ID '{}' = {}", id, msg);
-        send((Message<?>) msg);
+        sendInternal(msg);
     }
 
     @Override
     public void send(@NotNull RawMessage.Builder msg) {
         requireNonNull(msg, () -> "Null raw message builder supplied from rule " + id);
         LOGGER.trace("Process raw message builder by rule with ID '{}' = {}", id, msg);
-        sendBatch(toBatch(toGroup(prepareMessage(msg).build()), bookName, ""));
+        sendBatch(toBatch(toGroup(completeMessage(msg)), bookName, ""));
     }
 
-    private void send(@NotNull Message<?> msg) {
+    private void sendInternal(@NotNull Message<?> msg) {
         sendBatch(toBatch(toGroup(checkMessage(msg)), bookName, ""));
     }
 
@@ -160,6 +159,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         LOGGER.trace("Process group by rule with ID '{}' = {}", id, group);
 
         if (group.getMessages().isEmpty()) {
+            LOGGER.warn("Skipping sending empty group. Rule ID = {}", id);
             return;
         }
         sendBatch(toBatch(checkGroup(group), bookName, ""));
@@ -210,9 +210,11 @@ public class SimulatorRuleInfo implements IRuleContext {
         checkDelay(delay);
 
         if (group.getMessages().isEmpty()) {
+            LOGGER.warn("Skipping delayed sending empty group Rule ID = {}", id);
             return;
         }
-        scheduledExecutorService.schedule(() -> send(toBatch(checkGroup(group), bookName, "")), delay, timeUnit);
+        checkGroup(group);
+        scheduledExecutorService.schedule(() -> send(toBatch(group, bookName, "")), delay, timeUnit);
     }
 
     /**
@@ -226,6 +228,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         checkDelay(delay);
 
         if (batch.getGroups().isEmpty()) {
+            LOGGER.warn("Skipping delayed sending empty batch. Rule ID = {}", id);
             return;
         }
 
@@ -311,17 +314,22 @@ public class SimulatorRuleInfo implements IRuleContext {
         return msg;
     }
 
-    private <T extends Message.Builder<?>> T prepareMessage(T builder) {
-        if (builder.getEventId() == null) {
+    private Message<?> completeMessage(Message.Builder<?> builder) {
+        // TODO: when reading of unset properties from message builder will be available
+        // TODO: it will be possible to avoid message re-building here
+        var message = builder.build();
+        var isEventIdMissing = message.getEventId() == null;
+        var isSessionAliasMissing = message.getId().getSessionAlias().isEmpty();
+
+        if (isEventIdMissing) {
             builder.setEventId(getRootEventId());
         }
 
-        MessageId.Builder idBuilder = builder.idBuilder();
-        if (idBuilder.getSessionAlias().isEmpty()) {
-            idBuilder.setSessionAlias(sessionAlias);
+        if (isSessionAliasMissing) {
+            builder.idBuilder().setSessionAlias(sessionAlias);
         }
 
-        return builder;
+        return (isEventIdMissing || isSessionAliasMissing) ? builder.build() : message;
     }
 
     private MessageGroup checkGroup(MessageGroup batch) {

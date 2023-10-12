@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.sim.run;
 
 import com.exactpro.th2.common.schema.factory.CommonFactory;
@@ -42,11 +43,14 @@ public class SimulatorServerMain {
     private static void addShutdownHook(SimulatorServer server, CommonFactory factory) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                try (factory) {
-                    server.close();
-                }
+                server.close();
             } catch (Exception e) {
-                LOGGER.error(e.getMessage(), e);
+                LOGGER.error("Close gRPC server failure", e);
+            }
+            try {
+                factory.close();
+            } catch (Exception e) {
+                LOGGER.error("Close common factory failure", e);
             }
         }));
     }

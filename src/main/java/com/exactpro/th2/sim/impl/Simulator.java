@@ -110,9 +110,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                             logger.error("Can not handle message = {}", message, e);
                         }
                     } else {
-                        if (logger.isWarnEnabled()) {
-                            logger.warn("Skip message, because session alias is empty. Message = {}", message);
-                        }
+                        logger.warn("Skip message, because session alias is empty. Message = {}", message);
                     }
                 }
             }
