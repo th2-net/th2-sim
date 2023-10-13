@@ -319,7 +319,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             builder.setEventId(getRootEventId());
         }
 
-        if (builder.idBuilder().isSessionAliasSet()) {
+        if (!builder.idBuilder().isSessionAliasSet()) {
             builder.idBuilder().setSessionAlias(sessionAlias);
         }
 
