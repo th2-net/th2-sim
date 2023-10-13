@@ -315,21 +315,15 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     private Message<?> completeMessage(Message.Builder<?> builder) {
-        // TODO: when reading of unset properties from message builder will be available
-        // TODO: it will be possible to avoid message re-building here
-        var message = builder.build();
-        var isEventIdMissing = message.getEventId() == null;
-        var isSessionAliasMissing = message.getId().getSessionAlias().isEmpty();
-
-        if (isEventIdMissing) {
+        if (builder.getEventId() == null) {
             builder.setEventId(getRootEventId());
         }
 
-        if (isSessionAliasMissing) {
+        if (builder.idBuilder().isSessionAliasSet()) {
             builder.idBuilder().setSessionAlias(sessionAlias);
         }
 
-        return (isEventIdMissing || isSessionAliasMissing) ? builder.build() : message;
+        return builder.build();
     }
 
     private MessageGroup checkGroup(MessageGroup batch) {
