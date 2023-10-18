@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,14 @@
  */
 package com.exactpro.th2.sim.impl;
 
-import com.exactpro.th2.common.grpc.AnyMessage;
-import com.exactpro.th2.common.grpc.AnyMessage.KindCase;
 import com.exactpro.th2.common.grpc.Event;
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
-import com.exactpro.th2.common.grpc.Message;
-import com.exactpro.th2.common.grpc.MessageGroup;
-import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
 import com.exactpro.th2.sim.IInitializedSimulator;
 import com.exactpro.th2.sim.InitializationContext;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
@@ -35,7 +34,6 @@ import com.exactpro.th2.sim.grpc.TouchRequest;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.google.protobuf.Empty;
-import com.google.protobuf.TextFormat;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
@@ -56,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.exactpro.th2.sim.util.EventUtils.sendErrorEvent;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
 /**
@@ -74,7 +73,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     private DefaultRulesTurnOffStrategy strategy;
-    private MessageRouter<MessageGroupBatch> batchRouter;
+    private MessageRouter<GroupBatch> batchRouter;
     private MessageRouter<EventBatch> eventRouter;
     private EventID rootEventId;
     private String bookName;
@@ -96,29 +95,26 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
 
         this.batchRouter = context.getBatchRouter();
         this.batchRouter.subscribeAll((consumerTag, batch) -> {
-            for (MessageGroup messageGroup: batch.getGroupsList()) {
-                for (AnyMessage anyMessage : messageGroup.getMessagesList()) {
-                    if (anyMessage.getKindCase() == KindCase.RAW_MESSAGE) {
-                        logger.debug("Unsupported format of incoming message: {}", KindCase.RAW_MESSAGE.name());
+            for (MessageGroup messageGroup : batch.getGroups()) {
+                for (Message<?> anyMessage : messageGroup.getMessages()) {
+                    if (!(anyMessage instanceof ParsedMessage)) {
+                        logger.debug("Unsupported format of incoming message: {}", anyMessage.getClass().getSimpleName());
                         continue;
                     }
-                    Message message = anyMessage.getMessage();
-                    String sessionAlias = message.getMetadata().getId().getConnectionId().getSessionAlias();
+                    ParsedMessage message = (ParsedMessage) anyMessage;
+                    String sessionAlias = message.getId().getSessionAlias();
                     if (StringUtils.isNotEmpty(sessionAlias)) {
                         try {
                             handleMessage(sessionAlias, message);
                         } catch (Exception e) {
-                            logger.error("Can not handle message = {}", TextFormat.shortDebugString(message), e);
+                            logger.error("Can not handle message = {}", message, e);
                         }
                     } else {
-                        if (logger.isWarnEnabled()) {
-                            logger.warn("Skip message, because session alias is empty. Message = {}", TextFormat.shortDebugString(message));
-                        }
+                        logger.warn("Skip message, because session alias is empty. Message = {}", message);
                     }
                 }
             }
-
-        }, "first", "subscribe", "parsed");
+        });
 
         this.eventRouter = context.getEventRouter();
         this.rootEventId = context.getRootEventId();
@@ -180,7 +176,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                                 bookName,
                                 batchRouter,
                                 eventRouter,
-                                v.getRootEventId(),
+                                v.getRootEventIdProto(),
                                 scheduler,
                                 this::removeRule
                         )
@@ -202,7 +198,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
         if (rule != null) {
             logger.trace("Rule [id: {}] was removed from ruleIds", id.getId());
             rule.removeRule();
-            EventUtils.sendEvent(eventRouter, String.format("Rule [id: '%d'] was removed", id.getId()), null, rule.getRootEventId());
+            EventUtils.sendEvent(eventRouter, String.format("Rule [id: '%d'] was removed", id.getId()), null, rule.getRootEventIdProto());
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -251,10 +247,8 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
         }
     }
 
-    public void handleMessage(String sessionAlias, Message message) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Handle message from session alias '{}' = {}", sessionAlias, message.getMetadata().getMessageType());
-        }
+    public void handleMessage(String sessionAlias, ParsedMessage message) {
+        logger.debug("Handle message from session alias '{}' = {}", sessionAlias, message.getType());
 
         Iterator<Integer> iterator = connectivityRules.getOrDefault(sessionAlias, Collections.emptySet()).iterator();
 
@@ -296,7 +290,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
             try {
                 triggeredRule.handle(message);
             } catch (Exception e) {
-                EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + message.getMetadata().getMessageType(), triggeredRule.getRootEventId(), e);
+                sendErrorEvent(eventRouter, "Can not handle message " + message.getType(), triggeredRule.getRootEventIdProto(), e);
             }
 
         }

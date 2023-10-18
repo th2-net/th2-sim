@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,13 @@
  */
 package com.exactpro.th2.sim.rule.impl;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Predicate;
-
+import com.exactpro.th2.sim.rule.IRule;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.exactpro.th2.common.grpc.Value;
-import com.exactpro.th2.sim.rule.IRule;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Abstract implementation {@link AbstractRule}
@@ -36,11 +34,9 @@ public abstract class MessageCompareRule extends MessagePredicateRule {
 
     /**
      * Create MessageCompareRule with arguments
-     * @param messageType
-     * @param fieldsValue
      */
-    public void init(@NotNull String messageType, @Nullable Map<String, Value> fieldsValue) {
-        Map<String, Predicate<Value>> tmp = new HashMap<>();
+    public void init(@NotNull String messageType, @Nullable Map<String, Object> fieldsValue) {
+        Map<String, Predicate<Object>> tmp = new HashMap<>();
         if (fieldsValue != null) {
             fieldsValue.forEach((str, value) -> {
                 if (value != null) {
@@ -48,6 +44,6 @@ public abstract class MessageCompareRule extends MessagePredicateRule {
                 }
             });
         }
-        super.init((messageTypeIn) -> messageType.equals(messageTypeIn), tmp);
+        super.init(messageType::equals, tmp);
     }
 }

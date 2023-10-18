@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ package com.exactpro.th2.sim.impl;
 
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
-import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
 import com.exactpro.th2.sim.IInitializedSimulator;
 import com.exactpro.th2.sim.ISimulator;
 import com.exactpro.th2.sim.ISimulatorPart;
@@ -74,7 +74,7 @@ public class SimulatorServer implements ISimulatorServer {
         Objects.requireNonNull(simulatorClass, "Simulator class can not be null");
 
         try {
-            MessageRouter<MessageGroupBatch> batchRouter = factory.getMessageRouterMessageGroupBatch();
+            MessageRouter<GroupBatch> batchRouter = factory.getTransportGroupBatchRouter();
             SimulatorConfiguration configuration = factory.getCustomConfiguration(SimulatorConfiguration.class);
 
             eventRouter = factory.getEventBatchRouter();

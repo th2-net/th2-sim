@@ -18,60 +18,59 @@ package com.exactpro.th2.sim;
 
 import com.exactpro.th2.common.grpc.EventBatch;
 import com.exactpro.th2.common.grpc.EventID;
-import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
+import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Objects;
+import static java.util.Objects.requireNonNull;
 
 public class InitializationContext {
     @NotNull
-    private final MessageRouter<MessageGroupBatch> batchRouter;
+    private final MessageRouter<GroupBatch> batchRouter;
     @NotNull
     private final MessageRouter<EventBatch> eventRouter;
     @NotNull
     private final SimulatorConfiguration configuration;
     @NotNull
     private final EventID rootEventId;
-
     @NotNull
     private final String bookName;
 
     private InitializationContext(
-            @NotNull MessageRouter<MessageGroupBatch> batchRouter,
+            MessageRouter<GroupBatch> batchRouter,
             @NotNull MessageRouter<EventBatch> eventRouter,
             @NotNull SimulatorConfiguration configuration,
             @NotNull EventID rootEventId,
             @NotNull String bookName
     ) {
-        this.batchRouter = Objects.requireNonNull(batchRouter, "'batchRouter' parameter");
-        this.eventRouter = Objects.requireNonNull(eventRouter, "'eventRouter' parameter");
-        this.configuration = Objects.requireNonNull(configuration, "'configuration' parameter");
-        this.rootEventId = Objects.requireNonNull(rootEventId, "'rootEventId' parameter");
-        this.bookName = Objects.requireNonNull(bookName, "'bookName' parameter");
+        this.batchRouter = requireNonNull(batchRouter, "'batchRouter' parameter");
+        this.eventRouter = requireNonNull(eventRouter, "'eventRouter' parameter");
+        this.configuration = requireNonNull(configuration, "'configuration' parameter");
+        this.rootEventId = requireNonNull(rootEventId, "'rootEventId' parameter");
+        this.bookName = requireNonNull(bookName, "'bookName' parameter");
         if (bookName.isBlank()) {
             throw new IllegalArgumentException("bookName is blank");
         }
     }
 
-    public MessageRouter<MessageGroupBatch> getBatchRouter() {
+    public @NotNull MessageRouter<GroupBatch> getBatchRouter() {
         return batchRouter;
     }
 
-    public MessageRouter<EventBatch> getEventRouter() {
+    public @NotNull MessageRouter<EventBatch> getEventRouter() {
         return eventRouter;
     }
 
-    public SimulatorConfiguration getConfiguration() {
+    public @NotNull SimulatorConfiguration getConfiguration() {
         return configuration;
     }
 
-    public EventID getRootEventId() {
+    public @NotNull EventID getRootEventId() {
         return rootEventId;
     }
 
-    public String getBookName() {
+    public @NotNull String getBookName() {
         return bookName;
     }
 
@@ -80,7 +79,7 @@ public class InitializationContext {
     }
 
     public static final class InitializationContextBuilder {
-        private MessageRouter<MessageGroupBatch> batchRouter;
+        private MessageRouter<GroupBatch> batchRouter;
         private MessageRouter<EventBatch> eventRouter;
         private SimulatorConfiguration configuration;
         private EventID rootEventId;
@@ -89,7 +88,7 @@ public class InitializationContext {
         private InitializationContextBuilder() {
         }
 
-        public InitializationContextBuilder withBatchRouter(MessageRouter<MessageGroupBatch> batchRouter) {
+        public InitializationContextBuilder withBatchRouter(MessageRouter<GroupBatch> batchRouter) {
             this.batchRouter = batchRouter;
             return this;
         }

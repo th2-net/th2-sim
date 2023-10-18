@@ -3,8 +3,8 @@ name: Dev build and publish Java distributions to sonatype snapshot repository
 on:
   push:
     branches-ignore:
-    - master
-    - version-*
+      - master
+      - version-*
 
 jobs:
   build-job:
@@ -12,7 +12,7 @@ jobs:
     with:
       build-target: 'Sonatype'
       runsOn: ubuntu-latest
-      gradleVersion: '6'
+      gradleVersion: '7'
     secrets:
       sonatypeUsername: ${{ secrets.SONATYPE_NEXUS_USERNAME }}
       sonatypePassword: ${{ secrets.SONATYPE_NEXUS_PASSWORD }}
