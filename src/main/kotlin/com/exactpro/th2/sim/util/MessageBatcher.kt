@@ -38,8 +38,8 @@ class MessageBatcher(
             batch.addGroups(group)
 
             when (batch.groupsCount) {
-                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
                 maxBatchSize -> send()
+                1 -> future = executor.schedule(::send, maxFlushTime, MILLISECONDS)
             }
         }
 
