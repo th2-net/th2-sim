@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.RawMessage;
+import com.exactpro.th2.common.utils.message.transport.MessageBatcher;
 import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.rule.IRuleContext;
 import com.exactpro.th2.sim.rule.action.IAction;
@@ -47,7 +48,6 @@ import java.util.function.Consumer;
 
 import static com.exactpro.th2.common.utils.event.EventUtilsKt.toTransport;
 import static com.exactpro.th2.common.utils.message.transport.MessageUtilsKt.toBatch;
-import static com.exactpro.th2.common.utils.message.transport.MessageUtilsKt.toGroup;
 import static java.util.Objects.requireNonNull;
 
 public class SimulatorRuleInfo implements IRuleContext {
@@ -60,6 +60,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     private final String sessionAlias;
     private final String bookName;
     private final MessageRouter<GroupBatch> router;
+    private final MessageBatcher messageBatcher;
     private final ScheduledExecutorService scheduledExecutorService;
     private final MessageRouter<EventBatch> eventRouter;
     private final EventID rootEventIdProto;
@@ -74,7 +75,8 @@ public class SimulatorRuleInfo implements IRuleContext {
             boolean isDefault,
             @NotNull String sessionAlias,
             @NotNull String bookName,
-            MessageRouter<GroupBatch> router,
+            @NotNull MessageRouter<GroupBatch> router,
+            @NotNull MessageBatcher messageBatcher,
             @NotNull MessageRouter<EventBatch> eventRouter,
             @NotNull EventID rootEventId,
             @NotNull ScheduledExecutorService scheduledExecutorService,
@@ -86,6 +88,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         this.rule = requireNonNull(rule, "Rule can not be null");
         this.sessionAlias = requireNonNull(sessionAlias, "Session alias can not be null");
         this.router = requireNonNull(router, "Router can not be null");
+        this.messageBatcher = requireNonNull(messageBatcher,  "Message batcher can not be null");
         this.eventRouter = requireNonNull(eventRouter, "Event router can not be null");
         this.rootEventIdProto = requireNonNull(rootEventId, "Root event id can not be null");
         this.rootEventId = toTransport(rootEventIdProto);
@@ -125,32 +128,30 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull ParsedMessage msg) {
         requireNonNull(msg, () -> "Null parsed message supplied from rule " + id);
         LOGGER.trace("Process parsed message by rule with ID '{}' = {}", id, msg);
-        sendInternal(msg);
+        checkMessage(msg);
+        messageBatcher.onMessage(msg.toBuilder(), msg.getId().getSessionAlias());
     }
 
     @Override
     public void send(@NotNull ParsedMessage.FromMapBuilder msg) {
         requireNonNull(msg, () -> "Null parsed message builder supplied from rule " + id);
         LOGGER.trace("Process parsed message builder by rule with ID '{}' = {}", id, msg);
-        sendBatch(toBatch(toGroup(completeMessage(msg)), bookName, ""));
+        messageBatcher.onMessage(completeMessage(msg), msg.idBuilder().getSessionAlias());
     }
 
     @Override
     public void send(@NotNull RawMessage msg) {
         requireNonNull(msg, () -> "Null raw message supplied from rule " + id);
         LOGGER.trace("Process raw message by rule with ID '{}' = {}", id, msg);
-        sendInternal(msg);
+        checkMessage(msg);
+        messageBatcher.onMessage(msg.toBuilder(), msg.getId().getSessionAlias());
     }
 
     @Override
     public void send(@NotNull RawMessage.Builder msg) {
         requireNonNull(msg, () -> "Null raw message builder supplied from rule " + id);
         LOGGER.trace("Process raw message builder by rule with ID '{}' = {}", id, msg);
-        sendBatch(toBatch(toGroup(completeMessage(msg)), bookName, ""));
-    }
-
-    private void sendInternal(@NotNull Message<?> msg) {
-        sendBatch(toBatch(toGroup(checkMessage(msg)), bookName, ""));
+        messageBatcher.onMessage(completeMessage(msg), msg.idBuilder().getSessionAlias());
     }
 
     @Override
@@ -314,7 +315,7 @@ public class SimulatorRuleInfo implements IRuleContext {
         return msg;
     }
 
-    private Message<?> completeMessage(Message.Builder<?> builder) {
+    private Message.Builder<?> completeMessage(Message.Builder<?> builder) {
         if (builder.getEventId() == null) {
             builder.setEventId(getRootEventId());
         }
@@ -323,7 +324,7 @@ public class SimulatorRuleInfo implements IRuleContext {
             builder.idBuilder().setSessionAlias(sessionAlias);
         }
 
-        return builder.build();
+        return builder;
     }
 
     private MessageGroup checkGroup(MessageGroup batch) {

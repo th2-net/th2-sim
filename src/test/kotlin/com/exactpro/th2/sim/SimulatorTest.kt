@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.sim
 
 import com.exactpro.th2.common.grpc.EventBatch
@@ -49,7 +50,7 @@ class SimulatorTest {
         val messageRouter = mock<MessageRouter<GroupBatch>>()
 
         sim.init(InitializationContext.builder()
-            .withRootEventId(EventID.newBuilder().setId("rootEventID").setBookName("bookName").build())
+            .withRootEventId(EventID.newBuilder().setId("rootEventID").setBookName("bookName").setScope("test_scope_11").build())
             .withBatchRouter(messageRouter)
             .withEventRouter(eventRouter)
             .withConfiguration(SimulatorConfiguration())

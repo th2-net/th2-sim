@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.sim.impl;
 
 import com.exactpro.th2.common.grpc.Event;
@@ -23,6 +24,7 @@ import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.GroupBatch
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.Message;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.MessageGroup;
 import com.exactpro.th2.common.schema.message.impl.rabbitmq.transport.ParsedMessage;
+import com.exactpro.th2.common.utils.message.transport.MessageBatcher;
 import com.exactpro.th2.sim.IInitializedSimulator;
 import com.exactpro.th2.sim.InitializationContext;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
@@ -35,6 +37,7 @@ import com.exactpro.th2.sim.rule.IRule;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.google.protobuf.Empty;
 import io.grpc.stub.StreamObserver;
+import kotlin.Unit;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -74,19 +77,21 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
 
     private DefaultRulesTurnOffStrategy strategy;
     private MessageRouter<GroupBatch> batchRouter;
+    private MessageBatcher messageBatcher;
     private MessageRouter<EventBatch> eventRouter;
     private EventID rootEventId;
     private String bookName;
 
     @Override
     public void init(InitializationContext context) {
+        var config = context.getConfiguration();
 
         if (this.batchRouter != null) {
             throw new IllegalStateException("Simulator already init");
         }
 
         try {
-            strategy = defaultIfNull(context.getConfiguration().getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
+            strategy = defaultIfNull(config.getStrategyDefaultRules(), DefaultRulesTurnOffStrategy.ON_TRIGGER);
         } catch (IllegalStateException e) {
             logger.info("Can not find custom configuration. Use '{}' for default rules strategy", strategy);
         }
@@ -115,6 +120,27 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                 }
             }
         });
+
+
+        this.messageBatcher = new MessageBatcher(
+                config.getMaxBatchSize(),
+                config.getMaxFlushTime(),
+                bookName,
+                MessageBatcher.GROUP_SELECTOR,
+                scheduler,
+                error -> {
+                    logger.error("Error in batcher", error);
+                    return Unit.INSTANCE;
+                },
+                batch -> {
+                    try {
+                        batchRouter.sendAll(batch);
+                    } catch (Exception e) {
+                        logger.error("Can not send batch {}", batch, e);
+                    }
+                    return Unit.INSTANCE;
+                }
+        );
 
         this.eventRouter = context.getEventRouter();
         this.rootEventId = context.getRootEventId();
@@ -150,6 +176,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                         sessionAlias,
                         bookName,
                         batchRouter,
+                        messageBatcher,
                         eventRouter,
                         event == null ? rootEventId : event.getId(),
                         scheduler,
@@ -175,6 +202,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
                                 v.getSessionAlias(),
                                 bookName,
                                 batchRouter,
+                                messageBatcher,
                                 eventRouter,
                                 v.getRootEventIdProto(),
                                 scheduler,
@@ -300,6 +328,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
 
     @Override
     public void close() {
+        messageBatcher.close();
         scheduler.shutdown();
         connectivityRules.clear();
         ruleIds.clear();
@@ -340,5 +369,4 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
             }
         }
     }
-
 }

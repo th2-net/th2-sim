@@ -1,5 +1,5 @@
 # Simulator core
-![version](https://img.shields.io/badge/version-7.0.0-blue.svg)
+![version](https://img.shields.io/badge/version-7.1.0-blue.svg)
 ## Description
 The Simulator is a service used for simulate different logics.
 All the logic is contained inside Rule. 
@@ -121,6 +121,10 @@ spec:
 ```
 
 ## Changelog
+
+### 7.1.0
+
++ Message batching added
 
 ### 7.0.0
 
