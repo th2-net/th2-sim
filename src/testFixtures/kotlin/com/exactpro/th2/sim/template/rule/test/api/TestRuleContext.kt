@@ -23,6 +23,8 @@ import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.MessageGroup
 import com.exactpro.th2.common.grpc.RawMessage
+import com.exactpro.th2.sim.rule.IBaseRule
+import com.exactpro.th2.sim.rule.IRawRule
 import com.exactpro.th2.sim.rule.IRule
 import com.exactpro.th2.sim.rule.IRuleContext
 import com.exactpro.th2.sim.rule.action.IAction
@@ -134,12 +136,38 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     }
 
     /**
+     * checks if rule wasn't triggered
+     * @param testMessage incoming Message.
+     * @param failureMessage log message on fail.
+     * @return fail if rule was triggered
+     */
+    fun IRawRule.assertNotTriggered(testMessage: RawMessage, failureMessage: String? = null) {
+        if (checkTriggered(testMessage)) {
+            fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <not triggered> but was: <triggered>" }
+        }
+        logger.debug { "Rule ${this::class.simpleName} was not triggered" }
+    }
+
+    /**
      * checks if rule was triggered
      * @param testMessage incoming Message.
      * @param failureMessage log message on fail.
      * @return fail if rule was not triggered
      */
     fun IRule.assertTriggered(testMessage: Message, failureMessage: String? = null) {
+        if (!checkTriggered(testMessage)) {
+            fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
+        }
+        logger.debug { "Rule ${this::class.simpleName} was triggered" }
+    }
+
+    /**
+     * checks if rule was triggered
+     * @param testMessage incoming Message.
+     * @param failureMessage log message on fail.
+     * @return fail if rule was not triggered
+     */
+    fun IRawRule.assertTriggered(testMessage: RawMessage, failureMessage: String? = null) {
         if (!checkTriggered(testMessage)) {
             fail { "${buildPrefix(failureMessage)}Rule ${this::class.simpleName} expected: <triggered> but was: <not triggered>" }
         }
@@ -159,6 +187,18 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     }
 
     /**
+     * method to test rule message handling after checkTrigger assertion
+     * @param testMessage incoming Message.
+     * @param duration pause to wait result of rule handler.
+     * @param failureMessage log message on fail.
+     * @return fail if rule was not triggered
+     */
+    fun IRawRule.assertHandle(testMessage: RawMessage, duration: Duration = Duration.ZERO, failureMessage: String? = null) {
+        assertTriggered(testMessage, failureMessage)
+        handle(testMessage, duration)
+    }
+
+    /**
      * method to call implementation of handle inside rule and wait results after [duration]
      * @param testMessage incoming Message.
      * @param duration max expected message handling time
@@ -171,11 +211,23 @@ class TestRuleContext private constructor(private val speedUp: Int, val shutdown
     }
 
     /**
+     * method to call implementation of handle inside rule and wait results after [duration]
+     * @param testMessage incoming Message.
+     * @param duration max expected message handling time
+     */
+    private fun IRawRule.handle(testMessage: RawMessage, duration: Duration = Duration.ZERO) {
+        handle(this@TestRuleContext, testMessage)
+        Thread.sleep(duration.toMillis())
+        removeRule()
+        logger.debug { "Rule ${this::class.simpleName} was successfully handled after $duration delay" }
+    }
+
+    /**
      * method to execute rule's touch method
      * @param args incoming arguments
      * @param duration pause to wait result of touch, after delay all execution tasks will be stopped.
      */
-    fun IRule.touch(args: Map<String, String>, duration: Duration = Duration.ZERO) {
+    fun IBaseRule<*>.touch(args: Map<String, String>, duration: Duration = Duration.ZERO) {
         this.touch(this@TestRuleContext, args)
         Thread.sleep(duration.toMillis())
         removeRule()
