@@ -25,8 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,12 +37,14 @@ import java.util.stream.Collectors;
 import com.exactpro.th2.common.grpc.AnyMessage;
 import com.exactpro.th2.common.grpc.MessageGroup;
 import com.exactpro.th2.common.grpc.MessageGroupBatch;
+import com.exactpro.th2.common.grpc.RawMessage;
 import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.schema.message.QueueAttribute;
 import com.exactpro.th2.common.schema.message.SubscriberMonitor;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.grpc.RuleRelation;
+import com.exactpro.th2.sim.rule.IBaseRule;
 import com.exactpro.th2.sim.util.EventUtils;
 import com.exactpro.th2.sim.util.MessageBatcher;
 import kotlin.Unit;
@@ -64,9 +64,7 @@ import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
 import com.exactpro.th2.sim.grpc.SimGrpc;
 import com.exactpro.th2.sim.grpc.TouchRequest;
-import com.exactpro.th2.sim.rule.IRule;
 import com.google.protobuf.Empty;
-import com.google.protobuf.TextFormat;
 
 import io.grpc.stub.StreamObserver;
 
@@ -156,14 +154,14 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias) {
+    public RuleID addRule(@NotNull IBaseRule<?> rule, @NotNull String sessionAlias) {
         var configuration = new RuleConfiguration();
         configuration.setSessionAlias(sessionAlias);
         return this.addRule(rule, configuration);
     }
 
     @Override
-    public RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration) {
+    public RuleID addRule(@NotNull IBaseRule<?> rule, @NotNull RuleConfiguration configuration) {
         Objects.requireNonNull(rule, "Rule can not be null");
         Objects.requireNonNull(configuration, "RuleConfiguration can not be null");
 
@@ -191,7 +189,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         relationRules.add(ruleInfo.getId());
 
         if (!subscriptions.contains(relation)) {
-            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), QueueAttribute.PARSED.getValue(), relation);
+            SubscriberMonitor subscribe = this.batchRouter.subscribeAll((consumerTag, batch) -> handleBatch(batch, relation), QueueAttribute.FIRST.getValue(), QueueAttribute.SUBSCRIBE.getValue(), relation);
             if (subscribe==null) {
                 logger.error("Cannot subscribe to queue with attributes: [\"first\", \"subscribe\", \"parsed\", \"{}\"]", relation);
             } else {
@@ -292,16 +290,15 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         executorService.execute(() -> {
             try {
                 List<MessageGroup> messageGroups = batch.getGroupsList();
-                int messageGroupsSize = messageGroups.size();
-                for (int messageGroupIndex = 0; messageGroupIndex < messageGroupsSize; messageGroupIndex++) {
+                for (MessageGroup messageGroup : messageGroups) {
 
-                    List<AnyMessage> messages = messageGroups.get(messageGroupIndex).getMessagesList();
-                    int messageGroupSize = messages.size();
-                    for (int messageIndex = 0; messageIndex < messageGroupSize; messageIndex++) {
+                    List<AnyMessage> messages = messageGroup.getMessagesList();
+                    for (AnyMessage message : messages) {
 
-                        AnyMessage message = messages.get(messageIndex);
                         if (message.hasMessage()) {
                             handleMessage(message.getMessage(), relation);
+                        } else if (message.hasRawMessage()) {
+                            handleMessage(message.getRawMessage(), relation);
                         } else {
                             logger.warn("Unsupported format of incoming message: {}", message.getKindCase().name());
                         }
@@ -327,15 +324,40 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             return;
         }
 
-        int triggeredSize = triggeredRules.size();
-        for (int i = 0; i < triggeredSize; i++) {
-            SimulatorRuleInfo triggeredRule = triggeredRules.get(i);
+        for (SimulatorRuleInfo triggeredRule : triggeredRules) {
             try {
                 triggeredRule.handle(message);
             } catch (Exception e) {
                 String msgType = message.getMetadata().getMessageType();
                 logger.error("Rule id: {} can not handle message {}", triggeredRule.getId(), msgType, e);
                 EventUtils.sendErrorEvent(eventRouter, "Can not handle message " + msgType, triggeredRule.getRootEventId(), e);
+            }
+        }
+        logTriggeredRules(triggeredRules);
+    }
+
+    private void handleMessage(RawMessage message, String relation) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Handle raw message from relation '{}'", relation);
+        }
+
+        List<SimulatorRuleInfo> triggeredRules = getTriggered(message, relation);
+
+        if(triggeredRules.isEmpty()) {
+            logger.debug("No rules were triggered");
+            return;
+        }
+
+        for (SimulatorRuleInfo triggeredRule : triggeredRules) {
+            try {
+                triggeredRule.handle(message);
+            } catch (Exception e) {
+                if (logger.isErrorEnabled()) {
+                    logger.error("Rule id: {} can not handle raw message {}",
+                            triggeredRule.getId(), MessageUtils.toJson(message.getMetadata().getId()), e);
+                }
+                EventUtils.sendErrorEvent(eventRouter, "Can not handle raw message message " + MessageUtils.toJson(message.getMetadata().getId()),
+                        triggeredRule.getRootEventId(), e);
             }
         }
         logTriggeredRules(triggeredRules);
@@ -362,7 +384,7 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
         List<SimulatorRuleInfo> triggeredRules = new ArrayList<>();
         for (Integer id : relationRules) {
             SimulatorRuleInfo rule = ruleIds.get(id);
-            if (rule.checkAlias(message) && rule.getRule().checkTriggered(message)) {
+            if (rule.checkAlias(message) && rule.checkTriggered(message)) {
                 triggeredRules.add(rule);
             }
         }
@@ -378,6 +400,58 @@ public class Simulator extends SimGrpc.SimImplBase implements ISimulator {
             }
             if (strategy == DefaultRulesTurnOffStrategy.ON_ADD || !nonDefaultRules.isEmpty()) {
                 logger.trace("Only non default rules will process message ({}) due strategy: {}", message.getMetadata().getMessageType(), strategy.name());
+                triggeredRules = nonDefaultRules;
+            }
+        }
+
+        return  triggeredRules;
+    }
+
+    private List<SimulatorRuleInfo> getTriggered(RawMessage message, String relation) {
+        Set<Integer> relationRules = relationToRuleId.get(relation);
+
+        if(relationRules == null) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("No related rules was found for message: {}",
+                        MessageUtils.toJson(message.getMetadata().getId()));
+            }
+            return Collections.emptyList();
+        }
+
+        if (logger.isTraceEnabled()) {
+            //TODO: Performance issue because of set.stream
+            String rules = relationRules.stream()
+                    .map(id -> ruleIds.get(id).getRule().getClass().getSimpleName())
+                    .collect(Collectors.joining(", "));
+
+            if (logger.isTraceEnabled()) {
+                logger.trace("Raw message {} checking against related rules: {}",
+                        MessageUtils.toJson(message.getMetadata().getId()), rules);
+            }
+        }
+
+        List<SimulatorRuleInfo> triggeredRules = new ArrayList<>();
+        for (Integer id : relationRules) {
+            SimulatorRuleInfo rule = ruleIds.get(id);
+            if (rule.checkAlias(message) && rule.checkTriggered(message)) {
+                triggeredRules.add(rule);
+            }
+        }
+
+        int defaultCount = countDefaultRules.get();
+
+        if (!triggeredRules.isEmpty() && defaultCount != 0 && defaultCount != ruleIds.size()) {
+            List<SimulatorRuleInfo> nonDefaultRules = new ArrayList<>();
+            for (SimulatorRuleInfo ruleInfo : triggeredRules) {
+                if (!ruleInfo.isDefault()) {
+                    nonDefaultRules.add(ruleInfo);
+                }
+            }
+            if (strategy == DefaultRulesTurnOffStrategy.ON_ADD || !nonDefaultRules.isEmpty()) {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Only non default rules will process message ({}) due strategy: {}",
+                            MessageUtils.toJson(message.getMetadata().getId()), strategy.name());
+                }
                 triggeredRules = nonDefaultRules;
             }
         }

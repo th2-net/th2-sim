@@ -31,6 +31,8 @@ import com.exactpro.th2.common.grpc.RawMessage;
 import com.exactpro.th2.common.message.MessageUtils;
 import com.exactpro.th2.common.utils.event.EventBatcher;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
+import com.exactpro.th2.sim.rule.IBaseRule;
+import com.exactpro.th2.sim.rule.IRawRule;
 import com.exactpro.th2.sim.util.MessageBatcher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.commons.lang3.StringUtils;
@@ -51,7 +53,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimulatorRuleInfo.class);
 
-    private final IRule rule;
+    private final IBaseRule<?> rule;
 
     private final int id;
     private final String rootEventId;
@@ -72,7 +74,7 @@ public class SimulatorRuleInfo implements IRuleContext {
 
     public SimulatorRuleInfo(
             int id,
-            @NotNull IRule rule,
+            @NotNull IBaseRule<?> rule,
             @NotNull RuleConfiguration configuration,
             @NotNull MessageBatcher messageBatcher,
             @NotNull EventBatcher eventBatcher,
@@ -95,7 +97,7 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     @NotNull
-    public IRule getRule() {
+    public IBaseRule<?> getRule() {
         return rule;
     }
 
@@ -117,8 +119,24 @@ public class SimulatorRuleInfo implements IRuleContext {
         this.isDefault = isDefault;
     }
 
+    public boolean checkTriggered(@NotNull Message message) {
+        return rule instanceof IRule && ((IRule) rule).checkTriggered(message);
+    }
+
+    public boolean checkTriggered(@NotNull RawMessage message) {
+        return rule instanceof IRawRule && ((IRawRule) rule).checkTriggered(message);
+    }
+
     public void handle(@NotNull Message message) {
-        rule.handle(this, Objects.requireNonNull(message, "Message can not be null"));
+        if (rule instanceof IRule) {
+            ((IRule)rule).handle(this, Objects.requireNonNull(message, "Message can not be null"));
+        }
+    }
+
+    public void handle(@NotNull RawMessage message) {
+        if (rule instanceof IRawRule) {
+            ((IRawRule)rule).handle(this, Objects.requireNonNull(message, "Message can not be null"));
+        }
     }
 
     public void touch(@NotNull Map<String, String> args) {
@@ -267,6 +285,11 @@ public class SimulatorRuleInfo implements IRuleContext {
     }
 
     public boolean checkAlias(@NotNull Message message) {
+        String alias = configuration.getSessionAlias();
+        return alias == null || alias.isEmpty() || MessageUtils.getSessionAlias(message).equals(alias);
+    }
+
+    public boolean checkAlias(@NotNull RawMessage message) {
         String alias = configuration.getSessionAlias();
         return alias == null || alias.isEmpty() || MessageUtils.getSessionAlias(message).equals(alias);
     }

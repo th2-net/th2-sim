@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 Exactpro (Exactpro Systems Limited)
+ * Copyright 2024 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.sim.rule;
+package com.exactpro.th2.sim.rule.impl;
 
-import com.exactpro.th2.common.grpc.Message;
-import com.exactpro.th2.sim.ISimulator;
+import com.exactpro.th2.sim.rule.IRawRule;
+import com.exactpro.th2.sim.rule.IRuleContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-/**
- * Interface for {@link ISimulator} rules
- */
-public interface IRule extends IBaseRule<Message> {
+public abstract class AbstractRawRule implements IRawRule {
+    @Override
+    public void touch(@NotNull IRuleContext ruleContext, @NotNull Map<String, String> args) {
+    }
 }

@@ -23,11 +23,11 @@ import com.exactpro.th2.common.grpc.MessageGroupBatch;
 import com.exactpro.th2.common.schema.message.MessageRouter;
 import com.exactpro.th2.sim.configuration.RuleConfiguration;
 import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
+import com.exactpro.th2.sim.rule.IBaseRule;
 import org.jetbrains.annotations.NotNull;
 
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.impl.Simulator;
-import com.exactpro.th2.sim.rule.IRule;
 
 import io.grpc.BindableService;
 
@@ -40,7 +40,7 @@ public interface ISimulator extends BindableService, Closeable {
     void init(@NotNull MessageRouter<MessageGroupBatch> batchRouter, @NotNull MessageRouter<EventBatch> eventRouter, @NotNull SimulatorConfiguration configuration, @NotNull String rootEventId) throws Exception;
 
     @Deprecated
-    RuleID addRule(@NotNull IRule rule, @NotNull String sessionAlias);
+    RuleID addRule(@NotNull IBaseRule<?> rule, @NotNull String sessionAlias);
 
     /**
      * Add rule to simulator which listen connectivity with connectionID
@@ -50,7 +50,7 @@ public interface ISimulator extends BindableService, Closeable {
      * @param configuration
      * @return Rule's id
      */
-    RuleID addRule(@NotNull IRule rule, @NotNull RuleConfiguration configuration);
+    RuleID addRule(@NotNull IBaseRule<?> rule, @NotNull RuleConfiguration configuration);
 
     /**
      * Add default rule to simulator
