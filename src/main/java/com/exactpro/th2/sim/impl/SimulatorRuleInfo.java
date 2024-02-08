@@ -136,7 +136,8 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull ParsedMessage.FromMapBuilder msg) {
         requireNonNull(msg, () -> "Null parsed message builder supplied from rule " + id);
         LOGGER.trace("Process parsed message builder by rule with ID '{}' = {}", id, msg);
-        messageBatcher.onMessage(completeMessage(msg), msg.idBuilder().getSessionAlias());
+        completeMessage(msg);
+        messageBatcher.onMessage(msg, msg.idBuilder().getSessionAlias());
     }
 
     @Override
@@ -151,7 +152,8 @@ public class SimulatorRuleInfo implements IRuleContext {
     public void send(@NotNull RawMessage.Builder msg) {
         requireNonNull(msg, () -> "Null raw message builder supplied from rule " + id);
         LOGGER.trace("Process raw message builder by rule with ID '{}' = {}", id, msg);
-        messageBatcher.onMessage(completeMessage(msg), msg.idBuilder().getSessionAlias());
+        completeMessage(msg);
+        messageBatcher.onMessage(msg, msg.idBuilder().getSessionAlias());
     }
 
     @Override
