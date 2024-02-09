@@ -25,8 +25,8 @@ public class SimulatorConfiguration {
 
     private List<DefaultRuleConfiguration> defaultRules = Collections.emptyList();
 
-    private int maxBatchSize = 1000;
-    private long maxFlushTime = 1000;
+    private int maxMessageBatchSize = 1000;
+    private long maxMessageFlushTime = 1000;
 
     public List<DefaultRuleConfiguration> getDefaultRules() {
         return defaultRules;
@@ -44,19 +44,19 @@ public class SimulatorConfiguration {
         this.strategyDefaultRules = strategyDefaultRules;
     }
 
-    public int getMaxBatchSize() {
-        return maxBatchSize;
+    public int getMaxMessageBatchSize() {
+        return maxMessageBatchSize;
     }
 
-    public void setMaxBatchSize(int maxBatchSize) {
-        this.maxBatchSize = maxBatchSize;
+    public void setMaxMessageBatchSize(int maxMessageBatchSize) {
+        this.maxMessageBatchSize = maxMessageBatchSize;
     }
 
-    public long getMaxFlushTime() {
-        return maxFlushTime;
+    public long getMaxMessageFlushTime() {
+        return maxMessageFlushTime;
     }
 
-    public void setMaxFlushTime(long maxFlushTime) {
-        this.maxFlushTime = maxFlushTime;
+    public void setMaxMessageFlushTime(long maxMessageFlushTime) {
+        this.maxMessageFlushTime = maxMessageFlushTime;
     }
 }

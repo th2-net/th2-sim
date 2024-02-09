@@ -28,6 +28,7 @@ import com.exactpro.th2.common.utils.message.transport.MessageBatcher;
 import com.exactpro.th2.sim.IInitializedSimulator;
 import com.exactpro.th2.sim.InitializationContext;
 import com.exactpro.th2.sim.configuration.DefaultRulesTurnOffStrategy;
+import com.exactpro.th2.sim.configuration.SimulatorConfiguration;
 import com.exactpro.th2.sim.grpc.RuleID;
 import com.exactpro.th2.sim.grpc.RuleInfo;
 import com.exactpro.th2.sim.grpc.RulesInfo;
@@ -84,7 +85,7 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
 
     @Override
     public void init(InitializationContext context) {
-        var config = context.getConfiguration();
+        SimulatorConfiguration config = context.getConfiguration();
 
         if (this.batchRouter != null) {
             throw new IllegalStateException("Simulator already init");
@@ -121,12 +122,11 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
             }
         });
 
-
         this.messageBatcher = new MessageBatcher(
-                config.getMaxBatchSize(),
-                config.getMaxFlushTime(),
+                config.getMaxMessageBatchSize(),
+                config.getMaxMessageFlushTime(),
                 bookName,
-                MessageBatcher.GROUP_SELECTOR,
+                MessageBatcher.ALIAS_SELECTOR,
                 scheduler,
                 error -> {
                     logger.error("Error in batcher", error);
@@ -328,10 +328,10 @@ public class Simulator extends SimImplBase implements IInitializedSimulator {
 
     @Override
     public void close() {
-        messageBatcher.close();
         scheduler.shutdown();
         connectivityRules.clear();
         ruleIds.clear();
+        messageBatcher.close();
     }
 
     private RuleInfo createRuleInfo(int ruleId) {

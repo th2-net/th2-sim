@@ -125,6 +125,7 @@ spec:
 ### 7.1.0
 
 + Message batching added
++ Update common version to 5.8.0-dev
 
 ### 7.0.0
 
