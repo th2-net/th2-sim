@@ -51,6 +51,9 @@ The field `strategyDefaultRules` can take the values `ON_ADD` or `ON_TRIGGER`.
 The default value is set to `ON_TRIGGER`.
 If you set the value to `ON_ADD`, the default rules will be disabled if an user adds non-default rule.
 If you set the value to `ON_TRIGGER`, the default rules will be disabled if non-default rules will be triggered on the same message. \
+
+The `maxMessageBatchSize` and `maxMessageFlushTime` fields specifies message batching options. Default value of both fields is `100`.
+
 *Example:*
 
 ```json
@@ -71,7 +74,9 @@ If you set the value to `ON_TRIGGER`, the default rules will be disabled if non-
         }
       }
     }
-  ]
+  ],
+  "maxMessageBatchSize": 100,
+  "maxMessageFlushTime": 100
 }
 ```
 ### Custom Resources for infra-mgr
@@ -90,6 +95,8 @@ spec:
               simple_value: order_id
           connection_id:
             session_alias: fix-client
+    maxMessageBatchSize: 100
+    maxMessageFlushTime: 100
   pins:
     - name: subscribe1
       connection-type: mq
@@ -125,6 +132,7 @@ spec:
 ### 7.1.0
 
 + Message batching added
+  + `maxMessageBatchSize` and `maxMessageFlushTime` custom configuration settings added
 + Update common version to 5.8.0-dev
 
 ### 7.0.0
